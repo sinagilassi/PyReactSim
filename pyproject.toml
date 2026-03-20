@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyreactsim"
+version = "0.1.0"
+description = "PyReactSim is a Python package for steady-state chemical reactor simulation, integrating reaction kinetics, thermodynamics, and reactor design tools."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Sina Gilassi", email = "sina.gilassi@gmail.com"}
+]
+keywords = [
+    "chemical-engineering",
+    "process-simulation",
+    "reactor-design",
+    "reaction-kinetics",
+]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Education",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: Unix",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+]
+dependencies = [
+    "scipy>=1.16.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    "rich>=14.2.0",
+    "pycuc>=2.4.0",
+    "pythermodb>=1.12.2",
+    "pythermolinkdb>=1.4.9",
+    "pythermodb-settings>=0.2.3",
+    "pyreactlab-core>=0.1.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/sinagilassi/PyReactSim"
+Source = "https://github.com/sinagilassi/PyReactSim"
+Tracker = "https://github.com/sinagilassi/PyReactSim/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+exclude = [
+    "tests",
+    "tests.*",
+    "examples",
+    "examples.*",
+    "notebooks",
+    "notebooks.*",
+    "statics",
+    "statics.*",
+    "private",
+    "private.*",
+    "app",
+    "app.*"
+]
+
+[tool.setuptools.package-data]
+pyreactsim = [
+    "config/*.yml",
+    "data/*.csv",
+    "templates/*.html",
+    "static/*",
+    "static/**/*"
+]

@@ -1,13 +1,20 @@
 # PyReactSim
 
-PyReactSim is a powerful and user-friendly Python package designed to model and simulate various types of chemical reactors, including batch reactors, plug flow reactors (PFR), and continuous stirred-tank reactors (CSTR). Whether you're analyzing reaction kinetics, evaluating reactor performance, or studying reaction dynamics, PyReactSim provides a comprehensive toolkit for engineers, researchers, and students.
+**PyReactSim** is a Python package for chemical reactor simulation and design. It enables engineers and researchers to model common reactor types such as batch, CSTR, and plug flow reactors, incorporating reaction kinetics, thermodynamics, and transport effects. The initial version focuses on **steady-state simulations**, allowing users to analyze conversion, selectivity, and temperature profiles under different operating conditions. Designed for flexibility and integration, PyReactSim can be used alongside thermodynamic and phase equilibrium tools to build comprehensive reaction and process models, with dynamic simulation capabilities planned for future releases.
 
-**Key features:**
+## 🤝 Contributing
 
-* Support for batch, PFR, and CSTR models.
-* Customizable input parameters for reaction rates, volumes, and residence times.
-* Easy-to-extend framework for adding new types of reactions and reactors.
-* Tools for visualizing concentration profiles, temperature changes, and conversion rates over time.
-* Suitable for educational purposes, research, and industrial applications.
+Contributions are highly welcome — bug fixes, new calculation routines, mixture models, extended unit tests, documentation, etc.
 
-With PyReactSim, you can easily set up simulations, study the effects of different operating conditions, and optimize reactor design to achieve desired outputs.
+## 📝 License
+
+This project is distributed under the Apache License, Version 2.0, which grants you broad freedom to use, modify, and integrate the software into your own applications or projects, provided that you comply with the conditions outlined in the license. Although Apache 2.0 does not require users to retain explicit author credit beyond standard copyright and license notices, I kindly request that if you incorporate this work into your own software, you acknowledge Sina Gilassi as the original author. Referencing the original repository or documentation is appreciated, as it helps recognize the effort invested in developing and maintaining this project.
+
+## ❓ FAQ
+
+For any question, contact me on [LinkedIn](https://www.linkedin.com/in/sina-gilassi/)
+
+## 👨‍💻 Authors
+
+- [@sinagilassi](https://www.github.com/sinagilassi)
+
