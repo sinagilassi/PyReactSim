@@ -37,6 +37,7 @@ dependencies = [
     "pythermolinkdb",
     "pythermodb-settings",
     "pyreactlab-core",
+    "numpy>=2.4.3",
 ]
 
 [project.urls]

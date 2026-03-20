@@ -456,6 +456,7 @@ name = "pyreactsim"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "numpy" },
     { name = "pycuc" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -469,6 +470,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "numpy", specifier = ">=2.4.3" },
     { name = "pycuc" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
