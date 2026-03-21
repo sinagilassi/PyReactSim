@@ -479,7 +479,7 @@ requires-dist = [
     { name = "pythermodb-settings" },
     { name = "pythermolinkdb" },
     { name = "rich" },
-    { name = "scipy" },
+    { name = "scipy", specifier = ">=1.17.1" },
 ]
 
 [[package]]
@@ -502,16 +502,16 @@ wheels = [
 
 [[package]]
 name = "pythermodb-settings"
-version = "0.2.3"
+version = "0.2.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/92/9b/4facc731fa3956ef5f8b88242ec0624e8d9b3422a2e3f3b69866b26ee386/pythermodb_settings-0.2.3.tar.gz", hash = "sha256:dad8f0e016da711a3ff04ecf6ad410b3f18013fbf63827354a7b21410a35280f", size = 22643, upload-time = "2026-01-18T21:24:13.612Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/ac/3d8e2963a0e879f1e32f412f4fe30af7435a5accf9a5a89e63c701d53e56/pythermodb_settings-0.2.4.tar.gz", hash = "sha256:7b69cce954baaddad5e2453b97854f896cb4a93f946fa4edcbf14d170628363a", size = 22749, upload-time = "2026-03-21T20:24:37.945Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/ac/e3e5a63d41a06712c21b4ab1b7ca0a100ec4f2c76752db27495a10facca7/pythermodb_settings-0.2.3-py3-none-any.whl", hash = "sha256:2663383398b825724de29bd96f3271ab1baf1f4b607d52a931f6d827feb35f6d", size = 26346, upload-time = "2026-01-18T21:24:12.254Z" },
+    { url = "https://files.pythonhosted.org/packages/91/e6/4a6664db8365d8f661d7242cfe0081aec68b498f2829d9726903fb12a49a/pythermodb_settings-0.2.4-py3-none-any.whl", hash = "sha256:d601eb0075fd9bfe70f5a729ebafacd8fde318b85691f5018d404fe7fd9d4dbe", size = 26348, upload-time = "2026-03-21T20:24:36.765Z" },
 ]
 
 [[package]]

@@ -9,9 +9,10 @@ from pyThermoLinkDB import (
     build_model_source
 )
 from pyThermoLinkDB.models import ComponentModelSource, ModelSource
-from pythermodb_settings.models import Component, Pressure, Temperature
+from pythermodb_settings.models import Component, Pressure, Temperature, CustomProp, Volume, CustomProperty
 from pyThermoDB import ComponentThermoDB
 from pyThermoDB import build_component_thermodb_from_reference
+from pyreactlab_core.models.reaction import Reaction
 
 
 # check version
@@ -208,3 +209,17 @@ component_key = propane_component.name+"-"+propane_component.state
 # vapor pressure
 VaPr = equationsource[component_key]['VaPr'].cal(T=300.1)
 print(VaPr)
+
+# =======================================
+# SECTION: Inputs
+# =======================================
+# ! assumptions: variable pressure, isothermal, ideal gas behavior, single component system
+# NOTE: reactor type
+reactor_type = "Gas-Phase"
+
+# NOTE: reactor vessel volume in m3
+reactor_volume = CustomProperty(
+    value=1.0,
+    unit="m3",
+    symbol="Vr"
+)

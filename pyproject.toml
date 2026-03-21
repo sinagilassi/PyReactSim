@@ -28,7 +28,8 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
-    "scipy",
+    "numpy>=2.4.3",
+    "scipy>=1.17.1",
     "pydantic",
     "pydantic-settings",
     "rich",
@@ -37,7 +38,6 @@ dependencies = [
     "pythermolinkdb",
     "pythermodb-settings",
     "pyreactlab-core",
-    "numpy>=2.4.3",
 ]
 
 [project.urls]
