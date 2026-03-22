@@ -1,6 +1,7 @@
 # import packages/modules
 import os
 from rich import print
+from typing import Callable, Dict, Optional, Union, List, Any
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
 from pyThermoLinkDB import (
@@ -15,6 +16,7 @@ from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models.br import BatchReactorOptions
+from pyreactsim.models import rArgs, rParams, rRet, X
 
 
 # check version
@@ -298,3 +300,16 @@ model_inputs = {
 }
 
 # SECTION: Reaction
+# ! Reaction Rate Expression
+
+
+def r(X: Any, args: rArgs, params: rParams) -> rRet:
+    k = 0.1*args['T'].value+0.01*args['P'].value
+    rExp = k*X['A']*X['B']
+    return {
+        'r1': CustomProperty(
+            value=rExp,
+            unit="mol/m3.s",
+            symbol="r1"
+        )
+    }
