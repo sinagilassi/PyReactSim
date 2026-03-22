@@ -3,7 +3,7 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field, computed_field, model_validator
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union, TypeAlias, Callable, Awaitable
-from pythermodb_settings.models import Component, CustomProperty
+from pythermodb_settings.models import Component, CustomProperty, Pressure, Temperature, Volume, CustomProp
 from pyreactlab_core.models.reaction import Reaction
 from ..core.rate import ReactionRate
 # locals
@@ -94,10 +94,18 @@ class ReactionRateExpression(BaseModel):
     def calc(
             self,
             xi: Dict[str, CustomProperty],
-            args: rArgs
+            *,
+            args: Optional[rArgs] = None,
+            temperature: Optional[Temperature] = None,
+            pressure: Optional[Pressure] = None
     ) -> rRet:
         """
         Update the reaction rate based on the provided state (xi) either concentration or pressure.
         """
         # calculate rate
-        return self.reactionRate.calc(xi=xi, args=args)
+        return self.reactionRate.calc(
+            xi=xi,
+            args=args,
+            temperature=temperature,
+            pressure=pressure
+        )

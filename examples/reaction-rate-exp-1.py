@@ -141,3 +141,15 @@ rate_expression = ReactionRateExpression(
     reaction=reaction,
     eq=r1
 )
+
+# cal
+result = rate_expression.calc(
+    xi={
+        'A': CustomProperty(value=2.0, unit="mol/m3", symbol="[A]"),
+        'B': CustomProperty(value=3.0, unit="mol/m3", symbol="[B]")
+    },
+    args={},
+    temperature=initial_temperature,
+    pressure=initial_pressure
+)
+print(result)
