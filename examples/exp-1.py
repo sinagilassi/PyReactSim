@@ -13,6 +13,8 @@ from pythermodb_settings.models import Component, Pressure, Temperature, CustomP
 from pyThermoDB import ComponentThermoDB
 from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
+# locals
+from pyreactsim.models.br import BatchReactorOptions
 
 
 # check version
@@ -214,12 +216,85 @@ print(VaPr)
 # SECTION: Inputs
 # =======================================
 # ! assumptions: variable pressure, isothermal, ideal gas behavior, single component system
-# NOTE: reactor type
-reactor_type = "Gas-Phase"
+# NOTE: Components
+A = Component(
+    name="A",
+    formula="A",
+    state="g"
+)
+
+B = Component(
+    name="B",
+    formula="B",
+    state="g"
+)
+
+C = Component(
+    name="C",
+    formula="C",
+    state="g"
+)
+
+components: list[Component] = [A, B, C]
+
+# NOTE: Reaction
+reaction = Reaction(
+    name="A_to_B",
+    reaction="A + B => C",
+    components=components
+)
+
 
 # NOTE: reactor vessel volume in m3
-reactor_volume = CustomProperty(
+reactor_volume = CustomProp(
     value=1.0,
     unit="m3",
-    symbol="Vr"
 )
+
+# NOTE: Jacket temperature
+jacket_temperature = CustomProp(
+    value=350.0,
+    unit="K",
+)
+
+# NOTE: Heat transfer coefficient
+heat_transfer_coefficient = CustomProp(
+    value=500.0,
+    unit="W/m2.K",
+)
+
+# NOTE: Heat transfer area
+heat_transfer_area = CustomProp(
+    value=5.0,
+    unit="m2",
+)
+
+# ! reactor inputs
+reactor_inputs = BatchReactorOptions(
+    phase='gas',
+    heat_transfer_mode='non-isothermal',
+    volume_mode='constant',
+    jacket_temperature=jacket_temperature,
+    heat_transfer_coefficient=heat_transfer_coefficient,
+    heat_transfer_area=heat_transfer_area
+)
+
+# NOTE: initial temperature
+initial_temperature = Temperature(
+    value=300.0,
+    unit="K",
+)
+
+# NOTE: initial pressure
+initial_pressure = Pressure(
+    value=101325.0,
+    unit="Pa",
+)
+
+# ! model inputs
+model_inputs = {
+    "temperature": initial_temperature,
+    "pressure": initial_pressure,
+}
+
+# SECTION: Reaction
