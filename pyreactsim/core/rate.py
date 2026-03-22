@@ -16,12 +16,37 @@ class ReactionRate:
         basis: Literal['concentration', 'pressure'],
         components: List[Component],
         reaction: Reaction,
+        parameters: rParams,
+        arguments: rArgs,
+        returns: rRet,
         eq: Callable[[Xi, rArgs, rParams], rRet]
     ):
         self.basis = basis
         self.components = components
         self.reaction = reaction
+        self.parameters = parameters
+        self.arguments = arguments
+        self.returns = returns
         self.eq = eq
 
-    def calc(self, xi: Dict[str, CustomProperty]):
-        pass
+    def calc(self, xi: Dict[str, CustomProperty], args: rArgs) -> rRet:
+        # convert xi to Xi
+        xi_converted = {}
+
+        for comp in self.components:
+            if comp.name in xi:
+                xi_converted[comp.name] = X(
+                    component=comp,
+                    value=xi[comp.name].value,
+                    unit=xi[comp.name].unit
+                )
+            else:
+                logger.warning(
+                    f"Component {comp.name} not found in xi. Setting value to 0.")
+                xi_converted[comp.name] = X(
+                    component=comp,
+                    value=0,
+                    unit=""
+                )
+        # calculate rate
+        return self.eq(xi_converted, args, self.parameters)

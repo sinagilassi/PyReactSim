@@ -59,6 +59,18 @@ class ReactionRateExpression(BaseModel):
         ...,
         description="The reaction for which the rate expression is defined."
     )
+    parameters: rParams = Field(
+        default_factory=dict,
+        description="A dictionary of parameters that may be used in the rate expression."
+    )
+    arguments: rArgs = Field(
+        default_factory=dict,
+        description="A dictionary of arguments that may be used in the rate expression, such as temperature and pressure."
+    )
+    returns: rRet = Field(
+        default_factory=dict,
+        description="A dictionary of return values from the rate expression, typically including the calculated reaction rate."
+    )
     eq: Callable[[Xi, rParams, rArgs], rRet] = Field(
         ...,
         description="A callable that takes the state (Xi), parameters (rParams), and arguments (rArgs) and return (rRet)."
@@ -71,13 +83,21 @@ class ReactionRateExpression(BaseModel):
             basis=self.basis,
             components=self.components,
             reaction=self.reaction,
+            parameters=self.parameters,
+            arguments=self.arguments,
+            returns=self.returns,
             eq=self.eq
         )
 
         return self
 
-    def calc(self, x):
+    def calc(
+            self,
+            xi: Dict[str, CustomProperty],
+            args: rArgs
+    ) -> rRet:
         """
         Update the reaction rate based on the provided state (xi) either concentration or pressure.
         """
-        pass
+        # calculate rate
+        return self.reactionRate.calc(xi=xi, args=args)
