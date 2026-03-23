@@ -1,5 +1,5 @@
 # import packages/modules
-import os
+import math
 from rich import print
 from typing import Callable, Dict, Optional, Union, List, Any
 import pyThermoDB as ptdb
@@ -16,7 +16,7 @@ from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models.br import BatchReactorOptions
-from pyreactsim.models import rArgs, rParams, rRet, X, Xi, ReactionRateExpression
+from pyreactsim.models.reaction_exp import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 
 
 # check version
@@ -111,26 +111,38 @@ model_inputs = {
 
 # SECTION: Reaction
 # ! Reaction Rate Expression
-rate_components: Dict[str, X] = {
-    'A': X(component=A, order=1, value=0),
-    'B': X(component=B, order=1, value=0)
+states: rXs = {
+    'A': X(component=A, order=1),
+    'B': X(component=B, order=1)
+}
+
+rate_params: rParams = {
+    'k0': CustomProperty(value=0.1, unit="1/s", symbol="k0"),
+    'Ea': CustomProperty(value=50000.0, unit="J/mol", symbol="Ea"),
+    'R': CustomProperty(value=8.314, unit="J/mol.K", symbol="R"),
+    "A": CustomProperty(value=0, unit="mol/m3", symbol="A"),
+}
+
+rate_return: rRet = {
+    'r1': CustomProperty(value=0, unit="mol/m3.s", symbol="r1")
+}
+
+rate_args: rArgs = {
+    'T': CustomProperty(value=0, unit="K", symbol="T")
 }
 
 
 def r1(X: Dict[str, X], args: rArgs, params: rParams) -> rRet:
     # rate constant k function of temperature and pressure
-    k = 0.1*args['T'].value+10*args['P'].value
+    k0 = params['k0'].value
+    Ea = params['Ea'].value
+    k = k0*math.exp(-Ea/(params['R'].value*args['T'].value))
 
     # rate expression: r = k*[A]^order_A*[B]^order_B
     rExp = k*(X['A'].value**X['A'].order)*(X['B'].value**X['B'].order)
 
-    # return rate expression
     return {
-        'r1': CustomProperty(
-            value=rExp,
-            unit="mol/m3.s",
-            symbol="r1"
-        )
+        'r1': CustomProperty(value=rExp, unit="mol/m3.s", symbol="r1")
     }
 
 
@@ -139,16 +151,20 @@ rate_expression = ReactionRateExpression(
     basis='concentration',
     components=[A, B],
     reaction=reaction,
-    eq=r1
+    params=rate_params,
+    args=rate_args,
+    returns=rate_return,
+    state=states,
+    eq=r1,
+    component_key='Name-Formula'
 )
 
 # cal
 result = rate_expression.calc(
     xi={
-        'A': CustomProperty(value=2.0, unit="mol/m3", symbol="[A]"),
-        'B': CustomProperty(value=3.0, unit="mol/m3", symbol="[B]")
+        'A': CustomProperty(value=2.0, unit="mol/m3", symbol="A"),
+        'B': CustomProperty(value=3.0, unit="mol/m3", symbol="B")
     },
-    args={},
     temperature=initial_temperature,
     pressure=initial_pressure
 )
