@@ -2,7 +2,7 @@
 import logging
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
-from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey
+from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # locals
@@ -12,6 +12,7 @@ from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.unit_tools import to_m3, to_Pa, to_K
 from ..utils.reaction_tools import stoichiometry_mat
+from ..utils.thermo_tools import calc_total_heat_capacity
 from ..sources.interface import exec_component_eq
 
 # NOTE: logger setup
@@ -86,6 +87,15 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         self.heat_transfer_area = reactor_inputs.heat_transfer_area
         self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
 
+        # >> heat exchange
+        self.heat_exchange = False
+        if (
+            self.jacket_temperature is not None and
+            self.heat_transfer_coefficient is not None and
+            self.heat_transfer_area is not None
+        ):
+            self.heat_exchange = True
+
         # NOTE: Validate options
         if reactor_inputs.reactor_volume is None:
             raise ValueError(
@@ -93,6 +103,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             )
         # >> set
         self.reactor_volume = reactor_inputs.reactor_volume
+        self.reactor_volume_value = to_m3(
+            self.reactor_volume.value, self.reactor_volume.unit)
 
         # SECTION: Reaction rates
         self.reaction_rates = reaction_rates
@@ -104,8 +116,14 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # SECTION: Thermodynamic properties
         self.Cp_IG_src = self.prop_src(prop_name="Cp_IG")
         # >> heat capacity mode
+        if self.heat_capacity_mode == "constant":
+            self.Cp_IG_values = self.calc_Cp_IG()
 
-    def calc_Cp_IG(self, inputs: Optional[Dict[str, Any]] = None):
+    def calc_Cp_IG(
+            self,
+            inputs: Optional[Dict[str, Any]] = None,
+            output_unit: Optional[str] = "J/mol.K"
+    ) -> np.ndarray:
         # NOTE: check if Cp_IG is constant or variable
         if self.heat_capacity_mode == "constant":
             inputs = {
@@ -116,8 +134,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
                 raise ValueError(
                     "inputs must be provided for variable heat capacity mode.")
 
-        # >> extract Cp_IG at reference temperature (e.g., 298 K)
-        Cp_IG_ref = {}
+        # NOTE: extract Cp_IG at reference temperature (e.g., 298 K)
+        Cp_IG_ref: Dict[str, CustomProperty] = {}
         for comp in self.component_ids:
             eq_src = self.Cp_IG_src.get(comp)
             if eq_src is None:
@@ -127,14 +145,29 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             # >> execute equation to get Cp_IG at reference conditions
             cp_value = exec_component_eq(
                 component_eq_src=eq_src,
-                inputs=inputs
+                inputs=inputs,
+                output_unit=output_unit
             )
             if cp_value is None:
                 raise ValueError(
                     f"Failed to extract Cp_IG value for component: {comp}")
             Cp_IG_ref[comp] = cp_value
 
-        return Cp_IG_ref
+        # NOTE: build a list of Cp_IG values for all components
+        Cp_IG_values = []
+
+        # iterate over components
+        for comp in self.component_ids:
+            cp_value = Cp_IG_ref.get(comp)
+            if cp_value is None:
+                raise ValueError(
+                    f"No Cp_IG value found for component: {comp}")
+            Cp_IG_values.append(cp_value.value)
+
+        # >> to numpy
+        Cp_IG_values = np.array(Cp_IG_values, dtype=float)
+
+        return Cp_IG_values
 
     def build_reactions(self):
         """
@@ -166,7 +199,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
         return mat
 
-    def pressure(self, n_total: float, temperature: float) -> float:
+    def calc_tot_pressure(self, n_total: float, temperature: float) -> float:
         """
         Total pressure [Pa].
         Default: ideal gas
@@ -189,7 +222,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             return 0
 
         # ideal gas model
-        return n_total * self.R * temperature / float(self.reactor_volume.value)
+        return n_total * self.R * temperature / float(self.reactor_volume_value)
 
     def rhs(
             self,
@@ -222,7 +255,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
         # Calculate partial pressures
         y_mole = n / n_total
-        p_total = self.pressure(n_total=n_total, temperature=temp)
+        p_total = self.calc_tot_pressure(n_total=n_total, temperature=temp)
         partial_pressures = {
             sp: y_mole[i] * p_total for i, sp in enumerate(self.component_ids)
         }
@@ -238,27 +271,59 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             r_k = rates[k]
             for sp_name, nu_ik in rxn.stoich.items():
                 i = name_to_idx[sp_name]
-                dn_dt[i] += self.reactor_volume * nu_ik * r_k
+                dn_dt[i] += self.reactor_volume_value * nu_ik * r_k
 
         if self.heat_transfer_mode == "isothermal":
             return dn_dt
 
         # NOTE: Energy balance:
         #   (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
-        c_total = self.total_heat_capacity(n)
+        c_total = calc_total_heat_capacity(n, self.Cp_IG_values)
 
         if c_total <= 1e-16:
             raise ValueError("Total heat capacity is too small or zero.")
 
         q_rxn = 0.0
         for k, rxn in enumerate(self.reactions):
-            q_rxn += self.volume * (-rxn.delta_h) * rates[k]
+            q_rxn += self.reactor_volume_value * (-rxn.delta_h) * rates[k]
 
         q_exchange = 0.0
-        if self.heat_exchange is not None:
-            q_exchange = self.heat_exchange.ua * \
-                (self.heat_exchange.t_surroundings - temp)
+        if self.heat_exchange:
+            q_exchange = self.calc_heat_exchange(temp=temp)
 
+        # NOTE: calculate dT/dt
         dT_dt = (q_rxn + q_exchange) / c_total
 
         return np.concatenate([dn_dt, np.array([dT_dt], dtype=float)])
+
+    def calc_heat_exchange(self, temp: float) -> float:
+        """
+        Calculate the heat exchange with the surroundings based on the current temperature of the system.
+
+        Parameters
+        ----------
+        temp : float
+            Current temperature of the system [K].
+
+        Returns
+        -------
+        float
+            Heat exchange with the surroundings [W].
+        """
+        if not self.heat_exchange:
+            return 0.0
+
+        # NOTE: check if all required parameters for heat exchange are available
+        if self.jacket_temperature is None or self.heat_transfer_coefficient is None or self.heat_transfer_area is None:
+            raise ValueError(
+                "Jacket temperature, heat transfer coefficient, and heat transfer area must be provided for heat exchange calculation."
+            )
+
+        # NOTE: Convert units if necessary
+        T_s = to_K(self.jacket_temperature.value, self.jacket_temperature.unit)
+        A = to_m3(self.heat_transfer_area.value, self.heat_transfer_area.unit)
+        U = self.heat_transfer_coefficient.value  # Assuming it's already in W/m^2.K
+
+        # ! calculate heat exchange using the formula: Q = U * A * (T_s - T)
+        # unit check: U [W/m^2.K], A [m^2], T_s [K], temp [K] => Q [W] or [J/s]
+        return U * A * (T_s - temp)

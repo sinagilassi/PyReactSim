@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 # SECTION: total heat capacity calculation
 
 
-def total_heat_capacity(self, n: np.ndarray, cp: np.ndarray) -> float:
+def calc_total_heat_capacity(n: np.ndarray, cp: np.ndarray) -> float:
     """
     Calculate the total heat capacity of the system.
 

@@ -1,6 +1,7 @@
 # import libs
 import logging
 from typing import Any, Dict, List, Optional, Tuple
+import pycuc
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty
 from pythermodb_settings.utils import set_component_id
 from pyThermoLinkDB.thermo import Source
@@ -207,7 +208,8 @@ def ext_components_eq(
 
 def exec_component_eq(
         component_eq_src: ComponentEquationSource,
-        inputs: Dict[str, Any]
+        inputs: Dict[str, Any],
+        output_unit: Optional[str] = None
 ) -> Optional[CustomProperty]:
     """
     Execute the equation from the ComponentEquationSource with the given inputs.
@@ -217,7 +219,9 @@ def exec_component_eq(
     component_eq_src : ComponentEquationSource
         The ComponentEquationSource object containing the equation to execute.
     inputs : Dict[str, Any]
-        A dictionary of input values to be passed to the equation.
+        A dictionary of input values to be passed to the equation
+    output_unit : Optional[str]
+        An optional string specifying the desired output unit for the result. If provided, the result will be converted to this unit if possible.
 
     Returns
     -------
@@ -248,6 +252,21 @@ def exec_component_eq(
                 res['unit'] = res_src['unit']
             if res_src['symbol'] is not None and isinstance(res_src['symbol'], str):
                 res['symbol'] = res_src['symbol']
+
+        # NOTE: convert to output unit if specified
+        if output_unit is not None and 'value' in res and 'unit' in res:
+            try:
+                converted_value = pycuc.convert_from_to(
+                    value=res['value'],
+                    from_unit=res['unit'],
+                    to_unit=output_unit
+                )
+                res['value'] = converted_value
+                res['unit'] = output_unit
+            except Exception as e:
+                logger.error(
+                    f"Error converting result to output unit: {output_unit} - {e}")
+                return None
 
         # >> convert
         res = CustomProperty(**res)
