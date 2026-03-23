@@ -1,11 +1,13 @@
 # import libs
 import logging
+import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 import pycuc
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey
 from pythermodb_settings.utils import set_component_id
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
+from scipy.integrate import solve_ivp
 # ! locals
 from ..sources.interface import (
     ext_component_dt,
@@ -23,7 +25,12 @@ class BatchReactor:
     Batch Reactor (BR) class for simulating chemical reactions in a batch reactor setup. This class encapsulates the components, source, and component key information necessary for performing simulations and analyses related to batch reactors.
     """
     # NOTE: Properties
-    #
+    # reference temperature
+    T_ref = Temperature(value=298.15, unit="K")
+    # reference pressure
+    P_ref = Pressure(value=101325, unit="Pa")
+    # universal gas constant J/mol.K
+    R = 8.314
 
     def __init__(
         self,
@@ -48,7 +55,9 @@ class BatchReactor:
         self.source = source
         self.component_key = component_key
 
-        # SECTION: set component IDs
+        # SECTION: component IDs and related properties
+        self.component_num = len(components)
+
         self.component_ids = [
             set_component_id(
                 component=component,
@@ -66,6 +75,3 @@ class BatchReactor:
         self.states = [
             c.state for c in self.components
         ]
-
-    def constant_volume(self):
-        pass

@@ -10,6 +10,8 @@ Phase = Literal['gas', 'liquid']
 HeatTransferMode = Literal['isothermal', 'non-isothermal']
 # NOTE: Volume mode
 VolumeMode = Literal['constant', 'variable']
+# NOTE: Gas Model
+GasModel = Literal['ideal', 'real']
 
 
 class BatchReactorOptions(BaseModel):
@@ -24,6 +26,14 @@ class BatchReactorOptions(BaseModel):
     volume_mode: VolumeMode = Field(
         ...,
         description="Volume mode (constant or variable)."
+    )
+    gas_model: Optional[GasModel] = Field(
+        default=None,
+        description="Gas model to use (required if phase is gas)."
+    )
+    reactor_volume: Optional[CustomProp] = Field(
+        default=None,
+        description="Volume of the reactor (required if volume mode is constant)."
     )
     jacket_temperature: Optional[CustomProp] = Field(
         default=None,

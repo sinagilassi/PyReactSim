@@ -1,11 +1,12 @@
 # NOTE: reaction_exp
-# from .reaction_exp import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
+from .rate_exp import ReactionRateExpression
+from .rate_exp_refs import X, rArgs, rParams, rRet, rXs
 
-# __all__ = [
-#     'rArgs',
-#     'rParams',
-#     'rRet',
-#     'X',
-#     'rXs',
-#     'ReactionRateExpression'
-# ]
+__all__ = [
+    'rArgs',
+    'rParams',
+    'rRet',
+    'X',
+    'rXs',
+    'ReactionRateExpression'
+]

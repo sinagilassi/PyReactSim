@@ -5,7 +5,7 @@ from pythermodb_settings.models import Component, CustomProperty, Pressure, Temp
 from pythermodb_settings.utils import set_component_id
 from pyreactlab_core.models.reaction import Reaction
 # locals
-from .reaction_exp import X, rXs, rArgs, rParams, rRet
+from .rate_exp_refs import X, rXs, rArgs, rParams, rRet
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)

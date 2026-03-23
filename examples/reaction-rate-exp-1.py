@@ -16,8 +16,9 @@ from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models.br import BatchReactorOptions
-from pyreactsim.models.reaction_exp import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
-
+from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
+# ! model source
+from model_source_exp_1 import model_source
 
 # check version
 print(ptdb.__version__)
@@ -52,7 +53,7 @@ components: list[Component] = [A, B, C]
 # NOTE: Reaction
 reaction = Reaction(
     name="A_to_B",
-    reaction="A + B => C",
+    reaction="A(g) + B(g) => C(g)",
     components=components
 )
 
@@ -81,11 +82,16 @@ heat_transfer_area = CustomProp(
     unit="m2",
 )
 
+# NOTE: gas model
+gas_model = "ideal"
+
 # ! reactor inputs
 reactor_inputs = BatchReactorOptions(
     phase='gas',
+    gas_model=gas_model,
     heat_transfer_mode='non-isothermal',
     volume_mode='constant',
+    reactor_volume=reactor_volume,
     jacket_temperature=jacket_temperature,
     heat_transfer_coefficient=heat_transfer_coefficient,
     heat_transfer_area=heat_transfer_area
@@ -93,7 +99,7 @@ reactor_inputs = BatchReactorOptions(
 
 # NOTE: initial temperature
 initial_temperature = Temperature(
-    value=300.0,
+    value=298.0,
     unit="K",
 )
 
@@ -103,24 +109,16 @@ initial_pressure = Pressure(
     unit="Pa",
 )
 
-# ! model inputs
-model_inputs = {
-    "temperature": initial_temperature,
-    "pressure": initial_pressure,
-}
-
 # SECTION: Reaction
-# ! Reaction Rate Expression
 states: rXs = {
     'A': X(component=A, order=1),
     'B': X(component=B, order=1)
 }
 
 rate_params: rParams = {
-    'k0': CustomProperty(value=0.1, unit="1/s", symbol="k0"),
-    'Ea': CustomProperty(value=50000.0, unit="J/mol", symbol="Ea"),
+    'k0': CustomProperty(value=1.05e7, unit="1/s", symbol="k0"),
+    'Ea': CustomProperty(value=46600.0, unit="J/mol", symbol="Ea"),
     'R': CustomProperty(value=8.314, unit="J/mol.K", symbol="R"),
-    "A": CustomProperty(value=0, unit="mol/m3", symbol="A"),
 }
 
 rate_return: rRet = {
@@ -160,12 +158,24 @@ rate_expression = ReactionRateExpression(
 )
 
 # cal
-result = rate_expression.calc(
-    xi={
-        'A': CustomProperty(value=2.0, unit="mol/m3", symbol="A"),
-        'B': CustomProperty(value=3.0, unit="mol/m3", symbol="B")
-    },
-    temperature=initial_temperature,
-    pressure=initial_pressure
-)
-print(result)
+# result = rate_expression.calc(
+#     xi={
+#         'A': CustomProperty(value=1.0, unit="mol/m3", symbol="A"),
+#         'B': CustomProperty(value=1.0, unit="mol/m3", symbol="B")
+#     },
+#     temperature=initial_temperature,
+#     pressure=initial_pressure,
+#     mode="log"
+# )
+# print(result)
+
+
+# ! model inputs
+model_inputs = {
+    "mole_fractions": None,
+    "mole": None,
+    "concentrations": None,
+    "partial_pressures": None,
+    "temperature": initial_temperature,
+    "pressure": initial_pressure,
+}
