@@ -47,3 +47,7 @@ class BatchReactorOptions(BaseModel):
         default=None,
         description="Heat transfer area (required if heat transfer mode is non-isothermal)."
     )
+    heat_capacity_mode: Optional[Literal['constant', 'variable']] = Field(
+        default='constant',
+        description="Heat capacity mode (constant or variable)."
+    )

@@ -1,12 +1,12 @@
 # import libs
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-from pythermodb_settings.models import Component, ComponentKey
+from pythermodb_settings.models import Component, ComponentKey, CustomProperty
 from pythermodb_settings.utils import set_component_id
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
-
 # locals
+
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -200,4 +200,58 @@ def ext_components_eq(
     except Exception as e:
         logger.error(
             f"Error extracting equations for components: {components}, prop_name: {prop_name} - {e}")
+        return None
+
+# SECTION: Execute equation from source
+
+
+def exec_component_eq(
+        component_eq_src: ComponentEquationSource,
+        inputs: Dict[str, Any]
+) -> Optional[CustomProperty]:
+    """
+    Execute the equation from the ComponentEquationSource with the given inputs.
+
+    Parameters
+    ----------
+    component_eq_src : ComponentEquationSource
+        The ComponentEquationSource object containing the equation to execute.
+    inputs : Dict[str, Any]
+        A dictionary of input values to be passed to the equation.
+
+    Returns
+    -------
+    Optional[CustomProperty]
+        The result of executing the equation, or None if an error occurs.
+    """
+    try:
+        # NOTE: source
+        # ! either TableEquation or MoziEquation
+        eq_src = component_eq_src.source
+
+        # NOTE: execute equation
+        # >> check has cal method
+        if not hasattr(eq_src, "cal"):
+            logger.error(
+                f"Equation source does not have a 'cal' method: {eq_src}")
+            return None
+
+        # res
+        res_src = eq_src.cal(inputs=inputs)
+
+        # extract value, unit, symbol
+        res = {}
+        if res_src is not None:
+            if res_src['value'] is not None and isinstance(res_src['value'], (str, float, int)):
+                res['value'] = float(res_src['value'])
+            if res_src['unit'] is not None and isinstance(res_src['unit'], str):
+                res['unit'] = res_src['unit']
+            if res_src['symbol'] is not None and isinstance(res_src['symbol'], str):
+                res['symbol'] = res_src['symbol']
+
+        # >> convert
+        res = CustomProperty(**res)
+        return res
+    except Exception as e:
+        logger.error(f"Error executing equation - {e}")
         return None

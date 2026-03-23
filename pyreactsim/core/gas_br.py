@@ -4,28 +4,38 @@ import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey
 from pyThermoLinkDB.thermo import Source
+from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # locals
 from .br import BatchReactor
+from .thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.unit_tools import to_m3, to_Pa, to_K
+from ..utils.reaction_tools import stoichiometry_mat
+from ..sources.interface import exec_component_eq
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class GasBatchReactor(BatchReactor):
+class GasBatchReactor(BatchReactor, ThermoSource):
     """
     GasBatchReactor class for simulating chemical reactions in a gas-phase batch reactor setup. This class inherits from the BatchReactor class and is specifically designed to handle gas-phase reactions, incorporating properties and methods relevant to gas-phase systems.
+
+    Assumptions
+    -----------
+    - Constant heat capacity (Cp)
     """
+    # NOTE: Attributes
 
     def __init__(
         self,
         components: List[Component],
         source: Source,
+        model_inputs: Dict[str, Any],
+        reactor_inputs: BatchReactorOptions,
+        reaction_rates: Dict[str, ReactionRateExpression],
         component_key: ComponentKey,
-        options: BatchReactorOptions,
-        reaction_rates: Dict[str, ReactionRateExpression]
     ):
         """
         Initializes the GasBatchReactor instance with the provided components, source, and component key.
@@ -40,26 +50,121 @@ class GasBatchReactor(BatchReactor):
             A ComponentKey object that serves as a key for identifying and categorizing the components in the gas-phase batch reactor.
         """
         # LINK: Initialize the parent BatchReactor class
-        super().__init__(components, source, component_key)
+        BatchReactor.__init__(
+            self,
+            components=components,
+            source=source,
+            component_key=component_key
+        )
+        # LINK: Initialize the parent ThermoSource class
+        ThermoSource.__init__(
+            self,
+            components=components,
+            source=source,
+            component_key=component_key
+        )
+
+        # SECTION: Model inputs
+        self.model_inputs = model_inputs
+        # >> temperature
+        if "temperature" in model_inputs:
+            self.temperature: Temperature = model_inputs["temperature"]
+
+        # >> pressure
+        if "pressure" in model_inputs:
+            self.pressure: Pressure = model_inputs["pressure"]
 
         # SECTION: GasBatchReactor-specific properties
-        self.options = options
+        self.reactor_inputs = reactor_inputs
         # >> extract
         self.phase = "gas"
-        self.gas_model = options.gas_model
-        self.heat_transfer_mode = options.heat_transfer_mode
-        self.volume_mode = options.volume_mode
-        self.jacket_temperature = options.jacket_temperature
-        self.heat_transfer_coefficient = options.heat_transfer_coefficient
-        self.heat_transfer_area = options.heat_transfer_area
+        self.gas_model = reactor_inputs.gas_model
+        self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
+        self.volume_mode = reactor_inputs.volume_mode
+        self.jacket_temperature = reactor_inputs.jacket_temperature
+        self.heat_transfer_coefficient = reactor_inputs.heat_transfer_coefficient
+        self.heat_transfer_area = reactor_inputs.heat_transfer_area
+        self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
 
         # NOTE: Validate options
-        if options.reactor_volume is None:
+        if reactor_inputs.reactor_volume is None:
             raise ValueError(
                 "reactor_volume must be provided for constant volume mode."
             )
         # >> set
-        self.reactor_volume = options.reactor_volume
+        self.reactor_volume = reactor_inputs.reactor_volume
+
+        # SECTION: Reaction rates
+        self.reaction_rates = reaction_rates
+        # >> build reactions
+        self.reactions = self.build_reactions()
+        # >> extract stoichiometry matrix
+        self.stoichiometry_matrix = self.build_stoichiometry()
+
+        # SECTION: Thermodynamic properties
+        self.Cp_IG_src = self.prop_src(prop_name="Cp_IG")
+        # >> heat capacity mode
+
+    def calc_Cp_IG(self, inputs: Optional[Dict[str, Any]] = None):
+        # NOTE: check if Cp_IG is constant or variable
+        if self.heat_capacity_mode == "constant":
+            inputs = {
+                "T": to_K(self.temperature.value, self.temperature.unit)
+            }
+        else:
+            if inputs is None:
+                raise ValueError(
+                    "inputs must be provided for variable heat capacity mode.")
+
+        # >> extract Cp_IG at reference temperature (e.g., 298 K)
+        Cp_IG_ref = {}
+        for comp in self.component_ids:
+            eq_src = self.Cp_IG_src.get(comp)
+            if eq_src is None:
+                raise ValueError(
+                    f"No Cp_IG source found for component: {comp}")
+
+            # >> execute equation to get Cp_IG at reference conditions
+            cp_value = exec_component_eq(
+                component_eq_src=eq_src,
+                inputs=inputs
+            )
+            if cp_value is None:
+                raise ValueError(
+                    f"Failed to extract Cp_IG value for component: {comp}")
+            Cp_IG_ref[comp] = cp_value
+
+        return Cp_IG_ref
+
+    def build_reactions(self):
+        """
+        Build the list of Reaction objects for the gas-phase batch reactor using the provided reaction rates and components.
+        """
+        reactions = []
+        for rxn_name, rate_exp in self.reaction_rates.items():
+            rxn = rate_exp.reaction
+            reactions.append(rxn)
+        return reactions
+
+    def build_stoichiometry(self):
+        """
+        Build the stoichiometry matrix for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
+        """
+        # >> extract reactions from reaction rates
+        reactions = []
+
+        for rxn_name, rate_exp in self.reaction_rates.items():
+            rxn = rate_exp.reaction
+            reactions.append(rxn)
+
+        # >> build stoichiometry matrix
+        mat = stoichiometry_mat(
+            reactions=reactions,
+            components=self.components,
+            component_key=cast(ComponentKey, self.component_key)
+        )
+
+        return mat
 
     def pressure(self, n_total: float, temperature: float) -> float:
         """
@@ -123,23 +228,22 @@ class GasBatchReactor(BatchReactor):
         }
 
         # Reaction rates
-        rates = np.array([rxn.rate(partial_pressures, temp)
-                         for rxn in self.reactions], dtype=float)
+        rates = self.stoichiometry_matrix
 
         # NOTE: Species balances: dn_i/dt = V * Σ_k ν_i,k * r_k
         dn_dt = np.zeros(ns, dtype=float)
-        name_to_idx = self.species_index()
+        name_to_idx = self.component_id_to_index
 
         for k, rxn in enumerate(self.reactions):
             r_k = rates[k]
             for sp_name, nu_ik in rxn.stoich.items():
                 i = name_to_idx[sp_name]
-                dn_dt[i] += self.volume * nu_ik * r_k
+                dn_dt[i] += self.reactor_volume * nu_ik * r_k
 
-        if self.is_isothermal:
+        if self.heat_transfer_mode == "isothermal":
             return dn_dt
 
-        # Energy balance:
+        # NOTE: Energy balance:
         #   (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
         c_total = self.total_heat_capacity(n)
 

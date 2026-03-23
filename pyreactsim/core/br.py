@@ -58,6 +58,7 @@ class BatchReactor:
         # SECTION: component IDs and related properties
         self.component_num = len(components)
 
+        # >> ids
         self.component_ids = [
             set_component_id(
                 component=component,
@@ -65,6 +66,11 @@ class BatchReactor:
             )
             for component in self.components
         ]
+
+        # >> index mapping
+        self.component_id_to_index = {
+            comp_id: idx for idx, comp_id in enumerate(self.component_ids)
+        }
 
         # NOTE: mole fraction components
         self.mole_fractions = [
