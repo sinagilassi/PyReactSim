@@ -11,7 +11,7 @@ rArgs = Dict[str, CustomProperty]
 # NOTE: parameters
 rParams = Dict[str, CustomProperty]
 # NOTE: return
-rRet = Dict[str, CustomProperty]
+rRet = CustomProperty
 # NOTE: state
 
 

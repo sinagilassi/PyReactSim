@@ -66,6 +66,18 @@ class GasBatchReactor(BatchReactor):
         Total pressure [Pa].
         Default: ideal gas
             P = N_total * R * T / V
+
+        Parameters
+        ----------
+        n_total : float
+            Total moles of gas in the reactor.
+        temperature : float
+            Temperature of the gas in the reactor [K].
+
+        Returns
+        -------
+        float
+            Total pressure of the gas in the reactor [Pa].
         """
         if self.gas_model == "real":
             # FIXME: implement real gas model
@@ -114,7 +126,7 @@ class GasBatchReactor(BatchReactor):
         rates = np.array([rxn.rate(partial_pressures, temp)
                          for rxn in self.reactions], dtype=float)
 
-        # Species balances: dn_i/dt = V * Σ_k ν_i,k * r_k
+        # NOTE: Species balances: dn_i/dt = V * Σ_k ν_i,k * r_k
         dn_dt = np.zeros(ns, dtype=float)
         name_to_idx = self.species_index()
 

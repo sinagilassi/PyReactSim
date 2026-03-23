@@ -4,7 +4,7 @@ import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 import pycuc
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey
-from pythermodb_settings.utils import set_component_id
+from pythermodb_settings.utils import set_component_id, set_feed_specification
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from scipy.integrate import solve_ivp
@@ -75,3 +75,9 @@ class BatchReactor:
         self.states = [
             c.state for c in self.components
         ]
+
+        # NOTE: feed specifications
+        self.feed_specifications = set_feed_specification(
+            components=self.components,
+            component_key=cast(ComponentKey, self.component_key)
+        )

@@ -14,6 +14,10 @@ from .rate_exp_refs import rArgs, rParams, rRet, rXs
 
 
 class ReactionRateExpression(BaseModel):
+    name: str = Field(
+        ...,
+        description="The name of the reaction rate expression. This should be unique and descriptive of the reaction it represents."
+    )
     basis: Literal['concentration', 'pressure'] = Field(
         ...,
         description="The basis for the reaction rate expression, either 'concentration' or 'pressure'."
@@ -38,8 +42,8 @@ class ReactionRateExpression(BaseModel):
         default_factory=dict,
         description="A dictionary of arguments that may be used in the rate expression, such as temperature and pressure."
     )
-    returns: rRet = Field(
-        default_factory=dict,
+    ret: rRet = Field(
+        ...,
         description="A dictionary defining the expected return values from the rate expression calculation."
     )
     state: rXs = Field(
@@ -61,7 +65,7 @@ class ReactionRateExpression(BaseModel):
             reaction=self.reaction,
             params=self.params,
             args=self.args,
-            returns=self.returns,
+            returns=self.ret,
             eq=self.eq,
             state=self.state,
             component_key=self.component_key

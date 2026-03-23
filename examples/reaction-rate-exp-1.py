@@ -121,16 +121,14 @@ rate_params: rParams = {
     'R': CustomProperty(value=8.314, unit="J/mol.K", symbol="R"),
 }
 
-rate_return: rRet = {
-    'r1': CustomProperty(value=0, unit="mol/m3.s", symbol="r1")
-}
+rate_return: rRet = CustomProperty(value=0, unit="mol/m3.s", symbol="r1")
 
 rate_args: rArgs = {
     'T': CustomProperty(value=0, unit="K", symbol="T")
 }
 
 
-def r1(X: Dict[str, X], args: rArgs, params: rParams) -> rRet:
+def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     # rate constant k function of temperature and pressure
     k0 = params['k0'].value
     Ea = params['Ea'].value
@@ -139,19 +137,18 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> rRet:
     # rate expression: r = k*[A]^order_A*[B]^order_B
     rExp = k*(X['A'].value**X['A'].order)*(X['B'].value**X['B'].order)
 
-    return {
-        'r1': CustomProperty(value=rExp, unit="mol/m3.s", symbol="r1")
-    }
+    return CustomProperty(value=rExp, unit="mol/m3.s", symbol="r1")
 
 
 # execute
 rate_expression = ReactionRateExpression(
+    name="r1",
     basis='concentration',
-    components=[A, B],
+    components=components,
     reaction=reaction,
     params=rate_params,
     args=rate_args,
-    returns=rate_return,
+    ret=rate_return,
     state=states,
     eq=r1,
     component_key='Name-Formula'
