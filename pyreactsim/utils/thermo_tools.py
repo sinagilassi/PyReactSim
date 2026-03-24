@@ -51,3 +51,34 @@ def calc_rxn_heat_generation(
     for k in range(len(delta_h)):
         q_rxn += reactor_volume * (-delta_h[k]) * rates[k]
     return q_rxn
+
+
+def calc_tot_pressure_ideal(
+        n_total: float,
+        temperature: float,
+        reactor_volume_value: float,
+        R: float
+) -> float:
+    """
+    Total pressure [Pa].
+    Default: ideal gas
+        P = N_total * R * T / V
+
+    Parameters
+    ----------
+    n_total : float
+        Total moles of gas in the reactor.
+    temperature : float
+        Temperature of the gas in the reactor [K].
+    reactor_volume_value : float
+        Volume of the reactor [m3].
+    R : float
+        Ideal gas constant [J/mol.K].
+
+    Returns
+    -------
+    float
+        Total pressure of the gas in the reactor [Pa].
+    """
+    # ideal gas model
+    return n_total * R * temperature / float(reactor_volume_value)

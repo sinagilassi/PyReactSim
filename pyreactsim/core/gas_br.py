@@ -12,8 +12,9 @@ from .thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.unit_tools import to_m3, to_Pa, to_K
-from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
+from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation, calc_tot_pressure_ideal
 from ..sources.interface import exec_component_eq, ext_components_dt
+from ..models.br import GasModel
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -103,7 +104,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         self.reactor_inputs = reactor_inputs
         # >> extract
         self.phase = "gas"
-        self.gas_model = reactor_inputs.gas_model
+        self.gas_model: GasModel = reactor_inputs.gas_model
         self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
         self.volume_mode = reactor_inputs.volume_mode
         self.jacket_temperature = reactor_inputs.jacket_temperature
@@ -139,7 +140,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
         # SECTION: Thermodynamic properties
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
-        self.Cp_IG_src = self.prop_eq_src(prop_name="Cp_IG")
+        # ! Ideal Gas Enthalpy of formation at 298 K
+
         # >> heat capacity mode
         if self.heat_capacity_mode == "constant":
             self.Cp_IG_values = self.calc_Cp_IG(
@@ -149,83 +151,6 @@ class GasBatchReactor(BatchReactor, ThermoSource):
                 Cp_IG_src=self.Cp_IG_src,
                 output_unit="J/mol.K"
             )
-
-        # ! Ideal Gas Enthalpy of formation at 298 K
-        self.EnFo_IG_298_src = self.prop_dt_src(
-            component_ids=self.component_ids,
-            prop_name="EnFo_IG"
-        )
-
-    def calc_dH_rxns(
-            self,
-            temperature: Temperature
-    ) -> np.ndarray:
-        """
-        Calculate the reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
-
-        Parameters
-        ----------
-        temperature : Temperature
-            The temperature at which to calculate the reaction enthalpies (ΔH) for the reactions
-            in the gas-phase batch reactor.
-
-        Returns
-        -------
-        np.ndarray
-            An array of reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor, calculated at the specified temperature.
-        """
-        # create model source
-        model_source = self.source.model_source
-        # >> check
-        if model_source is None:
-            raise ValueError(
-                "Model source is required to calculate reaction enthalpies.")
-        #
-        dH_rxns = []
-        for rxn in self.reactions:
-            dH_rxn = dH_rxn_STD(
-                reaction=rxn,
-                temperature=temperature,
-                model_source=model_source,
-            )
-
-            # >> check
-            if dH_rxn is None:
-                raise ValueError(
-                    f"Failed to calculate reaction enthalpy for reaction: {rxn.name}")
-
-            dH_rxns.append(dH_rxn)
-
-        # NOTE: convert to numpy array
-        res = [dH.value for dH in dH_rxns]
-        res = np.array(res, dtype=float)
-
-        return res
-
-    def calc_tot_pressure(self, n_total: float, temperature: float) -> float:
-        """
-        Total pressure [Pa].
-        Default: ideal gas
-            P = N_total * R * T / V
-
-        Parameters
-        ----------
-        n_total : float
-            Total moles of gas in the reactor.
-        temperature : float
-            Temperature of the gas in the reactor [K].
-
-        Returns
-        -------
-        float
-            Total pressure of the gas in the reactor [Pa].
-        """
-        if self.gas_model == "real":
-            # FIXME: implement real gas model
-            return 0
-
-        # ideal gas model
-        return n_total * self.R * temperature / float(self.reactor_volume_value)
 
     # SECTION: ODE system for solve_ivp
     def rhs(
@@ -259,7 +184,15 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
         # Calculate partial pressures
         y_mole = n / n_total
-        p_total = self.calc_tot_pressure(n_total=n_total, temperature=temp)
+        # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
+        # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
+        p_total = self.calc_tot_pressure(
+            n_total=n_total,
+            temperature=temp,
+            reactor_volume_value=self.reactor_volume_value,
+            R=self.R,
+            gas_model=self.gas_model
+        )
         partial_pressures = {
             sp: y_mole[i] * p_total for i, sp in enumerate(self.component_ids)
         }

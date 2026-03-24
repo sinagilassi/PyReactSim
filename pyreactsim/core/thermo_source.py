@@ -14,6 +14,7 @@ from ..sources.interface import ext_component_dt, ext_components_dt, ext_compone
 from ..utils.unit_tools import to_K
 from ..utils.reaction_tools import stoichiometry_mat
 from ..models.rate_exp import ReactionRateExpression
+from ..models.br import GasModel
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -53,6 +54,18 @@ class ThermoSource:
         # NOTE: reactions
         self.reactions: List[Reaction] = self.build_reactions()
 
+        # SECTION: Thermodynamic properties
+        # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
+        self.Cp_IG_src = self.prop_eq_src(prop_name="Cp_IG")
+
+        # ! Ideal Gas Enthalpy of formation at 298 K
+        self.EnFo_IG_298_src = self.prop_dt_src(
+            component_ids=self.component_ids,
+            prop_name="EnFo_IG"
+        )
+
+    # SECTION: Property equation source extraction methods
+    # ! Extract property equation source for components
     def prop_eq_src(self, prop_name: str) -> Dict[str, ComponentEquationSource]:
         """
         Extracts the property equation for the components from the source and returns it as a dictionary.
@@ -76,6 +89,7 @@ class ThermoSource:
 
         return eq_src
 
+    # ! Extract property data source for components
     def prop_dt_src(
             self,
             component_ids: List[str],
@@ -179,6 +193,7 @@ class ThermoSource:
 
         return Cp_IG_values
 
+    # ! Calculate reaction enthalpies (ΔH) for reactions
     def calc_dH_rxns(
             self,
             temperature: Temperature
@@ -224,3 +239,37 @@ class ThermoSource:
         res = np.array(res, dtype=float)
 
         return res
+
+    # SECTION: EOS related methods
+    # ! Calculate total pressure using ideal gas law
+    def calc_tot_pressure(
+            self,
+            n_total: float,
+            temperature: float,
+            reactor_volume_value: float,
+            R: float,
+            gas_model: GasModel
+    ) -> float:
+        """
+        Total pressure [Pa].
+        Default: ideal gas
+            P = N_total * R * T / V
+
+        Parameters
+        ----------
+        n_total : float
+            Total moles of gas in the reactor.
+        temperature : float
+            Temperature of the gas in the reactor [K].
+
+        Returns
+        -------
+        float
+            Total pressure of the gas in the reactor [Pa].
+        """
+        if gas_model == "real":
+            # FIXME: implement real gas model
+            return 0
+
+        # ideal gas model
+        return n_total * R * temperature / float(reactor_volume_value)

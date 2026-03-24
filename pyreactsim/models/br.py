@@ -27,8 +27,8 @@ class BatchReactorOptions(BaseModel):
         ...,
         description="Volume mode (constant or variable)."
     )
-    gas_model: Optional[GasModel] = Field(
-        default=None,
+    gas_model: GasModel = Field(
+        default='ideal',
         description="Gas model to use (required if phase is gas)."
     )
     reactor_volume: Optional[CustomProp] = Field(
