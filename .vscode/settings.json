@@ -8,5 +8,8 @@
     "editor.codeActionsOnSave": {
       "source.organizeImports": "explicit"
     }
-  }
+  },
+  "cSpell.words": [
+    "rtol"
+  ]
 }

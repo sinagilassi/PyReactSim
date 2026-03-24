@@ -17,8 +17,9 @@ from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models.br import BatchReactorOptions
 from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
+from pyreactsim.docs.brs import batch_react
 # ! model source
-from model_source_exp_1 import model_source
+from model_source_exp_1 import model_source, components, CO2, H2, CH3OH, H2O
 
 # check version
 print(ptdb.__version__)
@@ -29,61 +30,11 @@ print(ptdblink.__version__)
 # SECTION: Inputs
 # =======================================
 # ! assumptions: variable pressure, isothermal, ideal gas behavior, single component system
-# NOTE: Components
-A = Component(
-    name="A",
-    formula="A",
-    state="g",
-    X={
-        "name": "mole",
-        "value": 100,
-        "unit": "mol",
-        "symbol": "n"
-    }
-)
-
-B = Component(
-    name="B",
-    formula="B",
-    state="g",
-    X={
-        "name": "mole",
-        "value": 120,
-        "unit": "mol",
-        "symbol": "n"
-    }
-)
-
-C = Component(
-    name="C",
-    formula="C",
-    state="g",
-    X={
-        "name": "mole",
-        "value": 0.0,
-        "unit": "mol",
-        "symbol": "n"
-    }
-)
-
-D = Component(
-    name="D",
-    formula="D",
-    state="g",
-    X={
-        "name": "mole",
-        "value": 0.0,
-        "unit": "mol",
-        "symbol": "n"
-    }
-)
-
-components: list[Component] = [A, B, C, D]
 
 # NOTE: Reaction
 reaction = Reaction(
     name="reaction 1",
-    reaction="A(g) + B(g) => C(g) + 2D(g)",
+    reaction="CO2(g) + 3H2(g) => CH3OH(g) + H2O(g)",
     components=components
 )
 
@@ -141,14 +92,12 @@ initial_pressure = Pressure(
 
 # SECTION: Reaction
 states: rXs = {
-    'A': X(component=A, order=1),
-    'B': X(component=B, order=1)
+    'CO2': X(component=CO2, order=1),
+    'H2': X(component=H2, order=1)
 }
 
 rate_params: rParams = {
-    'k0': CustomProperty(value=1.05e7, unit="1/s", symbol="k0"),
-    'Ea': CustomProperty(value=46600.0, unit="J/mol", symbol="Ea"),
-    'R': CustomProperty(value=8.314, unit="J/mol.K", symbol="R"),
+    'k': CustomProperty(value=0.5, unit="mol/m3.s.atm2", symbol="k"),
 }
 
 rate_return: rRet = CustomProperty(value=0, unit="mol/m3.s", symbol="r1")
@@ -160,9 +109,7 @@ rate_args: rArgs = {
 
 def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     # rate constant k function of temperature and pressure
-    k0 = params['k0'].value
-    Ea = params['Ea'].value
-    k = k0*math.exp(-Ea/(params['R'].value*args['T'].value))
+    k = params['k'].value
 
     # rate expression: r = k*[A]^order_A*[B]^order_B
     rExp = k*(X['A'].value**X['A'].order)*(X['B'].value**X['B'].order)
@@ -172,7 +119,7 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
 
 # execute
 rate_expression = ReactionRateExpression(
-    name="r1",
+    name="reaction 1",
     basis='concentration',
     components=components,
     reaction=reaction,

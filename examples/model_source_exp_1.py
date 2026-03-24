@@ -162,53 +162,101 @@ print(thermodb_dir)
 
 # NOTE: create component
 # ! propane
-# component info
-propane_component: Component = Component(
-    name="propane",
-    formula="C3H8",
-    state="g"
+# carbon dioxide
+CO2 = Component(
+    name='carbon dioxide',
+    formula='CO2',
+    state='g',
+    X={
+        "name": "mole",
+        "value": 100,
+        "unit": "mol",
+        "symbol": "n"
+    }
 )
+
+# Hydrogen
+H2 = Component(
+    name='hydrogen',
+    formula='H2',
+    state='g',
+    X={
+        "name": "mole",
+        "value": 120,
+        "unit": "mol",
+        "symbol": "n"
+    }
+)
+
+# methanol
+CH3OH = Component(
+    name='methanol',
+    formula='CH3OH',
+    state='g',
+    X={
+        "name": "mole",
+        "value": 0,
+        "unit": "mol",
+        "symbol": "n"
+    }
+)
+
+# water
+H2O = Component(
+    name='water',
+    formula='H2O',
+    state='g',
+    X={
+        "name": "mole",
+        "value": 0,
+        "unit": "mol",
+        "symbol": "n"
+    }
+)
+
+# components
+components = [CO2, H2, CH3OH, H2O]
 
 # NOTE: ignore state properties
 ignore_state_props = ['MW', 'VaPr']
 
-# SECTION: build component thermodb
-thermodb_component_: ComponentThermoDB | None = build_component_thermodb_from_reference(
-    component_name=propane_component.name,
-    component_formula=propane_component.formula,
-    component_state=propane_component.state,
-    reference_content=REFERENCE_CONTENT,
-    ignore_state_props=ignore_state_props,
-)
-# >> check
-if thermodb_component_ is None:
-    raise ValueError("thermodb_component_ is None")
+# SECTION: build components thermodb
+thermodb_components: List[ComponentThermoDB] = []
+
+for comp in components:
+    thermodb_component = build_component_thermodb_from_reference(
+        component_name=comp.name,
+        component_formula=comp.formula,
+        component_state=comp.state,
+        reference_content=REFERENCE_CONTENT,
+        ignore_state_props=ignore_state_props,
+    )
+    if thermodb_component is None:
+        raise ValueError(f"thermodb_component for {comp.name} is None")
+    thermodb_components.append(thermodb_component)
+
 
 # SECTION: build model source
 # NOTE: with partially matched rules
-model_source_: ComponentModelSource = build_component_model_source(
-    component_thermodb=thermodb_component_,
+component_model_source: List[ComponentModelSource] = build_components_model_source(
+    components_thermodb=thermodb_components,
     rules=None,
+)
+
+# model source
+model_source: ModelSource = build_model_source(
+    source=component_model_source,
 )
 # =======================================
 # SECTION: THERMODB LINK CONFIGURATION
 # =======================================
 
 # build datasource & equationsource
-datasource = model_source_.data_source
-equationsource = model_source_.equation_source
+datasource = model_source.data_source
+equationsource = model_source.equation_source
 
 # SECTION: model source
 model_source: ModelSource = ModelSource(
     data_source=datasource,
     equation_source=equationsource
 )
-
-# ------------------------------------------------
-# ! THERMODYNAMIC PROPERTIES
-# ------------------------------------------------
-# component key
-component_key = propane_component.name+"-"+propane_component.state
-# vapor pressure
-VaPr = equationsource[component_key]['VaPr'].cal(T=300.1)
-print(VaPr)

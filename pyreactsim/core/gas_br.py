@@ -13,7 +13,7 @@ from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.unit_tools import to_m3, to_Pa, to_K
 from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
-from ..utils.opt_tools import calc_heat_exchange
+from ..utils.opt_tools import calc_heat_exchange, set_component_X
 from ..models.br import GasModel
 
 # NOTE: logger setup
@@ -77,6 +77,13 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             component_key=component_key
         )
 
+        # ! N: initial mole
+        _, self._N0 = set_component_X(
+            components=components,
+            prop_name="mole",
+            component_key=component_key
+        )
+
         # SECTION: Model inputs
         self.model_inputs = model_inputs
         # >> temperature
@@ -111,6 +118,16 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         self.heat_transfer_coefficient = reactor_inputs.heat_transfer_coefficient
         self.heat_transfer_area = reactor_inputs.heat_transfer_area
         self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
+
+        # NOTE: heat transfer mode
+        if self.heat_transfer_mode == "isothermal":
+            # fixed temperature in K
+            self.temperature_fixed = self.temperature_value
+            # set T0
+            self._T0 = self.temperature_value
+        else:
+            self.temperature_fixed = None
+            self._T0 = self.temperature_value
 
         # >> heat exchange
         self.heat_exchange = False
@@ -169,12 +186,53 @@ class GasBatchReactor(BatchReactor, ThermoSource):
                 output_unit="J/mol.K"
             )
 
+    # SECTION: Properties
+    @property
+    def N0(self) -> np.ndarray:
+        if self._N0 is None:
+            raise ValueError("N0 has not been set.")
+        return self._N0
+
+    @N0.setter
+    def N0(self, value: np.ndarray):
+        self._N0 = value
+
+    @property
+    def T0(self) -> float:
+        if self._T0 is None:
+            raise ValueError("T0 has not been set.")
+        return self._T0
+
+    @T0.setter
+    def T0(self, value: float):
+        self._T0 = value
+
+    # SECTION: Build initial value for n and T
+    def build_y0(self) -> np.ndarray:
+        # NOTE: initial moles
+        n0 = self.N0
+
+        # NOTE: initial temperature
+        if self.heat_transfer_mode == "isothermal":
+            T0 = self.temperature_fixed
+        else:
+            T0 = self.temperature_value
+
+        # NOTE: build initial value vector
+        if self.heat_transfer_mode == "isothermal":
+            # state vector: [n1, n2, ..., nNc]
+            y0 = n0
+        else:
+            # state vector: [n1, n2, ..., nNc, T]
+            y0 = np.concatenate([n0, np.array([T0], dtype=float)])
+
+        return y0
+
     # SECTION: ODE system for solve_ivp
     def rhs(
             self,
             t: float,
-            y: np.ndarray,
-            temperature_fixed: Optional[float] = None
+            y: np.ndarray
     ) -> np.ndarray:
         """
         Right-hand side for solve_ivp.
@@ -186,11 +244,11 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         ns = self.component_num
 
         if self.heat_transfer_mode == "isothermal":
-            if temperature_fixed is None:
+            if self.temperature_fixed is None:
                 raise ValueError(
                     "temperature_fixed must be provided for isothermal simulation.")
             n = y[:ns]
-            temp = float(temperature_fixed)
+            temp = float(self.temperature_fixed)
         else:
             n = y[:ns]
             temp = float(y[ns])

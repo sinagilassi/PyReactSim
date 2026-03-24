@@ -1,5 +1,6 @@
 # import libs
 import logging
+import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, Pressure, Temperature, CustomProperty
 from pythermodb_settings.utils import set_component_id
@@ -49,3 +50,58 @@ def calc_heat_exchange(
     # ! calculate heat exchange using the formula: Q = U * A * (T_s - T)
     # unit check: U [W/m^2.K], A [m^2], T_s [K], temp [K] => Q [W] or [J/s]
     return U * A * (T_s - T)
+
+
+# SECTION: Set feed mole specification
+def set_component_X(
+    components: List[Component],
+    prop_name: str,
+    component_key: ComponentKey
+) -> Tuple[Dict[str, CustomProp], np.ndarray]:
+    """
+    Set the components property based on the specified property in the X dictionary of each component.
+
+    Parameters
+    ----------
+    components : List[Component]
+        A list of Component objects representing the components in the reaction.
+    prop_name : str
+        The name of the property to be set for each component (e.g., "mole", "concentration").
+    component_key : ComponentKey
+        A ComponentKey object representing the key to be used for the components in the model source.
+
+    Returns
+    -------
+    Tuple[Dict[str, CustomProp], np.ndarray]
+        A dictionary with component names as keys and CustomProp objects and a numpy array of the mole values for each component.
+    """
+    # NOTE: set feed mole specification
+    X_spec = {}
+    X_spec_list = []
+
+    # iterate over components and set feed mole specification
+    for component in components:
+        # NOTE: get component name using component key
+        comp_name = set_component_id(component, component_key)
+
+        # get mole specification for the component
+        X_prop = component.X.get(prop_name)
+        if X_prop is None:
+            raise ValueError(
+                f"Component '{comp_name}' does not have the specified property '{prop_name}' in its X dictionary.")
+
+        # add
+        n = CustomProperty(
+            value=X_prop.value,
+            unit=X_prop.unit,
+            symbol=X_prop.symbol,
+        )
+
+        # NOTE: add component mole specification to feed mole specification dictionary
+        X_spec[comp_name] = n
+        X_spec_list.append(n.value)
+
+    # to array
+    X_spec_array = np.array(X_spec_list)
+
+    return X_spec, X_spec_array
