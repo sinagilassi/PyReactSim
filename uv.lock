@@ -461,6 +461,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyreactlab-core" },
+    { name = "pythermocalcdb" },
     { name = "pythermodb" },
     { name = "pythermodb-settings" },
     { name = "pythermolinkdb" },
@@ -475,11 +476,32 @@ requires-dist = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyreactlab-core" },
+    { name = "pythermocalcdb", specifier = ">=0.7.7" },
     { name = "pythermodb" },
     { name = "pythermodb-settings" },
     { name = "pythermolinkdb" },
     { name = "rich" },
     { name = "scipy", specifier = ">=1.17.1" },
+]
+
+[[package]]
+name = "pythermocalcdb"
+version = "0.7.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pycuc" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pyreactlab-core" },
+    { name = "pythermodb" },
+    { name = "pythermodb-settings" },
+    { name = "pythermolinkdb" },
+    { name = "rich" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c7/c3/ae2103dcbf3b0e2eeecea99d23ae3b921bee6aba08eb43a51ae0b1f60ae5/pythermocalcdb-0.7.7.tar.gz", hash = "sha256:80623ee6fe733b070c1188035fee89f618d6d346a354f7bbc1d95edcc11c512a", size = 59179, upload-time = "2026-01-19T04:51:20.595Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/09/b13dbabb22bb31955a83a6d4e7b81564ed5ca1cd6222187a9611e7c8c372/pythermocalcdb-0.7.7-py3-none-any.whl", hash = "sha256:edab5df5b3a0f3ce5d1c180b0a7edbda9615391d3d84bab58fb197372d842bbf", size = 74607, upload-time = "2026-01-19T04:51:19.716Z" },
 ]
 
 [[package]]

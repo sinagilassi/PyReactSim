@@ -31,7 +31,9 @@ class ThermoSource:
         self.source = source
         self.component_key = component_key
 
-    def prop_src(self, prop_name: str) -> Dict[str, ComponentEquationSource]:
+        # NOTE: Create component ID list
+
+    def prop_eq_src(self, prop_name: str) -> Dict[str, ComponentEquationSource]:
         """
         Extracts the property equation for the components from the source and returns it as a dictionary.
 
@@ -53,3 +55,30 @@ class ThermoSource:
             return {}
 
         return eq_src
+
+    def prop_dt_src(
+            self,
+            component_ids: List[str],
+            prop_name: str
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Extracts the property derivative equation for the components from the source and returns it as a dictionary.
+
+        Returns
+        -------
+        Dict[str, ComponentEquationSource]
+            A dictionary where the keys are component IDs and the values are ComponentEquationSource objects
+        """
+        # NOTE: Extract property derivative equation source for all components
+        dt_src = ext_components_dt(
+            component_ids=component_ids,
+            prop_name=prop_name,
+            source=self.source,
+        )
+        # >> check
+        if dt_src is None:
+            logger.error(
+                "Failed to extract property derivative equation for components.")
+            return {}
+
+        return dt_src

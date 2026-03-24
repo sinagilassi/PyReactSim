@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
+from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
 # locals
 from .br import BatchReactor
 from .thermo_source import ThermoSource
@@ -12,8 +13,8 @@ from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.unit_tools import to_m3, to_Pa, to_K
 from ..utils.reaction_tools import stoichiometry_mat
-from ..utils.thermo_tools import calc_total_heat_capacity
-from ..sources.interface import exec_component_eq
+from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
+from ..sources.interface import exec_component_eq, ext_components_dt
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         reactor_inputs: BatchReactorOptions,
         reaction_rates: Dict[str, ReactionRateExpression],
         component_key: ComponentKey,
+        **kwargs
     ):
         """
         Initializes the GasBatchReactor instance with the provided components, source, and component key.
@@ -47,8 +49,17 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             A list of Component objects representing the chemical components involved in the gas-phase batch reactor.
         source : Source
             A Source object containing information about the source of the data or equations used in the gas-phase batch reactor simulations.
+        model_inputs : Dict[str, Any]
+            A dictionary containing the model inputs for the gas-phase batch reactor simulations, such as temperature, pressure, and initial mole numbers.
+        reactor_inputs : BatchReactorOptions
+            A BatchReactorOptions object containing the options and parameters specific to the gas-phase batch reactor setup, such as heat transfer mode, volume mode, and gas model.
+        reaction_rates : Dict[str, ReactionRateExpression]
+            A dictionary containing the reaction rate expressions for the reactions occurring in the gas-phase batch reactor,
+            where the keys are the names of the reactions and the values are ReactionRateExpression objects.
         component_key : ComponentKey
-            A ComponentKey object that serves as a key for identifying and categorizing the components in the gas-phase batch reactor.
+            A ComponentKey object representing the key to be used for the components in the model source.
+        **kwargs
+            Additional keyword arguments that can be passed to the initialization of the GasBatchReactor instance.
         """
         # LINK: Initialize the parent BatchReactor class
         BatchReactor.__init__(
@@ -114,10 +125,17 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         self.stoichiometry_matrix = self.build_stoichiometry()
 
         # SECTION: Thermodynamic properties
-        self.Cp_IG_src = self.prop_src(prop_name="Cp_IG")
+        # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
+        self.Cp_IG_src = self.prop_eq_src(prop_name="Cp_IG")
         # >> heat capacity mode
         if self.heat_capacity_mode == "constant":
             self.Cp_IG_values = self.calc_Cp_IG()
+
+        # ! Ideal Gas Enthalpy of formation at 298 K
+        self.EnFo_IG_298_src = self.prop_dt_src(
+            component_ids=self.component_ids,
+            prop_name="EnFo_IG"
+        )
 
     def calc_Cp_IG(
             self,
@@ -168,6 +186,52 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         Cp_IG_values = np.array(Cp_IG_values, dtype=float)
 
         return Cp_IG_values
+
+    def calc_dH_rxns(
+            self,
+            temperature: Temperature
+    ) -> np.ndarray:
+        """
+        Calculate the reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the reaction enthalpies (ΔH) for the reactions
+            in the gas-phase batch reactor.
+
+        Returns
+        -------
+        np.ndarray
+            An array of reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor, calculated at the specified temperature.
+        """
+        # create model source
+        model_source = self.source.model_source
+        # >> check
+        if model_source is None:
+            raise ValueError(
+                "Model source is required to calculate reaction enthalpies.")
+        #
+        dH_rxns = []
+        for rxn in self.reactions:
+            dH_rxn = dH_rxn_STD(
+                reaction=rxn,
+                temperature=temperature,
+                model_source=model_source,
+            )
+
+            # >> check
+            if dH_rxn is None:
+                raise ValueError(
+                    f"Failed to calculate reaction enthalpy for reaction: {rxn.name}")
+
+            dH_rxns.append(dH_rxn)
+
+        # NOTE: convert to numpy array
+        res = [dH.value for dH in dH_rxns]
+        res = np.array(res, dtype=float)
+
+        return res
 
     def build_reactions(self):
         """
@@ -224,6 +288,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # ideal gas model
         return n_total * self.R * temperature / float(self.reactor_volume_value)
 
+    # SECTION: ODE system for solve_ivp
     def rhs(
             self,
             t: float,
@@ -260,10 +325,12 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             sp: y_mole[i] * p_total for i, sp in enumerate(self.component_ids)
         }
 
-        # Reaction rates
+        # NOTE: Calculate Reaction rates for each component (partial pressures and temperature)
+        # FIXME
         rates = self.stoichiometry_matrix
 
-        # NOTE: Species balances: dn_i/dt = V * Σ_k ν_i,k * r_k
+        # NOTE: Species balances:
+        # ! dn_i/dt = V * Σ_k ν_i,k * r_k
         dn_dt = np.zeros(ns, dtype=float)
         name_to_idx = self.component_id_to_index
 
@@ -273,27 +340,36 @@ class GasBatchReactor(BatchReactor, ThermoSource):
                 i = name_to_idx[sp_name]
                 dn_dt[i] += self.reactor_volume_value * nu_ik * r_k
 
+        # >>> calculate dn/dt for isothermal case
         if self.heat_transfer_mode == "isothermal":
             return dn_dt
 
         # NOTE: Energy balance:
-        #   (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
+        # ! (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
         c_total = calc_total_heat_capacity(n, self.Cp_IG_values)
 
         if c_total <= 1e-16:
             raise ValueError("Total heat capacity is too small or zero.")
 
-        q_rxn = 0.0
-        for k, rxn in enumerate(self.reactions):
-            q_rxn += self.reactor_volume_value * (-rxn.delta_h) * rates[k]
+        # ! calculate heat generated by reactions: Q_rxn = V Σ_k [(-ΔH_k) r_k]
+        # V[m3], ΔH[J/mol], r[mol/m3.s] => Q_rxn [J/s] or [W]
+        q_rxn = calc_rxn_heat_generation(
+            delta_h=self.calc_dH_rxns(
+                temperature=Temperature(value=temp, unit="K")
+            ),
+            rates=rates,
+            reactor_volume=self.reactor_volume_value
+        )
 
+        # ! calculate heat exchange with surroundings: Q_exchange = UA (T_s - T)
         q_exchange = 0.0
         if self.heat_exchange:
             q_exchange = self.calc_heat_exchange(temp=temp)
 
-        # NOTE: calculate dT/dt
+        # >>> calculate dT/dt
         dT_dt = (q_rxn + q_exchange) / c_total
 
+        # >>> calculate both dn/dt and dT/dt
         return np.concatenate([dn_dt, np.array([dT_dt], dtype=float)])
 
     def calc_heat_exchange(self, temp: float) -> float:

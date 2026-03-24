@@ -50,6 +50,13 @@ C = Component(
 
 components: list[Component] = [A, B, C]
 
+# initial mole
+initial_mole = {
+    'A': CustomProp(value=1.0, unit="mol"),
+    'B': CustomProp(value=1.0, unit="mol"),
+    'C': CustomProp(value=0.0, unit="mol")
+}
+
 # NOTE: Reaction
 reaction = Reaction(
     name="A_to_B",
@@ -169,10 +176,7 @@ rate_expression = ReactionRateExpression(
 
 # ! model inputs
 model_inputs = {
-    "mole_fractions": None,
-    "mole": None,
-    "concentrations": None,
-    "partial_pressures": None,
+    "mole": initial_mole,
     "temperature": initial_temperature,
     "pressure": initial_pressure,
 }

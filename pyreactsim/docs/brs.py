@@ -2,11 +2,14 @@
 import logging
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union, TypeAlias
 from pythermodb_settings.models import Component, ComponentKey
+from pythermodb_settings.utils import set_feed_specification
 from pyThermoLinkDB.models import ModelSource
+from pyThermoLinkDB.thermo import Source
 
 # locals
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
+from ..core.gas_br import GasBatchReactor
 
 # NOTE: set logger
 logger = logging.getLogger(__name__)
@@ -41,4 +44,31 @@ def batch_react(
     **kwargs
             Additional keyword arguments to be passed to the simulation function.
     """
-    pass
+    try:
+        # NOTE: set feed specification
+        n = model_inputs.get('mole')
+        # >> check
+        if n is None:
+            raise ValueError("Mole input is required for feed specification.")
+
+        # NOTE: Create source
+        source = Source(
+            model_source=model_source,
+            component_key=component_key,
+        )
+
+        # NOTE: create batch reactor model
+        br_model = GasBatchReactor(
+            components=components,
+            source=source,
+            model_inputs=model_inputs,
+            reactor_inputs=reactor_inputs,
+            reaction_rates=reaction_rates,
+            **kwargs,
+        )
+
+        # NOTE: create function
+        #
+
+    except Exception as e:
+        logger.error(f"Error during batch reactor simulation: {e}")
