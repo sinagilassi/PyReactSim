@@ -12,7 +12,6 @@ from .thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.unit_tools import to_m3, to_Pa, to_K
-from ..utils.reaction_tools import stoichiometry_mat
 from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
 from ..sources.interface import exec_component_eq, ext_components_dt
 
@@ -73,6 +72,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             self,
             components=components,
             source=source,
+            reaction_rates=reaction_rates,
             component_key=component_key
         )
 
@@ -81,10 +81,23 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # >> temperature
         if "temperature" in model_inputs:
             self.temperature: Temperature = model_inputs["temperature"]
+            self.temperature_value = to_K(
+                self.temperature.value,
+                self.temperature.unit
+            )
+            # >> update
+            self.temperature = Temperature(
+                value=self.temperature_value,
+                unit="K"
+            )
+        else:
+            raise ValueError("Temperature must be provided in model_inputs.")
 
         # >> pressure
         if "pressure" in model_inputs:
             self.pressure: Pressure = model_inputs["pressure"]
+        else:
+            raise ValueError("Pressure must be provided in model_inputs.")
 
         # SECTION: GasBatchReactor-specific properties
         self.reactor_inputs = reactor_inputs
@@ -129,63 +142,19 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         self.Cp_IG_src = self.prop_eq_src(prop_name="Cp_IG")
         # >> heat capacity mode
         if self.heat_capacity_mode == "constant":
-            self.Cp_IG_values = self.calc_Cp_IG()
+            self.Cp_IG_values = self.calc_Cp_IG(
+                inputs={
+                    "T": self.temperature_value
+                },
+                Cp_IG_src=self.Cp_IG_src,
+                output_unit="J/mol.K"
+            )
 
         # ! Ideal Gas Enthalpy of formation at 298 K
         self.EnFo_IG_298_src = self.prop_dt_src(
             component_ids=self.component_ids,
             prop_name="EnFo_IG"
         )
-
-    def calc_Cp_IG(
-            self,
-            inputs: Optional[Dict[str, Any]] = None,
-            output_unit: Optional[str] = "J/mol.K"
-    ) -> np.ndarray:
-        # NOTE: check if Cp_IG is constant or variable
-        if self.heat_capacity_mode == "constant":
-            inputs = {
-                "T": to_K(self.temperature.value, self.temperature.unit)
-            }
-        else:
-            if inputs is None:
-                raise ValueError(
-                    "inputs must be provided for variable heat capacity mode.")
-
-        # NOTE: extract Cp_IG at reference temperature (e.g., 298 K)
-        Cp_IG_ref: Dict[str, CustomProperty] = {}
-        for comp in self.component_ids:
-            eq_src = self.Cp_IG_src.get(comp)
-            if eq_src is None:
-                raise ValueError(
-                    f"No Cp_IG source found for component: {comp}")
-
-            # >> execute equation to get Cp_IG at reference conditions
-            cp_value = exec_component_eq(
-                component_eq_src=eq_src,
-                inputs=inputs,
-                output_unit=output_unit
-            )
-            if cp_value is None:
-                raise ValueError(
-                    f"Failed to extract Cp_IG value for component: {comp}")
-            Cp_IG_ref[comp] = cp_value
-
-        # NOTE: build a list of Cp_IG values for all components
-        Cp_IG_values = []
-
-        # iterate over components
-        for comp in self.component_ids:
-            cp_value = Cp_IG_ref.get(comp)
-            if cp_value is None:
-                raise ValueError(
-                    f"No Cp_IG value found for component: {comp}")
-            Cp_IG_values.append(cp_value.value)
-
-        # >> to numpy
-        Cp_IG_values = np.array(Cp_IG_values, dtype=float)
-
-        return Cp_IG_values
 
     def calc_dH_rxns(
             self,
@@ -232,36 +201,6 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         res = np.array(res, dtype=float)
 
         return res
-
-    def build_reactions(self):
-        """
-        Build the list of Reaction objects for the gas-phase batch reactor using the provided reaction rates and components.
-        """
-        reactions = []
-        for rxn_name, rate_exp in self.reaction_rates.items():
-            rxn = rate_exp.reaction
-            reactions.append(rxn)
-        return reactions
-
-    def build_stoichiometry(self):
-        """
-        Build the stoichiometry matrix for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
-        """
-        # >> extract reactions from reaction rates
-        reactions = []
-
-        for rxn_name, rate_exp in self.reaction_rates.items():
-            rxn = rate_exp.reaction
-            reactions.append(rxn)
-
-        # >> build stoichiometry matrix
-        mat = stoichiometry_mat(
-            reactions=reactions,
-            components=self.components,
-            component_key=cast(ComponentKey, self.component_key)
-        )
-
-        return mat
 
     def calc_tot_pressure(self, n_total: float, temperature: float) -> float:
         """
@@ -324,10 +263,31 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         partial_pressures = {
             sp: y_mole[i] * p_total for i, sp in enumerate(self.component_ids)
         }
+        # >> std partial pressures
+        partial_pressures_std = {}
+        for k, v in partial_pressures.items():
+            partial_pressures_std[k] = CustomProperty(
+                value=v,
+                unit="Pa",
+                symbol="P"
+            )
 
         # NOTE: Calculate Reaction rates for each component (partial pressures and temperature)
-        # FIXME
-        rates = self.stoichiometry_matrix
+        # ! r_k = k(T, P_i) for each reaction k
+        rates = []
+
+        # iterate over reaction rate expressions
+        for rxn_name, rate_exp in self.reaction_rates.items():
+            # >> calculate rate for reaction
+            r_k = rate_exp.calc(
+                xi=partial_pressures_std,
+                temperature=Temperature(value=temp, unit="K"),
+                pressure=Pressure(value=p_total, unit="Pa")
+            )
+            rates.append(r_k)
+
+        # >> to array
+        rates = np.array(rates, dtype=float)
 
         # NOTE: Species balances:
         # ! dn_i/dt = V * Σ_k ν_i,k * r_k
@@ -335,8 +295,16 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         name_to_idx = self.component_id_to_index
 
         for k, rxn in enumerate(self.reactions):
+            # > calculate reaction rate for reaction k
             r_k = rates[k]
-            for sp_name, nu_ik in rxn.stoich.items():
+
+            # > reaction stoichiometry for reaction k: ν_i,k
+            stoich_k = rxn.reaction_stoichiometry_source[
+                self.component_key
+            ].items()
+
+            # >> calculate dn/dt for each component i based on reaction k
+            for sp_name, nu_ik in stoich_k:
                 i = name_to_idx[sp_name]
                 dn_dt[i] += self.reactor_volume_value * nu_ik * r_k
 
