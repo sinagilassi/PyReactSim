@@ -10,7 +10,13 @@ from pyreactlab_core.models.reaction import Reaction
 from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
 
 # locals
-from ..sources.interface import ext_component_dt, ext_components_dt, ext_component_eq, ext_components_eq, exec_component_eq
+from ..sources.interface import (
+    ext_component_dt,
+    ext_components_dt,
+    ext_component_eq,
+    ext_components_eq,
+    exec_component_eq
+)
 from ..utils.unit_tools import to_K
 from ..utils.reaction_tools import stoichiometry_mat
 from ..models.rate_exp import ReactionRateExpression

@@ -12,8 +12,8 @@ from .thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.unit_tools import to_m3, to_Pa, to_K
-from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation, calc_tot_pressure_ideal
-from ..sources.interface import exec_component_eq, ext_components_dt
+from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
+from ..utils.opt_tools import calc_heat_exchange
 from ..models.br import GasModel
 
 # NOTE: logger setup
@@ -120,6 +120,23 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             self.heat_transfer_area is not None
         ):
             self.heat_exchange = True
+
+            # >> conversions for heat exchange parameters
+            self.jacket_temperature = Temperature(
+                value=to_K(
+                    self.jacket_temperature.value,
+                    self.jacket_temperature.unit
+                ),
+                unit="K"
+            )
+            # >>> set
+            self.jacket_temperature_value = self.jacket_temperature.value
+
+            # >> heat transfer coefficient [W/m2.K]
+            self.heat_transfer_coefficient_value = self.heat_transfer_coefficient.value
+
+            # >> heat transfer area [m2]
+            self.heat_transfer_area_value = self.heat_transfer_area.value
 
         # NOTE: Validate options
         if reactor_inputs.reactor_volume is None:
@@ -265,42 +282,15 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # ! calculate heat exchange with surroundings: Q_exchange = UA (T_s - T)
         q_exchange = 0.0
         if self.heat_exchange:
-            q_exchange = self.calc_heat_exchange(temp=temp)
+            q_exchange = calc_heat_exchange(
+                temperature=temp,
+                jacket_temperature=self.jacket_temperature_value,
+                heat_transfer_area=self.heat_transfer_area_value,
+                heat_transfer_coefficient=self.heat_transfer_coefficient_value
+            )
 
         # >>> calculate dT/dt
         dT_dt = (q_rxn + q_exchange) / c_total
 
         # >>> calculate both dn/dt and dT/dt
         return np.concatenate([dn_dt, np.array([dT_dt], dtype=float)])
-
-    def calc_heat_exchange(self, temp: float) -> float:
-        """
-        Calculate the heat exchange with the surroundings based on the current temperature of the system.
-
-        Parameters
-        ----------
-        temp : float
-            Current temperature of the system [K].
-
-        Returns
-        -------
-        float
-            Heat exchange with the surroundings [W].
-        """
-        if not self.heat_exchange:
-            return 0.0
-
-        # NOTE: check if all required parameters for heat exchange are available
-        if self.jacket_temperature is None or self.heat_transfer_coefficient is None or self.heat_transfer_area is None:
-            raise ValueError(
-                "Jacket temperature, heat transfer coefficient, and heat transfer area must be provided for heat exchange calculation."
-            )
-
-        # NOTE: Convert units if necessary
-        T_s = to_K(self.jacket_temperature.value, self.jacket_temperature.unit)
-        A = to_m3(self.heat_transfer_area.value, self.heat_transfer_area.unit)
-        U = self.heat_transfer_coefficient.value  # Assuming it's already in W/m^2.K
-
-        # ! calculate heat exchange using the formula: Q = U * A * (T_s - T)
-        # unit check: U [W/m^2.K], A [m^2], T_s [K], temp [K] => Q [W] or [J/s]
-        return U * A * (T_s - temp)
