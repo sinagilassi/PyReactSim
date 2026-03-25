@@ -334,7 +334,11 @@ class GasBatchReactor(BatchReactor, ThermoSource):
                 temperature=temperature,
                 pressure=pressure
             )
-            rates.append(r_k)
+
+            # extract rate value
+            r_k_value = r_k.value
+            # append to rates list
+            rates.append(r_k_value)
 
         # >> to array
         rates = np.array(rates, dtype=float)
