@@ -73,6 +73,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             self,
             components=components,
             source=source,
+            reactor_inputs=reactor_inputs,
             reaction_rates=reaction_rates,
             component_key=component_key
         )
@@ -176,16 +177,6 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
         # ! Ideal Gas Enthalpy of formation at 298 K
 
-        # >> heat capacity mode
-        if self.heat_capacity_mode == "constant":
-            self.Cp_IG_values = self.calc_Cp_IG(
-                inputs={
-                    "T": self.temperature_value
-                },
-                Cp_IG_src=self.Cp_IG_src,
-                output_unit="J/mol.K"
-            )
-
     # SECTION: Properties
     @property
     def N0(self) -> np.ndarray:
@@ -240,6 +231,13 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         State vector:
         - isothermal: [n1, n2, ..., nNc]
         - non-isothermal: [n1, n2, ..., nNc, T]
+
+        Parameters
+        ----------
+        t : float
+            Current time in the simulation (in seconds).
+        y : np.ndarray
+            Current state vector of the system, which includes the moles of each component and, if applicable, the temperature.
         """
         ns = self.component_num
 
@@ -347,6 +345,21 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             ns: int,
             rates: np.ndarray
     ):
+        """
+        Build the rate of change of moles (dn/dt) for each component based on the reaction rates and stoichiometry.
+
+        Parameters
+        ----------
+        ns : int
+            Number of components in the reactor.
+        rates : np.ndarray
+            Array of reaction rates for each reaction in the reactor.
+
+        Returns
+        -------
+        np.ndarray
+            An array of the rate of change of moles (dn/dt) for each component in the reactor, calculated based on the reaction rates and stoichiometry.
+        """
         # ! dn_i/dt = V * Σ_k ν_i,k * r_k
         dn_dt = np.zeros(ns, dtype=float)
         name_to_idx = self.component_id_to_index
@@ -374,9 +387,35 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             rates: np.ndarray,
             temp: float
     ):
+        """
+        Calculate the rate of change of temperature (dT/dt) based on the energy balance for the non-isothermal gas-phase batch reactor.
+
+        Parameters
+        ----------
+        n : np.ndarray
+            Array of moles of each component in the reactor.
+        rates : np.ndarray
+            Array of reaction rates for each reaction in the reactor.
+        temp : float
+            Current temperature of the system (in K).
+
+        Returns
+        -------
+        float
+            The rate of change of temperature (dT/dt) for the non-isothermal gas-phase batch reactor.
+        """
         # ! (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
+        # ??? Cp_i(T)
+        Cp_IG_values = self.calc_Cp_IG(
+            inputs={
+                "T": temp
+            },
+            Cp_IG_src=self.Cp_IG_src,
+            output_unit="J/mol.K"
+        )
+
         # ??? Σ_i n_i Cp_i
-        c_total = calc_total_heat_capacity(n, self.Cp_IG_values)
+        c_total = calc_total_heat_capacity(n, Cp_IG_values)
 
         if c_total <= 1e-16:
             raise ValueError("Total heat capacity is too small or zero.")
@@ -420,6 +459,26 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         y_mole: np.ndarray,
         T: float
     ):
+        """
+        Calculate the partial pressures of the components based on the total moles, mole fractions, and temperature.
+
+        Parameters
+        ----------
+        n_total : float
+            Total moles of all components in the reactor.
+        y_mole : np.ndarray
+            Mole fractions of the components in the reactor.
+        T : float
+            Current temperature of the system (in K).
+
+        Returns
+        -------
+        Tuple[Dict[str, CustomProperty], Dict[str, CustomProperty], float]
+            A tuple containing:
+            - A dictionary of partial pressures for each component (in Pa).
+            - A dictionary of partial pressures for each component as CustomProperty objects (in Pa).
+            - The total pressure of the system (in Pa).
+        """
         # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
         # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
         p_total = self.calc_tot_pressure(

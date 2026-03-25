@@ -21,6 +21,7 @@ from ..utils.unit_tools import to_K
 from ..utils.reaction_tools import stoichiometry_mat
 from ..models.rate_exp import ReactionRateExpression
 from ..models.br import GasModel
+from ..models.br import BatchReactorOptions
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -35,9 +36,9 @@ class ThermoSource:
         self,
         components: List[Component],
         source: Source,
+        reactor_inputs: BatchReactorOptions,
         reaction_rates: Dict[str, ReactionRateExpression],
         component_key: ComponentKey,
-
     ):
         """
         Initializes the THermo instance with default properties and settings for thermodynamic calculations.
@@ -45,6 +46,7 @@ class ThermoSource:
         # NOTE: Set attributes
         self.components = components
         self.source = source
+        self.reactor_inputs = reactor_inputs
         self.reaction_rates = reaction_rates
         self.component_key = component_key
 
@@ -62,13 +64,15 @@ class ThermoSource:
 
         # SECTION: Thermodynamic properties
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
-        self.Cp_IG_src = self.prop_eq_src(prop_name="Cp_IG")
+        if self.reactor_inputs.heat_transfer_mode == "non-isothermal":
+            self.Cp_IG_src = self.prop_eq_src(prop_name="Cp_IG")
 
         # ! Ideal Gas Enthalpy of formation at 298 K
-        self.EnFo_IG_298_src = self.prop_dt_src(
-            component_ids=self.component_ids,
-            prop_name="EnFo_IG"
-        )
+        if self.reactor_inputs.heat_transfer_mode == "non-isothermal":
+            self.EnFo_IG_298_src = self.prop_dt_src(
+                component_ids=self.component_ids,
+                prop_name="EnFo_IG"
+            )
 
     # SECTION: Property equation source extraction methods
     # ! Extract property equation source for components
