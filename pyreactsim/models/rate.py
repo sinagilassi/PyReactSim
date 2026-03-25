@@ -63,7 +63,8 @@ class ReactionRate:
             *,
             args: Optional[rArgs] = None,
             temperature: Optional[Temperature] = None,
-            pressure: Optional[Pressure] = None
+            pressure: Optional[Pressure] = None,
+            state_key: Optional[ComponentKey] = None
     ) -> rRet:
         """
         Calculate the reaction rate based on the provided state (xi), arguments, temperature, and pressure.
@@ -86,7 +87,7 @@ class ReactionRate:
 
         Notes
         -----
-        - State defines for each reaction based on formula or formula-state component key. This allows for flexible mapping of input states to components in the rate expression.
+        - State defines for each reaction based on formula-state component key such as CO2-g.
         """
         # NOTE: Build call args from defaults + call overrides
         call_args: rArgs = {}
@@ -96,26 +97,37 @@ class ReactionRate:
         # NOTE: Update xi values while preserving per-component metadata (e.g., order)
         xi_converted: rXs = {}
 
-        # import locally to avoid import cycle during module initialization
+        # NOTE: state key
+        state_key = 'Formula-State' if state_key is None else state_key
 
         for comp in self.components:
             # >>> get state for the component
-            current_x = self.state.get(comp.formula)
+            # >> create id
+            id_ = set_component_id(comp, state_key)
+            # >> find state for component
+            current_x = self.state.get(id_)
+            # >>> check
             if current_x is None:
                 current_x = X(component=comp)
 
-            if comp.name in xi:
-                xi_converted[comp.name] = X(
+            # check if component state is provided in xi
+            if id_ in xi.keys():
+                xi_converted[id_] = X(
                     component=comp,
                     order=current_x.order,
-                    value=xi[comp.name].value,
-                    unit=xi[comp.name].unit
+                    value=xi[id_].value,
+                    unit=xi[id_].unit
                 )
             else:
                 logger.warning(
-                    f"Component {comp.name} not found in xi. Reusing previous/default value.")
-                xi_converted[comp.name] = X(
-                    component=comp, order=current_x.order, value=current_x.value, unit=current_x.unit)
+                    f"Component {id_} not found in xi. Reusing previous/default value."
+                )
+                xi_converted[id_] = X(
+                    component=comp,
+                    order=current_x.order,
+                    value=current_x.value,
+                    unit=current_x.unit
+                )
 
         # NOTE: Add Temperature and Pressure to args if provided
         if temperature is not None:

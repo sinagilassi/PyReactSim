@@ -17,8 +17,6 @@ from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models.br import BatchReactorOptions
 from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
-# ! model source
-from model_source_exp_1 import model_source
 
 # check version
 print(ptdb.__version__)
@@ -139,10 +137,16 @@ initial_pressure = Pressure(
     unit="Pa",
 )
 
+# ! model inputs
+model_inputs = {
+    "temperature": initial_temperature,
+    "pressure": initial_pressure,
+}
+
 # SECTION: Reaction
 states: rXs = {
-    'A': X(component=A, order=1),
-    'B': X(component=B, order=1)
+    'A-g': X(component=A, order=1),
+    'B-g': X(component=B, order=1)
 }
 
 rate_params: rParams = {
@@ -165,9 +169,15 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     k = k0*math.exp(-Ea/(params['R'].value*args['T'].value))
 
     # rate expression: r = k*[A]^order_A*[B]^order_B
-    rExp = k*(X['A'].value**X['A'].order)*(X['B'].value**X['B'].order)
+    rExp = k*(X['A-g'].value**X['A-g'].order)*(X['B-g'].value**X['B-g'].order)
 
-    return CustomProperty(value=rExp, unit="mol/m3.s", symbol="r1")
+    return CustomProperty(
+        name="r1",
+        description="Reaction rate for reaction 1",
+        value=rExp,
+        unit="mol/m3.s",
+        symbol="r1"
+    )
 
 
 # execute
@@ -180,25 +190,19 @@ rate_expression = ReactionRateExpression(
     args=rate_args,
     ret=rate_return,
     state=states,
+    state_key='Formula-State',
     eq=r1,
     component_key='Name-Formula'
 )
 
-# cal
-# result = rate_expression.calc(
-#     xi={
-#         'A': CustomProperty(value=1.0, unit="mol/m3", symbol="A"),
-#         'B': CustomProperty(value=1.0, unit="mol/m3", symbol="B")
-#     },
-#     temperature=initial_temperature,
-#     pressure=initial_pressure,
-#     mode="log"
-# )
-# print(result)
-
-
-# ! model inputs
-model_inputs = {
-    "temperature": initial_temperature,
-    "pressure": initial_pressure,
-}
+# calculate rate expression value
+result = rate_expression.calc(
+    xi={
+        'A-g': CustomProperty(value=1.0, unit="mol/m3", symbol="A"),
+        'B-g': CustomProperty(value=1.0, unit="mol/m3", symbol="B")
+    },
+    temperature=initial_temperature,
+    pressure=initial_pressure,
+    mode="log"
+)
+print(result)
