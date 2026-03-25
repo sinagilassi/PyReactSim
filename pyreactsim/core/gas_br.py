@@ -322,6 +322,10 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         pressure : Pressure
             Total pressure of the system (in Pa).
 
+        Returns
+        -------
+        np.ndarray
+            An array of reaction rates for each reaction in the reactor, calculated based on the current partial pressures and temperature.
         """
         # ! r_k = k(T, P_i) for each reaction k
         rates = []

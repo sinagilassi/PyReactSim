@@ -240,8 +240,9 @@ def exec_component_eq(
                 f"Equation source does not have a 'cal' method: {eq_src}")
             return None
 
-        # res
-        res_src = eq_src.cal(inputs=inputs)
+        # result from equation source
+        # ! Use ** to unpack the inputs dictionary as keyword arguments for the cal method
+        res_src = eq_src.cal(**inputs)
 
         # extract value, unit, symbol
         res = {}

@@ -20,7 +20,7 @@ from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpressi
 from pyreactsim.docs.brs import batch_react
 # ! model source
 from model_source_exp_1 import model_source, components, CO2, H2, CH3OH, H2O
-from examples.plot.plot_res import load_simulation_result
+from examples.plot.plot_res import plot_batch_reactor_result
 
 # check version
 print(ptdb.__version__)
@@ -67,7 +67,7 @@ heat_transfer_area = CustomProp(
 # ! reactor inputs
 reactor_inputs = BatchReactorOptions(
     phase='gas',
-    heat_transfer_mode='isothermal',
+    heat_transfer_mode='non-isothermal',
     volume_mode='constant',
     gas_model='ideal',
     reactor_volume=reactor_volume,
@@ -82,11 +82,11 @@ reactor_inputs = BatchReactorOptions(
 # ====================================================
 states: rXs = {
     'CO2-g': X(component=CO2, order=1),
-    'H2-g': X(component=H2, order=1)
+    'H2-g': X(component=H2, order=2)
 }
 
 rate_params: rParams = {
-    'k': CustomProperty(value=0.5, unit="mol/m3.s.atm2", symbol="k"),
+    'k': CustomProperty(value=2e-11, unit="mol/m3.s.Pa2", symbol="k"),
 }
 
 rate_return: rRet = CustomProperty(value=0, unit="mol/m3.s", symbol="r1")
@@ -133,13 +133,13 @@ rate_expression = ReactionRateExpression(
 # ====================================================
 # NOTE: initial temperature
 initial_temperature = Temperature(
-    value=298.0,
+    value=523,
     unit="K",
 )
 
 # NOTE: initial pressure
 initial_pressure = Pressure(
-    value=101325.0,
+    value=5e6,
     unit="Pa",
 )
 
@@ -161,9 +161,15 @@ simulation_result: BatchReactorResult | None = batch_react(
     component_key='Name-Formula',
     solver_options={
         "method": "BDF",
-        "time_span": (0, 3600),
+        "time_span": (0, 100),
         "rtol": 1e-6,
         "atol": 1e-9
     }
 )
 print(simulation_result)
+
+if simulation_result is not None:
+    plot_batch_reactor_result(
+        result=simulation_result,
+        components=components,
+    )

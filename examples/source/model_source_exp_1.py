@@ -10,6 +10,8 @@ from pyThermoLinkDB import (
     build_model_source
 )
 from pyThermoLinkDB.models import ComponentModelSource, ModelSource
+from pyThermoLinkDB.thermo import Source
+from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pythermodb_settings.models import Component, Pressure, Temperature, CustomProp, Volume, CustomProperty
 from pyThermoDB import ComponentThermoDB
 from pyThermoDB import build_component_thermodb_from_reference
@@ -137,3 +139,37 @@ model_source: ModelSource = ModelSource(
     data_source=datasource,
     equation_source=equationsource
 )
+
+# print model source
+print(model_source)
+
+# SECTION: Create source
+source = Source(
+    model_source=model_source,
+    component_key='Name-Formula',
+)
+print(source)
+
+# NOTE: Extract data & equations for a specific component
+Cp_IG_src: Dict[str, ComponentEquationSource] | None = source.eq_builder(
+    components=[CO2],
+    prop_name='Cp_IG',
+)
+print(Cp_IG_src)
+
+if Cp_IG_src is None:
+    raise ValueError("Cp_IG_src is None")
+
+CO2_Cp_IG_src: ComponentEquationSource | None = Cp_IG_src.get(
+    'carbon dioxide-CO2')
+print(CO2_Cp_IG_src)
+
+# execute Cp_IG equation for carbon dioxide at 300 K
+if CO2_Cp_IG_src is None:
+    raise ValueError("CO2_Cp_IG_src is None")
+Cp_IG_eq = CO2_Cp_IG_src.source
+# calc
+Cp_IG_value = Cp_IG_eq.cal(
+    T=300
+)
+print(f"Cp_IG for carbon dioxide at 300 K: {Cp_IG_value} J/mol.K")
