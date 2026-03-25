@@ -66,3 +66,41 @@ class BatchReactorOptions(BaseModel):
         default='constant',
         description="Heat capacity mode (constant or variable)."
     )
+
+
+class BatchReactorResult(BaseModel):
+    """Container for batch reactor simulation outputs."""
+
+    time: Any = Field(
+        ...,
+        description="Time points returned by the ODE solver."
+    )
+    state: Any = Field(
+        ...,
+        description="State matrix returned by the ODE solver (n_states, n_time)."
+    )
+    success: bool = Field(
+        ...,
+        description="Whether the ODE solver finished successfully."
+    )
+    message: str = Field(
+        default="",
+        description="Solver status message."
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a plain dictionary representation."""
+        return {
+            "time": self.time,
+            "state": self.state,
+            "success": self.success,
+            "message": self.message,
+        }
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Dictionary-like accessor for backward compatibility."""
+        return self.to_dict().get(key, default)
+
+    def __getitem__(self, key: str) -> Any:
+        """Support bracket access such as result['time']."""
+        return self.to_dict()[key]

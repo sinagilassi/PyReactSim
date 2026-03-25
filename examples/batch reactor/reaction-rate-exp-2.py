@@ -15,11 +15,12 @@ from pyThermoDB import ComponentThermoDB
 from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
 # locals
-from pyreactsim.models.br import BatchReactorOptions
+from pyreactsim.models.br import BatchReactorOptions, BatchReactorResult
 from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 from pyreactsim.docs.brs import batch_react
 # ! model source
 from model_source_exp_1 import model_source, components, CO2, H2, CH3OH, H2O
+from examples.plot.plot_res import load_simulation_result
 
 # check version
 print(ptdb.__version__)
@@ -151,7 +152,7 @@ model_inputs = {
 # ====================================================
 # SECTION: Simulation
 # ====================================================
-simulation_result = batch_react(
+simulation_result: BatchReactorResult | None = batch_react(
     components=components,
     model_inputs=model_inputs,
     reactor_inputs=reactor_inputs,

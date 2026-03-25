@@ -6,7 +6,7 @@ from pythermodb_settings.models import Component, ComponentKey
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
 # locals
-from ..models.br import BatchReactorOptions, HeatTransferMode
+from ..models.br import BatchReactorOptions, BatchReactorResult, HeatTransferMode
 from ..models.rate_exp import ReactionRateExpression
 from ..core.gas_br import GasBatchReactor
 
@@ -112,7 +112,14 @@ def batch_react(
         y0 = GasBatchReactor_.build_y0()
 
         # NOTE: solve ode
-        sol = solve_ivp(fun, (0, 100), y0, method='BDF')
+        sol = solve_ivp(
+            fun,
+            time_span,
+            y0,
+            method=method,
+            rtol=rtol,
+            atol=atol,
+        )
 
         # NOTE: process results
         # ! solver success
@@ -124,11 +131,11 @@ def batch_react(
         t = sol.t
         y = sol.y
 
-        return {
-            'time': t,
-            'state': y,
-            'success': sol.success,
-            'message': sol.message
-        }
+        return BatchReactorResult(
+            time=t,
+            state=y,
+            success=sol.success,
+            message=sol.message,
+        )
     except Exception as e:
         logger.error(f"Error during batch reactor simulation: {e}")
