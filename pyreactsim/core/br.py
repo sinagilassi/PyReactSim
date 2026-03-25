@@ -67,6 +67,15 @@ class BatchReactor:
             for component in self.components
         ]
 
+        # >>> formula-state
+        self.component_formula_state = [
+            set_component_id(
+                component=component,
+                component_key='Formula-State'
+            )
+            for component in self.components
+        ]
+
         # >> index mapping
         self.component_id_to_index = {
             comp_id: idx for idx, comp_id in enumerate(self.component_ids)

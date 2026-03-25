@@ -198,8 +198,8 @@ rate_expression = ReactionRateExpression(
 # calculate rate expression value
 result = rate_expression.calc(
     xi={
-        'A-g': CustomProperty(value=1.0, unit="mol/m3", symbol="A"),
-        'B-g': CustomProperty(value=1.0, unit="mol/m3", symbol="B")
+        'A-g': CustomProperty(value=1.0, unit="mol/m3", symbol="A-g"),
+        'B-g': CustomProperty(value=1.0, unit="mol/m3", symbol="B-g")
     },
     temperature=initial_temperature,
     pressure=initial_pressure,

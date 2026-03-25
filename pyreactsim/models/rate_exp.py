@@ -58,7 +58,11 @@ class ReactionRateExpression(BaseModel):
         ...,
         description="A callable that takes the state (Xi), arguments (rArgs), parameters (rParams) and returns (rRet)."
     )
+    # NOTE: private attributes
+    # ! reaction rate model instance
     _reaction_rate: ReactionRate = PrivateAttr()
+    # ! state ids
+    _state_ids: list[str] = PrivateAttr(default_factory=list)
 
     @model_validator(mode="after")
     def validate_state(self):
@@ -67,20 +71,19 @@ class ReactionRateExpression(BaseModel):
         """
         components = self.components
         # >> create formula-state
-        component_ids = [
+        self._state_ids = [
             set_component_id(
                 comp,
                 self.state_key
             ) for comp in components
         ]
 
-        state = self.state
         # >> keys
-        state_keys = set(state.keys())
+        state_keys = set(self.state.keys())
 
         # >> check that state keys match component ids based on component_key
         for s in state_keys:
-            if s not in component_ids:
+            if s not in self._state_ids:
                 raise ValueError(
                     f"State key '{s}' does not match any component id based on the provided component_key '{self.component_key}'. Please ensure that state keys are defined based on the component ids using the specified component_key."
                 )
@@ -117,15 +120,12 @@ class ReactionRateExpression(BaseModel):
         """
         Update the reaction rate based on the provided state (xi) either concentration or pressure.
         """
-        # NOTE: Check xi keys to ensure they match the expected component ids based on the state_key
-        # component ids
-        component_ids = [set_component_id(
-            comp, self.state_key) for comp in self.components]
+        # NOTE: Check xi keys to ensure they match the expected component ids based on the provided state_key
         # xi keys
         xi_keys = set(xi.keys())
         # >> check
         for id_ in xi_keys:
-            if id_ not in component_ids:
+            if id_ not in self._state_ids:
                 raise ValueError(
                     f"xi key '{id_}' does not match any component id based on the provided state_key '{self.state_key}'. Please ensure that xi keys are defined based on the component ids using the specified state_key."
                 )

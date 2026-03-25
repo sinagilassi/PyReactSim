@@ -6,11 +6,14 @@ from pythermodb_settings.models import Component, ComponentKey
 from pyreactlab_core.models.reaction import Reaction
 from pyreactlab_core import build_rxns_stoichiometry
 # locals
+from ..models.rate_exp import ReactionRateExpression
+from ..models import ReactorPhase
 
 # NOTE: set logger
 logger = logging.getLogger(__name__)
 
 
+# SECTION: Stoichiometry matrix generator
 def stoichiometry_mat(
         reactions: List[Reaction],
         components: List[Component],
@@ -56,3 +59,6 @@ def stoichiometry_mat(
     except Exception as e:
         logger.error(f"Error in generating stoichiometry matrix: {e}")
         raise
+
+
+# SECTION: State key checker

@@ -26,9 +26,9 @@ print(ptdb.__version__)
 print(ptdblink.__version__)
 
 
-# =======================================
+# ====================================================
 # SECTION: Inputs
-# =======================================
+# ====================================================
 # ! assumptions: variable pressure, isothermal, ideal gas behavior, single component system
 
 # NOTE: Reaction
@@ -63,37 +63,25 @@ heat_transfer_area = CustomProp(
     unit="m2",
 )
 
-# NOTE: gas model
-gas_model = "ideal"
-
 # ! reactor inputs
 reactor_inputs = BatchReactorOptions(
     phase='gas',
-    gas_model=gas_model,
     heat_transfer_mode='isothermal',
     volume_mode='constant',
+    gas_model='ideal',
     reactor_volume=reactor_volume,
     jacket_temperature=jacket_temperature,
     heat_transfer_coefficient=heat_transfer_coefficient,
-    heat_transfer_area=heat_transfer_area
+    heat_transfer_area=heat_transfer_area,
+    heat_capacity_mode='constant'
 )
 
-# NOTE: initial temperature
-initial_temperature = Temperature(
-    value=298.0,
-    unit="K",
-)
-
-# NOTE: initial pressure
-initial_pressure = Pressure(
-    value=101325.0,
-    unit="Pa",
-)
-
-# SECTION: Reaction
+# ====================================================
+# SECTION: Reaction Rate Expression
+# ====================================================
 states: rXs = {
-    'CO2': X(component=CO2, order=1),
-    'H2': X(component=H2, order=1)
+    'CO2-g': X(component=CO2, order=1),
+    'H2-g': X(component=H2, order=1)
 }
 
 rate_params: rParams = {
@@ -112,36 +100,47 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     k = params['k'].value
 
     # rate expression: r = k*[A]^order_A*[B]^order_B
-    rExp = k*(X['CO2'].value**X['CO2'].order)*(X['H2'].value**X['H2'].order)
+    rExp = k*(X['CO2-g'].value**X['CO2-g'].order) * \
+        (X['H2-g'].value**X['H2-g'].order)
 
-    return CustomProperty(value=rExp, unit="mol/m3.s", symbol="r1")
+    return CustomProperty(
+        name="r1",
+        description="Reaction rate for reaction 1",
+        value=rExp,
+        unit="mol/m3.s",
+        symbol="r1"
+    )
 
 
-# execute
+# ! reaction rate expression
 rate_expression = ReactionRateExpression(
     name="reaction 1",
-    basis='concentration',
+    basis='pressure',
     components=components,
     reaction=reaction,
     params=rate_params,
     args=rate_args,
     ret=rate_return,
     state=states,
+    state_key='Formula-State',
     eq=r1,
     component_key='Name-Formula'
 )
 
-# cal
-# result = rate_expression.calc(
-#     xi={
-#         'A': CustomProperty(value=1.0, unit="mol/m3", symbol="A"),
-#         'B': CustomProperty(value=1.0, unit="mol/m3", symbol="B")
-#     },
-#     temperature=initial_temperature,
-#     pressure=initial_pressure,
-#     mode="log"
-# )
-# print(result)
+# ====================================================
+# SECTION: model inputs
+# ====================================================
+# NOTE: initial temperature
+initial_temperature = Temperature(
+    value=298.0,
+    unit="K",
+)
+
+# NOTE: initial pressure
+initial_pressure = Pressure(
+    value=101325.0,
+    unit="Pa",
+)
 
 # ! model inputs
 model_inputs = {
@@ -149,7 +148,9 @@ model_inputs = {
     "pressure": initial_pressure,
 }
 
+# ====================================================
 # SECTION: Simulation
+# ====================================================
 simulation_result = batch_react(
     components=components,
     model_inputs=model_inputs,

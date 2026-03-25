@@ -164,7 +164,9 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # >> set
         self.reactor_volume = reactor_inputs.reactor_volume
         self.reactor_volume_value = to_m3(
-            self.reactor_volume.value, self.reactor_volume.unit)
+            self.reactor_volume.value,
+            self.reactor_volume.unit
+        )
 
         # SECTION: Reaction rates
         self.reaction_rates = reaction_rates
@@ -261,7 +263,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
         # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
         (
-            partial_pressures,
+            _,
             partial_pressures_std,
             p_total
         ) = self._calc_partial_pressure(
@@ -457,7 +459,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         self,
         n_total: float,
         y_mole: np.ndarray,
-        T: float
+        T: float,
     ):
         """
         Calculate the partial pressures of the components based on the total moles, mole fractions, and temperature.
@@ -470,6 +472,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             Mole fractions of the components in the reactor.
         T : float
             Current temperature of the system (in K).
+        component_key : ComponentKey
+            The key to be used for the components in the model source, which is necessary for mapping the component names to their corresponding properties in the model source.
 
         Returns
         -------
@@ -481,6 +485,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         """
         # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
         # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
+        # NOTE: calculate total pressure
         p_total = self.calc_tot_pressure(
             n_total=n_total,
             temperature=T,
@@ -492,7 +497,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # NOTE: partial pressures:
         # ! P_i = y_i * P_total
         partial_pressures = {
-            sp: y_mole[i] * p_total for i, sp in enumerate(self.component_ids)
+            sp: y_mole[i] * p_total for i, sp in enumerate(self.component_formula_state)
         }
 
         # >> std partial pressures
