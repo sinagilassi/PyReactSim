@@ -81,9 +81,3 @@ class BatchReactor:
         self.states = [
             c.state for c in self.components
         ]
-
-        # NOTE: feed specifications
-        self.feed_specifications = set_feed_specification(
-            components=self.components,
-            component_key=cast(ComponentKey, self.component_key)
-        )

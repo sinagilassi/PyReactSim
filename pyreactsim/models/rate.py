@@ -83,6 +83,10 @@ class ReactionRate:
         -------
         rRet
             A dictionary containing the calculated reaction rate and any other return values defined by the rate expression.
+
+        Notes
+        -----
+        - State defines for each reaction based on formula or formula-state component key. This allows for flexible mapping of input states to components in the rate expression.
         """
         # NOTE: Build call args from defaults + call overrides
         call_args: rArgs = {}
@@ -95,7 +99,8 @@ class ReactionRate:
         # import locally to avoid import cycle during module initialization
 
         for comp in self.components:
-            current_x = self.state.get(comp.name)
+            # >>> get state for the component
+            current_x = self.state.get(comp.formula)
             if current_x is None:
                 current_x = X(component=comp)
 

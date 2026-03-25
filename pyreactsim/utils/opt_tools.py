@@ -85,16 +85,22 @@ def set_component_X(
         comp_name = set_component_id(component, component_key)
 
         # get mole specification for the component
-        X_prop = component.X.get(prop_name)
-        if X_prop is None:
+        X_prop_checker = component.X['name'] == prop_name
+        if (
+            X_prop_checker is None or
+            not X_prop_checker
+        ):
             raise ValueError(
                 f"Component '{comp_name}' does not have the specified property '{prop_name}' in its X dictionary.")
 
+        # NOTE: get the property value and unit
+        X_prop = component.X
+
         # add
         n = CustomProperty(
-            value=X_prop.value,
-            unit=X_prop.unit,
-            symbol=X_prop.symbol,
+            value=X_prop['value'],
+            unit=X_prop['unit'],
+            symbol=X_prop['symbol'],
         )
 
         # NOTE: add component mole specification to feed mole specification dictionary

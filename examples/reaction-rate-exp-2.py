@@ -70,7 +70,7 @@ gas_model = "ideal"
 reactor_inputs = BatchReactorOptions(
     phase='gas',
     gas_model=gas_model,
-    heat_transfer_mode='non-isothermal',
+    heat_transfer_mode='isothermal',
     volume_mode='constant',
     reactor_volume=reactor_volume,
     jacket_temperature=jacket_temperature,
@@ -112,7 +112,7 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     k = params['k'].value
 
     # rate expression: r = k*[A]^order_A*[B]^order_B
-    rExp = k*(X['A'].value**X['A'].order)*(X['B'].value**X['B'].order)
+    rExp = k*(X['CO2'].value**X['CO2'].order)*(X['H2'].value**X['H2'].order)
 
     return CustomProperty(value=rExp, unit="mol/m3.s", symbol="r1")
 
@@ -143,9 +143,25 @@ rate_expression = ReactionRateExpression(
 # )
 # print(result)
 
-
 # ! model inputs
 model_inputs = {
     "temperature": initial_temperature,
     "pressure": initial_pressure,
 }
+
+# SECTION: Simulation
+simulation_result = batch_react(
+    components=components,
+    model_inputs=model_inputs,
+    reactor_inputs=reactor_inputs,
+    reaction_rates={"r1": rate_expression},
+    model_source=model_source,
+    component_key='Name-Formula',
+    solver_options={
+        "method": "BDF",
+        "time_span": (0, 3600),
+        "rtol": 1e-6,
+        "atol": 1e-9
+    }
+)
+print(simulation_result)
