@@ -74,11 +74,11 @@ def plot_batch_reactor_result(
     if has_temperature:
         fig, axes = plt.subplots(
             2, 1, figsize=(10, 9), sharex=True,
-            gridspec_kw={"hspace": 0.35}
+            constrained_layout=True
         )
         ax_mole, ax_temp = axes[0], axes[1]
     else:
-        fig, ax_mole = plt.subplots(figsize=(10, 6))
+        fig, ax_mole = plt.subplots(figsize=(10, 6), constrained_layout=True)
         ax_temp = None
 
     # ── moles subplot ──
@@ -100,8 +100,6 @@ def plot_batch_reactor_result(
         ax_temp.legend(loc="best")
     else:
         ax_mole.set_xlabel("Time (s)")
-
-    plt.tight_layout()
 
     if save_path is not None:
         save_path.parent.mkdir(parents=True, exist_ok=True)

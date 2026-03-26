@@ -39,6 +39,7 @@ dependencies = [
     "pythermodb-settings",
     "pyreactlab-core",
     "pythermocalcdb>=0.7.7",
+    "matplotlib>=3.10.8",
 ]
 
 [project.urls]

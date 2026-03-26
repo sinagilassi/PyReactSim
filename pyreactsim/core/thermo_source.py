@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, CustomProperty, Temperature
-from pythermodb_settings.utils import set_component_id
+from pythermodb_settings.utils import set_component_id, build_components_mapper
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pyreactlab_core.models.reaction import Reaction
@@ -56,6 +56,12 @@ class ThermoSource:
             for comp in self.components
         ]
 
+        # NOTE: build component mapper
+        self.component_mapper: Dict[str, Dict[ComponentKey, str]] = build_components_mapper(
+            components=self.components,
+            component_key=self.component_key
+        )
+
         # NOTE: model source
         self.model_source = self.source.model_source
 
@@ -90,7 +96,8 @@ class ThermoSource:
             components=self.components,
             prop_name=prop_name,
             source=self.source,
-            component_key=cast(ComponentKey, self.component_key)
+            component_key=cast(ComponentKey, self.component_key),
+            component_mapper=self.component_mapper
         )
         # >> check
         if eq_src is None:

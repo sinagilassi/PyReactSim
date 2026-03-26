@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 import pycuc
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty
-from pythermodb_settings.utils import set_component_id
+from pythermodb_settings.utils import set_component_id, build_component_mapper
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # locals
@@ -96,6 +96,7 @@ def ext_component_eq(
         component: Component,
         prop_name: str,
         component_key: ComponentKey,
+        component_keys: List[ComponentKey],
         source: Source
 ) -> Optional[ComponentEquationSource]:
     """
@@ -109,6 +110,8 @@ def ext_component_eq(
         The name of the property for which to extract the equation.
     component_key : ComponentKey
         The component key to use for setting component IDs.
+    component_keys : List[ComponentKey]
+        A list of component keys to use for setting component IDs.
     source : Source
         The source from which to extract the equation.
 
@@ -121,7 +124,8 @@ def ext_component_eq(
         # NOTE: extract equation
         eq_src = source.eq_builder(
             components=[component],
-            prop_name=prop_name
+            prop_name=prop_name,
+            component_keys=component_keys,
         )
 
         # >> check
@@ -158,6 +162,7 @@ def ext_components_eq(
         components: List[Component],
         prop_name: str,
         component_key: ComponentKey,
+        component_mapper: Dict[str, Dict[ComponentKey, str]],
         source: Source
 ) -> Optional[Dict[str, ComponentEquationSource]]:
     """
@@ -184,17 +189,32 @@ def ext_components_eq(
         eq_dict = {}
 
         for component in components:
+            component_id = set_component_id(
+                component=component,
+                component_key=component_key
+            )
+
+            # configure component keys
+            mapper_ = component_mapper.get(component_id, {})
+            # >> check
+            if not mapper_:
+                logger.warning(
+                    f"No component keys found for component_id: {component_id} in component_mapper")
+                continue
+
+            # >>> component keys
+            component_keys = list(mapper_.keys())
+
+            # >> extract equation source for component
             component_eq_src = ext_component_eq(
                 component=component,
                 prop_name=prop_name,
                 component_key=component_key,
+                component_keys=component_keys,
                 source=source
             )
             if component_eq_src is not None:
-                component_id = set_component_id(
-                    component=component,
-                    component_key=component_key
-                )
+
                 eq_dict[component_id] = component_eq_src
 
         return eq_dict

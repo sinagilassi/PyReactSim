@@ -1,4 +1,5 @@
 # import packages/modules
+import logging
 import math
 from rich import print
 from typing import Callable, Dict, Optional, Union, List, Any
@@ -26,6 +27,13 @@ from examples.plot.plot_res import plot_batch_reactor_result
 print(ptdb.__version__)
 print(ptdblink.__version__)
 
+# NOTE: set logger
+logger = logging.getLogger(__name__)
+# turn off logging for pyThermoDB and pyThermoLinkDB
+logging.getLogger("pyThermoDB").setLevel(logging.WARNING)
+logging.getLogger("pyThermoLinkDB").setLevel(logging.WARNING)
+logging.getLogger("pythermocalcdb").setLevel(logging.WARNING)
+logging.getLogger("pyreactsim").setLevel(logging.INFO)
 
 # ====================================================
 # SECTION: Inputs

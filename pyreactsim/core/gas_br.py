@@ -4,8 +4,6 @@ import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty
 from pyThermoLinkDB.thermo import Source
-from pyThermoLinkDB.models.component_models import ComponentEquationSource
-from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
 # locals
 from .br import BatchReactor
 from .thermo_source import ThermoSource
