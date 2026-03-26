@@ -124,16 +124,21 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             self.temperature_fixed = self.temperature_value
             # set T0
             self._T0 = self.temperature_value
-        else:
+        elif self.heat_transfer_mode == "non-isothermal":
             self.temperature_fixed = None
             self._T0 = self.temperature_value
+        else:
+            raise ValueError(
+                "Invalid heat_transfer_mode. Must be 'isothermal' or 'non-isothermal'."
+            )
 
         # >> heat exchange
         self.heat_exchange = False
         if (
             self.jacket_temperature is not None and
             self.heat_transfer_coefficient is not None and
-            self.heat_transfer_area is not None
+            self.heat_transfer_area is not None and
+            self.heat_transfer_mode == 'non-isothermal'
         ):
             self.heat_exchange = True
 

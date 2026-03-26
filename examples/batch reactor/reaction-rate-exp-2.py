@@ -32,7 +32,9 @@ logger = logging.getLogger(__name__)
 # turn off logging for pyThermoDB and pyThermoLinkDB
 logging.getLogger("pyThermoDB").setLevel(logging.WARNING)
 logging.getLogger("pyThermoLinkDB").setLevel(logging.WARNING)
+logging.getLogger("pyThermoLinkDB").setLevel(logging.ERROR)
 logging.getLogger("pythermocalcdb").setLevel(logging.WARNING)
+logging.getLogger("pythermocalcdb").setLevel(logging.ERROR)
 logging.getLogger("pyreactsim").setLevel(logging.INFO)
 
 # ====================================================
@@ -56,19 +58,19 @@ reactor_volume = CustomProp(
 
 # NOTE: Jacket temperature
 jacket_temperature = CustomProp(
-    value=350.0,
+    value=450.0,
     unit="K",
 )
 
 # NOTE: Heat transfer coefficient
 heat_transfer_coefficient = CustomProp(
-    value=500.0,
+    value=100.0,
     unit="W/m2.K",
 )
 
 # NOTE: Heat transfer area
 heat_transfer_area = CustomProp(
-    value=5.0,
+    value=1,
     unit="m2",
 )
 
