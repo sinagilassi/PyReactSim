@@ -1,7 +1,7 @@
 # import libs
 from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union, TypeAlias
-from pythermodb_settings.models import Component, CustomProp
+from pythermodb_settings.models import Component, CustomProp, Volume, Temperature
 # locals
 from .ref import HeatTransferMode, ReactorPhase, VolumeMode, GasModel
 
@@ -46,11 +46,11 @@ class BatchReactorOptions(BaseModel):
         default='ideal',
         description="Gas model to use (required if phase is gas)."
     )
-    reactor_volume: Optional[CustomProp] = Field(
+    reactor_volume: Optional[Volume] = Field(
         default=None,
         description="Volume of the reactor (required if volume mode is constant)."
     )
-    jacket_temperature: Optional[CustomProp] = Field(
+    jacket_temperature: Optional[Temperature] = Field(
         default=None,
         description="Temperature of the jacket (required if heat transfer mode is non-isothermal)."
     )
@@ -62,9 +62,9 @@ class BatchReactorOptions(BaseModel):
         default=None,
         description="Heat transfer area (required if heat transfer mode is non-isothermal)."
     )
-    heat_capacity_mode: Optional[Literal['constant', 'variable']] = Field(
-        default='constant',
-        description="Heat capacity mode (constant or variable)."
+    heat_capacity_mode: Optional[Literal['constant', 'temperature-dependent', 'differential']] = Field(
+        default='temperature-dependent',
+        description="Heat capacity mode as constant, temperature-dependant, and differential."
     )
 
 
