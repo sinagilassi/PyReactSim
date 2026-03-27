@@ -88,3 +88,90 @@ def to_K(value: float, unit: str) -> float:
     except Exception as e:
         logging.error(f"Error converting {value} from {unit} to K: {e}")
         raise ValueError(f"Unsupported unit for conversion: {unit}")
+
+
+def to_J_per_mol_K(value: float, unit: str) -> float:
+    """
+    Convert a given value to Joules per mole-Kelvin (J/mol.K) based on the specified unit.
+
+    Parameters
+    ----------
+    value : float
+        The numerical value to be converted.
+    unit : str
+        The unit of the input value. Supported units include 'J/mol.K', 'kJ/mol.K', 'cal/mol.K', etc.
+
+    Returns
+    -------
+    float
+        The converted value in Joules per mole-Kelvin (J/mol.K).
+
+    Raises
+    ------
+    ValueError
+        If the provided unit is not supported for conversion.
+    """
+    try:
+        # Use pycuc for unit conversion
+        return pycuc.convert_from_to(value, from_unit=unit, to_unit='J/mol.K')
+    except Exception as e:
+        logging.error(f"Error converting {value} from {unit} to J/mol.K: {e}")
+        raise ValueError(f"Unsupported unit for conversion: {unit}")
+
+
+def to_W_per_m2_K(value: float, unit: str) -> float:
+    """
+    Convert a given value to Watts per square meter-Kelvin (W/m2.K) based on the specified unit.
+
+    Parameters
+    ----------
+    value : float
+        The numerical value to be converted.
+    unit : str
+        The unit of the input value. Supported units include 'W/m2.K', 'kW/m2.K', 'cal/cm2.K', etc.
+
+    Returns
+    -------
+    float
+        The converted value in Watts per square meter-Kelvin (W/m2.K).
+
+    Raises
+    ------
+    ValueError
+        If the provided unit is not supported for conversion.
+    """
+    try:
+        # Use pycuc for unit conversion
+        return pycuc.convert_from_to(value, from_unit=unit, to_unit='W/m2.K')
+    except Exception as e:
+        logging.error(f"Error converting {value} from {unit} to W/m2.K: {e}")
+        raise ValueError(f"Unsupported unit for conversion: {unit}")
+
+
+def to_m2(value: float, unit: str) -> float:
+    """
+    Convert a given value to square meters (m2) based on the specified unit.
+
+    Parameters
+    ----------
+    value : float
+        The numerical value to be converted.
+    unit : str
+        The unit of the input value. Supported units include 'm2', 'cm2', 'ft2', etc.
+
+    Returns
+    -------
+    float
+        The converted value in square meters (m2).
+
+    Raises
+    ------
+    ValueError
+        If the provided unit is not supported for conversion.
+    """
+    try:
+        # Use pycuc for unit conversion
+        return pycuc.convert_from_to(value, from_unit=unit, to_unit='m2')
+    except Exception as e:
+        logging.error(f"Error converting {value} from {unit} to m2: {e}")
+        raise ValueError(f"Unsupported unit for conversion: {unit}")
