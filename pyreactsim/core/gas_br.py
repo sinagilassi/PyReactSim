@@ -263,6 +263,12 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # Calculate partial pressures
         y_mole = n / n_total
 
+        # ! calculate concentration: C_i = n_i / V
+        C = self._calc_concentration(
+            n=n,
+            reactor_volume=self.reactor_volume_value
+        )
+
         # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
         # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
         (
@@ -523,3 +529,50 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             )
 
         return partial_pressures, partial_pressures_std, p_total
+
+    def _calc_concentration(
+            self,
+            n: np.ndarray,
+            reactor_volume: float
+    ) -> Tuple[np.ndarray, Dict[str, CustomProperty], float]:
+        """
+        Calculate the concentration of each component in the reactor based on the moles and reactor volume.
+
+        Parameters
+        ----------
+        n : np.ndarray
+            Array of moles of each component in the reactor.
+        reactor_volume : float
+            Volume of the reactor (in m3).
+
+        Returns
+        -------
+        Tuple[np.ndarray, Dict[str, CustomProperty], float]
+            A tuple containing:
+            - An array of concentrations for each component (in mol/m3).
+            - A dictionary of concentrations for each component as CustomProperty objects (in mol/m3).
+            - The total concentration of the system (in mol/m3).
+        """
+        # ! C_i = n_i / V
+        # unit check: n_i [mol], V [m3] => C_i [mol/m3]
+        concentration = n / reactor_volume
+
+        # total concentration
+        n_total = np.sum(n)
+        concentration_total = n_total / reactor_volume
+
+        # NOTE: create ids for concentration array
+        conc_ids = [
+            sp for sp in self.component_formula_state
+        ]
+
+        # std concentration as dict
+        concentration_std = {
+            sp: CustomProperty(
+                value=conc,
+                unit="mol/m3",
+                symbol="C"
+            ) for sp, conc in zip(conc_ids, concentration)
+        }
+
+        return concentration, concentration_std, concentration_total

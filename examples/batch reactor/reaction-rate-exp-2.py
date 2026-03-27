@@ -110,7 +110,7 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     # rate constant k function of temperature and pressure
     k = params['k'].value
 
-    # rate expression: r = k*[A]^order_A*[B]^order_B
+    # ??? rate expression: r = k*[A]^order_A*[B]^order_B
     rExp = k*(X['CO2-g'].value**X['CO2-g'].order) * \
         (X['H2-g'].value**X['H2-g'].order)
 
@@ -171,7 +171,7 @@ simulation_result: BatchReactorResult | None = batch_react(
     component_key='Name-Formula',
     solver_options={
         "method": "BDF",
-        "time_span": (0, 100),
+        "time_span": (0, 30),
         "rtol": 1e-6,
         "atol": 1e-9
     }
