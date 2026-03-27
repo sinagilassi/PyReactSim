@@ -64,6 +64,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             self,
             components=components,
             source=source,
+            model_inputs=model_inputs,
+            reactor_inputs=reactor_inputs,
             component_key=component_key
         )
         # LINK: Initialize the parent ThermoSource class
@@ -71,6 +73,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             self,
             components=components,
             source=source,
+            model_inputs=model_inputs,
             reactor_inputs=reactor_inputs,
             reaction_rates=reaction_rates,
             component_key=component_key
@@ -85,91 +88,9 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
         # SECTION: Model inputs
         self.model_inputs = model_inputs
-        # >> temperature
-        if "temperature" in model_inputs:
-            self.temperature: Temperature = model_inputs["temperature"]
-            self.temperature_value = to_K(
-                self.temperature.value,
-                self.temperature.unit
-            )
-            # >> update
-            self.temperature = Temperature(
-                value=self.temperature_value,
-                unit="K"
-            )
-        else:
-            raise ValueError("Temperature must be provided in model_inputs.")
-
-        # >> pressure
-        if "pressure" in model_inputs:
-            self.pressure: Pressure = model_inputs["pressure"]
-        else:
-            raise ValueError("Pressure must be provided in model_inputs.")
 
         # SECTION: GasBatchReactor-specific properties
         self.reactor_inputs = reactor_inputs
-        # >> extract
-        self.phase = "gas"
-        self.gas_model: GasModel = reactor_inputs.gas_model
-        self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
-        self.volume_mode = reactor_inputs.volume_mode
-        self.jacket_temperature = reactor_inputs.jacket_temperature
-        self.heat_transfer_coefficient = reactor_inputs.heat_transfer_coefficient
-        self.heat_transfer_area = reactor_inputs.heat_transfer_area
-        self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
-
-        # NOTE: heat transfer mode
-        if self.heat_transfer_mode == "isothermal":
-            # fixed temperature in K
-            self.temperature_fixed = self.temperature_value
-            # set T0
-            self._T0 = self.temperature_value
-        elif self.heat_transfer_mode == "non-isothermal":
-            self.temperature_fixed = None
-            self._T0 = self.temperature_value
-        else:
-            raise ValueError(
-                "Invalid heat_transfer_mode. Must be 'isothermal' or 'non-isothermal'."
-            )
-
-        # >> heat exchange
-        self.heat_exchange = False
-        if (
-            self.jacket_temperature is not None and
-            self.heat_transfer_coefficient is not None and
-            self.heat_transfer_area is not None and
-            self.heat_transfer_mode == 'non-isothermal'
-        ):
-            self.heat_exchange = True
-
-            # >> conversions for heat exchange parameters
-            self.jacket_temperature = Temperature(
-                value=to_K(
-                    self.jacket_temperature.value,
-                    self.jacket_temperature.unit
-                ),
-                unit="K"
-            )
-            # >>> set
-            self.jacket_temperature_value = self.jacket_temperature.value
-
-            # >> heat transfer coefficient [W/m2.K]
-            self.heat_transfer_coefficient_value = self.heat_transfer_coefficient.value
-
-            # >> heat transfer area [m2]
-            self.heat_transfer_area_value = self.heat_transfer_area.value
-
-        # NOTE: Validate options
-        if reactor_inputs.reactor_volume is None:
-            raise ValueError(
-                "reactor_volume must be provided for constant volume mode."
-            )
-        # >> set
-        self.reactor_volume = reactor_inputs.reactor_volume
-        self.reactor_volume_value = to_m3(
-            self.reactor_volume.value,
-            self.reactor_volume.unit
-        )
 
         # SECTION: Reaction rates
         self.reaction_rates = reaction_rates
@@ -450,13 +371,28 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         """
         # ! (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
         # ??? Cp_i(T)
-        Cp_IG_values = self.calc_Cp_IG(
-            inputs={
-                "T": temp
-            },
-            Cp_IG_src=self.Cp_IG_src,
-            output_unit="J/mol.K"
-        )
+        if self.heat_capacity_mode == "temperature-dependent":
+            # NOTE: calculate temperature-dependent heat capacity
+            Cp_IG_values = self.calc_Cp_IG(
+                inputs={
+                    "T": temp
+                },
+                Cp_IG_src=self.Cp_IG_src,
+                output_unit="J/mol.K"
+            )
+        elif self.heat_capacity_mode == "constant":
+            # NOTE: use constant heat capacity from model inputs
+            Cp_IG_values = self.heat_capacity_values
+        else:
+            raise ValueError(
+                f"Invalid heat_capacity_mode '{self.heat_capacity_mode}'. Must be 'temperature-dependent' or 'constant'."
+            )
+
+        # >> check heat capacity values
+        if Cp_IG_values is None:
+            raise ValueError(
+                "Heat capacity values could not be calculated or retrieved."
+            )
 
         # ??? Σ_i n_i Cp_i
         c_total = calc_total_heat_capacity(n, Cp_IG_values)
