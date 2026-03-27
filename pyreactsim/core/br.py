@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 import pycuc
-from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey
+from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProp
 from pythermodb_settings.utils import set_component_id, set_feed_specification
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
@@ -15,6 +15,10 @@ from ..sources.interface import (
     ext_component_eq,
     ext_components_eq
 )
+from ..utils.unit_tools import to_m3, to_Pa, to_K, to_J_per_mol_K, to_W_per_m2_K, to_m2
+from ..models.br import BatchReactorOptions, BatchReactorResult, HeatTransferMode
+from ..models.rate_exp import ReactionRateExpression
+from ..models.br import GasModel
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -36,6 +40,8 @@ class BatchReactor:
         self,
         components: List[Component],
         source: Source,
+        model_inputs: Dict[str, Any],
+        reactor_inputs: BatchReactorOptions,
         component_key: ComponentKey,
     ):
         """
@@ -47,13 +53,32 @@ class BatchReactor:
             A list of Component objects representing the chemical components involved in the batch reactor.
         source : Source
             A Source object containing information about the source of the data or equations used in the batch reactor simulations.
+        model_inputs : Dict[str, Any]
+            A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
+        reactor_inputs : BatchReactorOptions
+            A BatchReactorOptions object containing the inputs for the batch reactor simulation, such as volume, heat transfer properties, etc.
         component_key : ComponentKey
             A ComponentKey object that serves as a key for identifying and categorizing the components in the batch reactor.
         """
         # NOTE: Set attributes
         self.components = components
         self.source = source
+        self.model_inputs = model_inputs
+        self.reactor_inputs = reactor_inputs
         self.component_key = component_key
+
+        # SECTION: Process model configuration
+        # lower case keys for easier access
+        self.model_inputs_keys = self._config_model_inputs()
+        # >> temperature
+        # ! to Kelvin
+        self.temperature: Temperature = self._config_temperature()
+        self.temperature_value = self.temperature.value
+
+        # >> pressure
+        # ! to Pa
+        self.pressure: Pressure = self._config_pressure()
+        self.pressure_value = self.pressure.value
 
         # SECTION: component IDs and related properties
         self.component_num = len(components)
@@ -90,3 +115,179 @@ class BatchReactor:
         self.states = [
             c.state for c in self.components
         ]
+
+        # SECTION: reactor configuration
+        # >> extract
+        self.phase = "gas"
+        self.gas_model: GasModel = reactor_inputs.gas_model
+        self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
+        self.volume_mode = reactor_inputs.volume_mode
+        self.jacket_temperature = reactor_inputs.jacket_temperature
+        self.heat_transfer_coefficient = reactor_inputs.heat_transfer_coefficient
+        self.heat_transfer_area = reactor_inputs.heat_transfer_area
+        self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
+
+        # NOTE: heat transfer mode
+        if self.heat_transfer_mode == "isothermal":
+            # fixed temperature in K
+            self.temperature_fixed = self.temperature_value
+            # set T0
+            self._T0 = self.temperature_value
+        elif self.heat_transfer_mode == "non-isothermal":
+            self.temperature_fixed = None
+            self._T0 = self.temperature_value
+        else:
+            raise ValueError(
+                "Invalid heat_transfer_mode. Must be 'isothermal' or 'non-isothermal'."
+            )
+
+        # ! heat exchange
+        self.heat_exchange = False
+        if (
+            self.jacket_temperature is not None and
+            self.heat_transfer_coefficient is not None and
+            self.heat_transfer_area is not None and
+            self.heat_transfer_mode == 'non-isothermal'
+        ):
+            self.heat_exchange = True
+
+            # >> conversions for heat exchange parameters
+            self.jacket_temperature = Temperature(
+                value=to_K(
+                    self.jacket_temperature.value,
+                    self.jacket_temperature.unit
+                ),
+                unit="K"
+            )
+            # >>> set
+            # ! [K]
+            self.jacket_temperature_value = self.jacket_temperature.value
+
+            # >> heat transfer coefficient
+            # ! [W/m2.K]
+            self.heat_transfer_coefficient_value = to_W_per_m2_K(
+                self.heat_transfer_coefficient.value,
+                self.heat_transfer_coefficient.unit
+            )
+
+            # >> heat transfer area
+            # ! [m2]
+            self.heat_transfer_area_value = to_m2(
+                self.heat_transfer_area.value,
+                self.heat_transfer_area.unit
+            )
+
+        # >> constant heat capacity
+        # ! to J/mol.K
+        self.heat_capacity_values: Optional[
+            np.ndarray
+        ] = self._config_heat_capacity()
+
+        # ! reactor volume
+        if reactor_inputs.reactor_volume is None:
+            raise ValueError(
+                "reactor_volume must be provided for constant volume mode."
+            )
+        # >> set
+        self.reactor_volume = reactor_inputs.reactor_volume
+        self.reactor_volume_value = to_m3(
+            self.reactor_volume.value,
+            self.reactor_volume.unit
+        )
+
+    # SECTION: Model Inputs
+    # ! general configuration for model inputs
+    def _config_model_inputs(
+            self,
+    ):
+        """Configure the model inputs for the batch reactor simulation."""
+        model_inputs_keys = set(self.model_inputs.keys())
+        # lower case keys for easier access
+        model_inputs_keys = [
+            key.lower().strip() for key in model_inputs_keys
+        ]
+        return model_inputs_keys
+
+    # NOTE: temperature configuration
+    def _config_temperature(
+            self,
+    ):
+        if "temperature" in self.model_inputs_keys:
+            temperature_: Temperature = self.model_inputs["temperature"]
+            temperature_value = to_K(
+                temperature_.value,
+                temperature_.unit
+            )
+            # >> update
+            temperature = Temperature(
+                value=temperature_value,
+                unit="K"
+            )
+
+            return temperature
+        else:
+            raise ValueError("Temperature must be provided in model_inputs.")
+
+    # NOTE: pressure configuration
+    def _config_pressure(
+            self,
+    ):
+        """Configure the pressure for the batch reactor based on the model inputs."""
+        if "pressure" in self.model_inputs_keys:
+            pressure_: Pressure = self.model_inputs["pressure"]
+            pressure_value = to_Pa(
+                pressure_.value,
+                pressure_.unit
+            )
+            # >> update
+            pressure = Pressure(
+                value=pressure_value,
+                unit="Pa"
+            )
+
+            return pressure
+        else:
+            raise ValueError("Pressure must be provided in model_inputs.")
+
+    # NOTE: heat capacity configuration
+    def _config_heat_capacity(
+            self,
+    ) -> Optional[np.ndarray]:
+        """Configure the heat capacity for the batch reactor based on the model inputs and reactor configuration."""
+        # check heat capacity mode
+        if self.heat_capacity_mode is None:
+            return None
+
+        # heat capacity constant
+        if self.heat_capacity_mode == "constant":
+            if "heat_capacity" in self.model_inputs_keys:
+                heat_capacity_: dict[
+                    str,
+                    CustomProp
+                ] = self.model_inputs["heat_capacity"]
+
+                # iterate through components and extract heat capacity values
+                heat_capacity_values = []
+
+                for id in self.component_formula_state:
+                    if id in heat_capacity_:
+                        cp_value = to_J_per_mol_K(
+                            heat_capacity_[id].value,
+                            heat_capacity_[id].unit
+                        )
+                        heat_capacity_values.append(cp_value)
+                    else:
+                        raise ValueError(
+                            f"Heat capacity value for component '{id}' not found in model_inputs."
+                        )
+
+                heat_capacity_array = np.array(heat_capacity_values)
+
+                # res
+                return heat_capacity_array
+            else:
+                raise ValueError(
+                    "Heat capacity must be provided in model_inputs for constant heat capacity mode."
+                )
+        else:
+            return None
