@@ -694,15 +694,15 @@ wheels = [
 
 [[package]]
 name = "pycuc"
-version = "2.4.0"
+version = "2.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pandas" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ea/5d/08940454c7a09e1c714620121ac92452f043a99769fc3c0138b421b34b20/pycuc-2.4.0.tar.gz", hash = "sha256:e99736c66222a72d6180ca1926eda0dc1d94108220385491f205334d35e0c339", size = 17734, upload-time = "2025-12-24T03:59:06.765Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/44/b498e5fdf00a46d113246efdcdc52db9f6b083dd97f23934ec81fc7a1566/pycuc-2.5.0.tar.gz", hash = "sha256:0ad0714c18de960431a1a06a26c0649cc1ef5568ced7c86cd488bd5a98c2a430", size = 19636, upload-time = "2026-03-27T20:47:15.502Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/65/ebe9909eb04e0a994cdbe53cf9b7762fbf61280d67ed8dc8e67027b0db8b/pycuc-2.4.0-py3-none-any.whl", hash = "sha256:e51de374ae3da3e9362d36576d35fcbc2604968a3c377129fd3fc9757d1df81f", size = 22989, upload-time = "2025-12-24T03:59:05.933Z" },
+    { url = "https://files.pythonhosted.org/packages/62/49/95b061f2a2b6989bbedbd3fbf0ad9a3202c600670581bf6fb9e332d031c8/pycuc-2.5.0-py3-none-any.whl", hash = "sha256:ebc9f6455ce1cf9c7eb1002c1caf2bddebf6f3c3ec7a3bc05892daefe7085e87", size = 25996, upload-time = "2026-03-27T20:47:14.391Z" },
 ]
 
 [[package]]
@@ -889,15 +889,15 @@ dependencies = [
 requires-dist = [
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.3" },
-    { name = "pycuc" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "pyreactlab-core" },
-    { name = "pythermocalcdb", specifier = ">=0.7.7" },
-    { name = "pythermodb" },
-    { name = "pythermodb-settings" },
-    { name = "pythermolinkdb" },
-    { name = "rich" },
+    { name = "pycuc", specifier = ">=2.5.0" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pydantic-settings", specifier = ">=2.13.1" },
+    { name = "pyreactlab-core", specifier = ">=0.1.6" },
+    { name = "pythermocalcdb", specifier = ">=0.7.10" },
+    { name = "pythermodb", specifier = ">=1.12.2" },
+    { name = "pythermodb-settings", specifier = ">=0.2.9" },
+    { name = "pythermolinkdb", specifier = ">=1.4.10" },
+    { name = "rich", specifier = ">=14.3.3" },
     { name = "scipy", specifier = ">=1.17.1" },
 ]
 
