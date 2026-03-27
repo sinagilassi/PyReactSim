@@ -263,32 +263,34 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # Calculate partial pressures
         y_mole = n / n_total
 
-        # ! calculate concentration: C_i = n_i / V
-        (
-            concentration,
-            concentration_std,
-            concentration_total
-        ) = self._calc_concentration(
-            n=n,
-            reactor_volume=self.reactor_volume_value
-        )
-
         # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
         # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
         (
             _,
             partial_pressures_std,
-            p_total
+            p_total,
+            reactor_volume
         ) = self._calc_partial_pressure(
             n_total=n_total,
             y_mole=y_mole,
             T=temp
         )
 
+        # ! calculate concentration: C_i = n_i / V
+        (
+            _,
+            concentration_std,
+            C_total
+        ) = self._calc_concentration(
+            n=n,
+            reactor_volume=reactor_volume
+        )
+
         # NOTE: Calculate Reaction rates for each component (partial pressures and temperature)
         # ! r_k = k(T, P_i) for each reaction k
         rates = self._calc_rates(
             partial_pressures=partial_pressures_std,
+            concentration=concentration_std,
             temperature=Temperature(value=temp, unit="K"),
             pressure=Pressure(value=p_total, unit="Pa")
         )
@@ -320,6 +322,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
     def _calc_rates(
         self,
         partial_pressures: Dict[str, CustomProperty],
+        concentration: Dict[str, CustomProperty],
         temperature: Temperature,
         pressure: Pressure
     ):
@@ -330,6 +333,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         ----------
         partial_pressures : Dict[str, CustomProperty]
             Partial pressure of the components in the reactor (in Pa).
+        concentration : Dict[str, CustomProperty]
+            Concentration of the components in the reactor (in mol/m3).
         temperature : Temperature
             Current temperature of the system (in K).
         pressure : Pressure
@@ -345,12 +350,28 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
         # iterate over reaction rate expressions
         for rxn_name, rate_exp in self.reaction_rates.items():
+            # >> check basis
+            basis = rate_exp.basis
+
             # >> calculate rate for reaction
-            r_k = rate_exp.calc(
-                xi=partial_pressures,
-                temperature=temperature,
-                pressure=pressure
-            )
+            if basis == "pressure":
+                # >> calculate rate based on partial pressures
+                r_k = rate_exp.calc(
+                    xi=partial_pressures,
+                    temperature=temperature,
+                    pressure=pressure
+                )
+            elif basis == "concentration":
+                # >> calculate rate based on concentrations
+                r_k = rate_exp.calc(
+                    xi=concentration,
+                    temperature=temperature,
+                    pressure=pressure
+                )
+            else:
+                raise ValueError(
+                    f"Invalid basis '{basis}' for reaction rate expression '{rxn_name}'. Must be 'pressure' or 'concentration'."
+                )
 
             # extract rate value
             r_k_value = r_k.value
@@ -506,14 +527,32 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         """
         # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
         # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
-        # NOTE: calculate total pressure
-        p_total = self.calc_tot_pressure(
-            n_total=n_total,
-            temperature=T,
-            reactor_volume_value=self.reactor_volume_value,
-            R=self.R,
-            gas_model=self.gas_model
-        )
+        if self.volume_mode == "constant":
+            # ??? Constant volume assumption: V = V0
+            reactor_volume = self.reactor_volume_value
+            # NOTE: calculate total pressure
+            p_total = self.calc_tot_pressure(
+                n_total=n_total,
+                temperature=T,
+                reactor_volume_value=self.reactor_volume_value,
+                R=self.R,
+                gas_model=self.gas_model
+            )
+        elif self.volume_mode == "variable":
+            # ??? Constant pressure assumption: P = P0
+            p_total = self.pressure.value
+            # NOTE:calculate volume
+            reactor_volume = self.calc_volume(
+                n_total=n_total,
+                temperature=T,
+                pressure=p_total,
+                R=self.R,
+                gas_model=self.gas_model
+            )
+        else:
+            raise ValueError(
+                f"Invalid volume_mode '{self.volume_mode}'. Must be 'constant' or 'variable'."
+            )
 
         # NOTE: partial pressures:
         # ! P_i = y_i * P_total
@@ -532,7 +571,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
                 symbol="P"
             )
 
-        return partial_pressures, partial_pressures_std, p_total
+        return partial_pressures, partial_pressures_std, p_total, reactor_volume
 
     def _calc_concentration(
             self,

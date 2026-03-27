@@ -278,6 +278,12 @@ class ThermoSource:
             Total moles of gas in the reactor.
         temperature : float
             Temperature of the gas in the reactor [K].
+        reactor_volume_value : float
+            Volume of the reactor [m3].
+        R : float
+            Ideal gas constant [J/mol.K].
+        gas_model : GasModel
+            The gas model to use for the calculation (e.g., "ideal", "real").
 
         Returns
         -------
@@ -290,3 +296,40 @@ class ThermoSource:
 
         # ideal gas model
         return n_total * R * temperature / float(reactor_volume_value)
+
+    def calc_volume(
+        self,
+        n_total: float,
+        temperature: float,
+        pressure: float,
+        R: float,
+        gas_model: GasModel
+    ) -> float:
+        """
+        Calculate the volume of the gas in the reactor using the ideal gas law.
+            V = N_total * R * T / P
+
+        Parameters
+        ----------
+        n_total : float
+            Total moles of gas in the reactor.
+        temperature : float
+            Temperature of the gas in the reactor [K].
+        pressure : float
+            Pressure of the gas in the reactor [Pa].
+        R : float
+            Ideal gas constant [J/mol.K].
+        gas_model : GasModel
+            The gas model to use for the calculation (e.g., "ideal", "real").
+
+        Returns
+        -------
+        float
+            Volume of the gas in the reactor [m3].
+        """
+        if gas_model == "real":
+            # FIXME: implement real gas model
+            return 0
+
+        # ideal gas model
+        return n_total * R * temperature / pressure

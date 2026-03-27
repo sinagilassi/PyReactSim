@@ -45,7 +45,7 @@ logging.getLogger("pyreactsim").setLevel(logging.INFO)
 # NOTE: Reaction
 reaction = Reaction(
     name="reaction 1",
-    reaction="CO2(g) + 3H2(g) => CH3OH(g) + H2O(g)",
+    reaction="CO2(g) + 3H2(g) => 2CH3OH(g) + H2O(g)",
     components=components
 )
 
@@ -77,7 +77,7 @@ heat_transfer_area = CustomProp(
 # ! reactor inputs
 reactor_inputs = BatchReactorOptions(
     phase='gas',
-    heat_transfer_mode='non-isothermal',
+    heat_transfer_mode='isothermal',
     volume_mode='constant',
     gas_model='ideal',
     reactor_volume=reactor_volume,
