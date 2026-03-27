@@ -17,10 +17,10 @@ from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models.br import BatchReactorOptions, BatchReactorResult
-from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 from pyreactsim.docs.brs import batch_react
 # ! model source
-from model_source_exp_1 import model_source, components, CO2, H2, CH3OH, H2O
+from model_source_exp_1 import model_source, components
+from rate_exp_3 import rate_expression
 from examples.plot.plot_res import plot_batch_reactor_result
 
 # check version
@@ -41,14 +41,6 @@ logging.getLogger("pyreactsim").setLevel(logging.INFO)
 # SECTION: Inputs
 # ====================================================
 # ! assumptions: variable pressure, isothermal, ideal gas behavior, single component system
-
-# NOTE: Reaction
-reaction = Reaction(
-    name="reaction 1",
-    reaction="CO2(g) + 3H2(g) => 2CH3OH(g) + H2O(g)",
-    components=components
-)
-
 
 # NOTE: reactor vessel volume in m3
 reactor_volume = CustomProp(
@@ -88,57 +80,6 @@ reactor_inputs = BatchReactorOptions(
 )
 
 # ====================================================
-# SECTION: Reaction Rate Expression
-# ====================================================
-states: rXs = {
-    'CO2-g': X(component=CO2, order=1),
-    'H2-g': X(component=H2, order=2)
-}
-
-rate_params: rParams = {
-    'k': CustomProperty(value=2e-11, unit="mol/m3.s.Pa2", symbol="k"),
-}
-
-rate_return: rRet = CustomProperty(value=0, unit="mol/m3.s", symbol="r1")
-
-rate_args: rArgs = {
-    'T': CustomProperty(value=0, unit="K", symbol="T")
-}
-
-
-def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
-    # rate constant k function of temperature and pressure
-    k = params['k'].value
-
-    # ??? rate expression: r = k*[A]^order_A*[B]^order_B
-    rExp = k*(X['CO2-g'].value**X['CO2-g'].order) * \
-        (X['H2-g'].value**X['H2-g'].order)
-
-    return CustomProperty(
-        name="r1",
-        description="Reaction rate for reaction 1",
-        value=rExp,
-        unit="mol/m3.s",
-        symbol="r1"
-    )
-
-
-# ! reaction rate expression
-rate_expression = ReactionRateExpression(
-    name="reaction 1",
-    basis='pressure',
-    components=components,
-    reaction=reaction,
-    params=rate_params,
-    args=rate_args,
-    ret=rate_return,
-    state=states,
-    state_key='Formula-State',
-    eq=r1,
-    component_key='Name-Formula'
-)
-
-# ====================================================
 # SECTION: model inputs
 # ====================================================
 # NOTE: initial temperature
@@ -171,7 +112,7 @@ simulation_result: BatchReactorResult | None = batch_react(
     component_key='Name-Formula',
     solver_options={
         "method": "BDF",
-        "time_span": (0, 30),
+        "time_span": (0, 120),
         "rtol": 1e-6,
         "atol": 1e-9
     }

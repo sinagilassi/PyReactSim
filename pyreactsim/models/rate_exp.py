@@ -119,6 +119,22 @@ class ReactionRateExpression(BaseModel):
     ) -> rRet:
         """
         Update the reaction rate based on the provided state (xi) either concentration or pressure.
+
+        Parameters
+        ----------
+        xi : Dict[str, CustomProperty]
+            A dictionary of the current state of the components involved in the reaction, keyed by component id. The values should be CustomProperty instances with appropriate units (e.g., mol/m3 for concentration or bar for pressure).
+        args : Optional[rArgs], optional
+            A dictionary of additional arguments that may be used in the rate expression, such as temperature and pressure. This is optional and can be used to override the default arguments defined in the rate expression.
+        temperature : Optional[Temperature], optional
+            The current temperature, which can be used in the rate expression calculation. This is optional and can be used to override the default temperature defined in the args.
+        pressure : Optional[Pressure], optional
+            The current pressure, which can be used in the rate expression calculation. This is optional and can be used to override the default pressure defined in the args.
+
+        Returns
+        -------
+        rRet
+            The calculated reaction rate based on the provided state and arguments.
         """
         # NOTE: Check xi keys to ensure they match the expected component ids based on the provided state_key
         # xi keys
