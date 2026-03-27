@@ -264,7 +264,11 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         y_mole = n / n_total
 
         # ! calculate concentration: C_i = n_i / V
-        C = self._calc_concentration(
+        (
+            concentration,
+            concentration_std,
+            concentration_total
+        ) = self._calc_concentration(
             n=n,
             reactor_volume=self.reactor_volume_value
         )
@@ -558,6 +562,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         concentration = n / reactor_volume
 
         # total concentration
+        # ! C_total = N_total / V
         n_total = np.sum(n)
         concentration_total = n_total / reactor_volume
 
