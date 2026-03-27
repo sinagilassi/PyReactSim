@@ -1,17 +1,10 @@
 # import packages/modules
 import logging
-import math
 from rich import print
 from typing import Callable, Dict, Optional, Union, List, Any
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
-from pyThermoLinkDB import (
-    build_component_model_source,
-    build_components_model_source,
-    build_model_source
-)
-from pyThermoLinkDB.models import ComponentModelSource, ModelSource
-from pythermodb_settings.models import Component, Pressure, Temperature, CustomProp, Volume, CustomProperty
+from pythermodb_settings.models import Pressure, Temperature, CustomProp, Volume
 from pyThermoDB import ComponentThermoDB
 from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
@@ -20,7 +13,7 @@ from pyreactsim.models.br import BatchReactorOptions, BatchReactorResult
 from pyreactsim.docs.brs import batch_react
 # ! model source
 from model_source_exp_1 import model_source, components
-from rate_exp_3 import rate_expression
+from rate_exp_1 import rate_expression
 from examples.plot.plot_res import plot_batch_reactor_result
 
 # check version
@@ -43,13 +36,13 @@ logging.getLogger("pyreactsim").setLevel(logging.INFO)
 # ! assumptions: variable pressure, isothermal, ideal gas behavior, single component system
 
 # NOTE: reactor vessel volume in m3
-reactor_volume = CustomProp(
+reactor_volume = Volume(
     value=1.0,
     unit="m3",
 )
 
 # NOTE: Jacket temperature
-jacket_temperature = CustomProp(
+jacket_temperature = Temperature(
     value=450.0,
     unit="K",
 )
@@ -69,14 +62,14 @@ heat_transfer_area = CustomProp(
 # ! reactor inputs
 reactor_inputs = BatchReactorOptions(
     phase='gas',
-    heat_transfer_mode='isothermal',
+    heat_transfer_mode='non-isothermal',
     volume_mode='constant',
     gas_model='ideal',
     reactor_volume=reactor_volume,
     jacket_temperature=jacket_temperature,
     heat_transfer_coefficient=heat_transfer_coefficient,
     heat_transfer_area=heat_transfer_area,
-    heat_capacity_mode='constant'
+    heat_capacity_mode='constant',
 )
 
 # ====================================================
@@ -94,10 +87,19 @@ initial_pressure = Pressure(
     unit="Pa",
 )
 
+# NOTE: constant heat capacity (Cp) for the system in J/mol.K
+constant_heat_capacity = {
+    "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
+    "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
+    "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
+    "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
+}
+
 # ! model inputs
 model_inputs = {
     "temperature": initial_temperature,
     "pressure": initial_pressure,
+    "heat_capacity": constant_heat_capacity,
 }
 
 # ====================================================
