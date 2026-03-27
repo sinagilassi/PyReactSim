@@ -36,6 +36,7 @@ class ThermoSource:
         self,
         components: List[Component],
         source: Source,
+        model_inputs: Dict[str, Any],
         reactor_inputs: BatchReactorOptions,
         reaction_rates: Dict[str, ReactionRateExpression],
         component_key: ComponentKey,
@@ -46,6 +47,7 @@ class ThermoSource:
         # NOTE: Set attributes
         self.components = components
         self.source = source
+        self.model_inputs = model_inputs
         self.reactor_inputs = reactor_inputs
         self.reaction_rates = reaction_rates
         self.component_key = component_key
@@ -71,7 +73,9 @@ class ThermoSource:
         # SECTION: Thermodynamic properties
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
         if self.reactor_inputs.heat_transfer_mode == "non-isothermal":
-            self.Cp_IG_src = self.prop_eq_src(prop_name="Cp_IG")
+            # check heat capacity mode
+            if self.reactor_inputs.heat_capacity_mode == "temperature-dependent":
+                self.Cp_IG_src = self.prop_eq_src(prop_name="Cp_IG")
 
         # ! Ideal Gas Enthalpy of formation at 298 K
         if self.reactor_inputs.heat_transfer_mode == "non-isothermal":
