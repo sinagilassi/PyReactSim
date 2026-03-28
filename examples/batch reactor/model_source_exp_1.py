@@ -41,7 +41,7 @@ CO2 = Component(
     state='g',
     X={
         "name": "mole",
-        "value": 0.25,
+        "value": 1,
         "unit": "mol",
         "symbol": "n"
     }
@@ -54,7 +54,7 @@ H2 = Component(
     state='g',
     X={
         "name": "mole",
-        "value": 0.75,
+        "value": 3,
         "unit": "mol",
         "symbol": "n"
     }

@@ -9,13 +9,16 @@ from pyreactsim.models import (
 
 # ! model source
 # assumes these are defined in your component source file
-from model_source_exp_1 import components, CO2, H2, CO, CH3OH, H2O
+from model_source_exp_1 import CO2, H2, CO, CH3OH, H2O
 
 
 # ====================================================
 # SECTION: REACTION 1
 # CO2 + 3H2 => CH3OH + H2O
 # ====================================================
+
+# Components
+components = [CO2, H2, CO, CH3OH, H2O]
 
 reaction_1 = Reaction(
     name="reaction 1",
@@ -199,3 +202,9 @@ rate_expressions: List[ReactionRateExpression] = [
     rate_expression_2,
     rate_expression_3,
 ]
+
+reaction_rates = {
+    "r1": rate_expression_1,
+    "r2": rate_expression_2,
+    "r3": rate_expression_3,
+}

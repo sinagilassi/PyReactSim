@@ -1,5 +1,6 @@
 # import packages/modules
 import logging
+import warnings
 from rich import print
 from typing import Callable, Dict, Optional, Union, List, Any
 import pyThermoDB as ptdb
@@ -12,23 +13,19 @@ from pyreactlab_core.models.reaction import Reaction
 from pyreactsim.models.br import BatchReactorOptions, BatchReactorResult
 from pyreactsim.docs.brs import batch_react
 # ! model sources
-from model_source_exp_1 import model_source, CO2, H2, CH3OH, H2O
-from rate_exp_2 import rate_expression
+from model_source_exp_1 import model_source, CO2, H2, CH3OH, H2O, CO
+from rate_exp_4 import reaction_rates
 from examples.plot.plot_res import plot_batch_reactor_result
 
 # check version
 print(ptdb.__version__)
 print(ptdblink.__version__)
 
-# NOTE: set logger
+# NOTE: silence library warnings/errors for this example run
+warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
-# turn off logging for pyThermoDB and pyThermoLinkDB
-logging.getLogger("pyThermoDB").setLevel(logging.WARNING)
-logging.getLogger("pyThermoLinkDB").setLevel(logging.WARNING)
-logging.getLogger("pyThermoLinkDB").setLevel(logging.ERROR)
-logging.getLogger("pythermocalcdb").setLevel(logging.WARNING)
-logging.getLogger("pythermocalcdb").setLevel(logging.ERROR)
-logging.getLogger("pyreactsim").setLevel(logging.INFO)
+for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactsim", "pyreactlab_core"):
+    logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
 
 # ====================================================
 # SECTION: Inputs
@@ -36,11 +33,12 @@ logging.getLogger("pyreactsim").setLevel(logging.INFO)
 # ! assumptions: variable pressure, isothermal, ideal gas behavior, single component system
 
 # Components
-components = [CO2, H2, CH3OH, H2O]
+# components = [CO2, H2, CH3OH, H2O]
+components = [CO2, H2, CO, CH3OH, H2O]
 
 # NOTE: reactor vessel volume in m3
 reactor_volume = Volume(
-    value=1.0,
+    value=10.0,
     unit="m3",
 )
 
@@ -66,13 +64,13 @@ heat_transfer_area = CustomProp(
 reactor_inputs = BatchReactorOptions(
     phase='gas',
     heat_transfer_mode='non-isothermal',
-    operation_mode='constant_pressure',
+    operation_mode='constant_volume',
     gas_model='ideal',
     reactor_volume=reactor_volume,
     jacket_temperature=None,
     heat_transfer_coefficient=None,
     heat_transfer_area=None,
-    heat_capacity_mode='constant',
+    heat_capacity_mode='temperature-dependent',
 )
 
 # ====================================================
@@ -112,12 +110,12 @@ simulation_result: BatchReactorResult | None = batch_react(
     components=components,
     model_inputs=model_inputs,
     reactor_inputs=reactor_inputs,
-    reaction_rates={"r1": rate_expression},
+    reaction_rates=reaction_rates,
     model_source=model_source,
     component_key='Name-Formula',
     solver_options={
         "method": "BDF",
-        "time_span": (0, 3000),
+        "time_span": (0, 150),
         "rtol": 1e-6,
         "atol": 1e-9
     }
