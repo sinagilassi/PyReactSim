@@ -470,7 +470,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         elif self.operation_mode == "constant_pressure":
             # ??? Constant pressure assumption: P = P0
             p_total = self.pressure.value
-            # NOTE:calculate volume
+            # NOTE: calculate volume
+            # ! V(t) = f(n_total(t), T(t))
             reactor_volume = self.calc_volume(
                 n_total=n_total,
                 temperature=T,
@@ -480,7 +481,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             )
         else:
             raise ValueError(
-                f"Invalid operation mode '{self.operation_mode}'. Must be 'constant' or 'variable'."
+                f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
             )
 
         # NOTE: partial pressures:

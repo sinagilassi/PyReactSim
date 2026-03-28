@@ -11,9 +11,9 @@ from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models.br import BatchReactorOptions, BatchReactorResult
 from pyreactsim.docs.brs import batch_react
-# ! model source
+# ! model sources
 from model_source_exp_1 import model_source, components
-from rate_exp_1 import rate_expression
+from rate_exp_2 import rate_expression
 from examples.plot.plot_res import plot_batch_reactor_result
 
 # check version
@@ -66,9 +66,9 @@ reactor_inputs = BatchReactorOptions(
     operation_mode='constant_pressure',
     gas_model='ideal',
     reactor_volume=reactor_volume,
-    jacket_temperature=jacket_temperature,
-    heat_transfer_coefficient=heat_transfer_coefficient,
-    heat_transfer_area=heat_transfer_area,
+    jacket_temperature=None,
+    heat_transfer_coefficient=None,
+    heat_transfer_area=None,
     heat_capacity_mode='constant',
 )
 
@@ -83,8 +83,8 @@ initial_temperature = Temperature(
 
 # NOTE: initial pressure
 initial_pressure = Pressure(
-    value=5e6,
-    unit="Pa",
+    value=50,
+    unit="bar",
 )
 
 # NOTE: constant heat capacity (Cp) for the system in J/mol.K
@@ -114,7 +114,7 @@ simulation_result: BatchReactorResult | None = batch_react(
     component_key='Name-Formula',
     solver_options={
         "method": "BDF",
-        "time_span": (0, 120),
+        "time_span": (0, 3000),
         "rtol": 1e-6,
         "atol": 1e-9
     }
