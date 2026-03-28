@@ -10,7 +10,7 @@ from .thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.unit_tools import to_m3, to_Pa, to_K
-from ..utils.reaction_tools import stoichiometry_mat_key
+from ..utils.reaction_tools import stoichiometry_mat_key, stoichiometry_mat
 from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
 from ..utils.opt_tools import calc_heat_exchange, set_component_X
 from ..models.br import GasModel
@@ -101,6 +101,12 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
             reactions=self.reactions,
             component_key=component_key
+        )
+        # >> matrix
+        self.reaction_stoichiometry_matrix = stoichiometry_mat(
+            reactions=self.reactions,
+            components=self.components,
+            component_key=component_key,
         )
 
         # SECTION: Thermodynamic properties
@@ -345,10 +351,21 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             # > extract stoichiometry for reaction k
             stoich_k = self.reaction_stoichiometry[k].items()
 
+            # > stoichiometry matrix
+            stoich_k_matrix = self.reaction_stoichiometry_matrix[k]
+
+            # >> generation term for reaction k
+            # ??? g[k] = V * Σ_k ν[i][k] * r[k]
+            g_k = reactor_volume * np.dot(stoich_k_matrix, r_k)
+
             # >> calculate dn/dt for each component i based on reaction k
-            for sp_name, nu_ik in stoich_k:
-                i = name_to_idx[sp_name]
-                dn_dt[i] += reactor_volume * nu_ik * r_k
+            # for sp_name, nu_ik in stoich_k:
+            #     i = name_to_idx[sp_name]
+            #     dn_dt[i] += reactor_volume * nu_ik * r_k
+
+            # >> Alternatively, using matrix multiplication:
+            for i in range(ns):
+                dn_dt[i] += g_k[i]
 
         return dn_dt
 
