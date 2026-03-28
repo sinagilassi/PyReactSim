@@ -23,7 +23,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
     Assumptions
     -----------
-    - Constant heat capacity (Cp)
+    - Constant heat capacity (Cp) for energy balance calculations.
     """
     # NOTE: Attributes
 
