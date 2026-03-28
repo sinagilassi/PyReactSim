@@ -87,13 +87,13 @@ reaction = Reaction(
 
 
 # NOTE: reactor vessel volume in m3
-reactor_volume = CustomProp(
+reactor_volume = Volume(
     value=1.0,
     unit="m3",
 )
 
 # NOTE: Jacket temperature
-jacket_temperature = CustomProp(
+jacket_temperature = Temperature(
     value=350.0,
     unit="K",
 )
@@ -118,7 +118,7 @@ reactor_inputs = BatchReactorOptions(
     phase='gas',
     gas_model=gas_model,
     heat_transfer_mode='non-isothermal',
-    volume_mode='constant',
+    operation_mode='constant_volume',
     reactor_volume=reactor_volume,
     jacket_temperature=jacket_temperature,
     heat_transfer_coefficient=heat_transfer_coefficient,

@@ -16,6 +16,7 @@ from ..sources.interface import (
     ext_components_eq
 )
 from ..utils.unit_tools import to_m3, to_Pa, to_K, to_J_per_mol_K, to_W_per_m2_K, to_m2
+from ..utils.tools import collect_keys
 from ..models.br import BatchReactorOptions, BatchReactorResult, HeatTransferMode
 from ..models.rate_exp import ReactionRateExpression
 from ..models.br import GasModel
@@ -69,7 +70,7 @@ class BatchReactor:
 
         # SECTION: Process model configuration
         # lower case keys for easier access
-        self.model_inputs_keys = self._config_model_inputs()
+        self.model_inputs_keys = collect_keys(self.model_inputs)
         # >> temperature
         # ! to Kelvin
         self.temperature: Temperature = self._config_temperature()
@@ -121,7 +122,7 @@ class BatchReactor:
         self.phase = "gas"
         self.gas_model: GasModel = reactor_inputs.gas_model
         self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
-        self.volume_mode = reactor_inputs.volume_mode
+        self.operation_mode = reactor_inputs.operation_mode
         self.jacket_temperature = reactor_inputs.jacket_temperature
         self.heat_transfer_coefficient = reactor_inputs.heat_transfer_coefficient
         self.heat_transfer_area = reactor_inputs.heat_transfer_area
@@ -177,12 +178,6 @@ class BatchReactor:
                 self.heat_transfer_area.unit
             )
 
-        # >> constant heat capacity
-        # ! to J/mol.K
-        self.heat_capacity_values: Optional[
-            np.ndarray
-        ] = self._config_heat_capacity()
-
         # ! reactor volume
         if reactor_inputs.reactor_volume is None:
             raise ValueError(
@@ -195,19 +190,7 @@ class BatchReactor:
             self.reactor_volume.unit
         )
 
-    # SECTION: Model Inputs
-    # ! general configuration for model inputs
-    def _config_model_inputs(
-            self,
-    ):
-        """Configure the model inputs for the batch reactor simulation."""
-        model_inputs_keys = set(self.model_inputs.keys())
-        # lower case keys for easier access
-        model_inputs_keys = [
-            key.lower().strip() for key in model_inputs_keys
-        ]
-        return model_inputs_keys
-
+    # SECTION: Model Inputs configuration
     # NOTE: temperature configuration
     def _config_temperature(
             self,
@@ -248,46 +231,3 @@ class BatchReactor:
             return pressure
         else:
             raise ValueError("Pressure must be provided in model_inputs.")
-
-    # NOTE: heat capacity configuration
-    def _config_heat_capacity(
-            self,
-    ) -> Optional[np.ndarray]:
-        """Configure the heat capacity for the batch reactor based on the model inputs and reactor configuration."""
-        # check heat capacity mode
-        if self.heat_capacity_mode is None:
-            return None
-
-        # heat capacity constant
-        if self.heat_capacity_mode == "constant":
-            if "heat_capacity" in self.model_inputs_keys:
-                heat_capacity_: dict[
-                    str,
-                    CustomProp
-                ] = self.model_inputs["heat_capacity"]
-
-                # iterate through components and extract heat capacity values
-                heat_capacity_values = []
-
-                for id in self.component_formula_state:
-                    if id in heat_capacity_:
-                        cp_value = to_J_per_mol_K(
-                            heat_capacity_[id].value,
-                            heat_capacity_[id].unit
-                        )
-                        heat_capacity_values.append(cp_value)
-                    else:
-                        raise ValueError(
-                            f"Heat capacity value for component '{id}' not found in model_inputs."
-                        )
-
-                heat_capacity_array = np.array(heat_capacity_values)
-
-                # res
-                return heat_capacity_array
-            else:
-                raise ValueError(
-                    "Heat capacity must be provided in model_inputs for constant heat capacity mode."
-                )
-        else:
-            return None

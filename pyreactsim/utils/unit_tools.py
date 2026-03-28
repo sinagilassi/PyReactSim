@@ -175,3 +175,32 @@ def to_m2(value: float, unit: str) -> float:
     except Exception as e:
         logging.error(f"Error converting {value} from {unit} to m2: {e}")
         raise ValueError(f"Unsupported unit for conversion: {unit}")
+
+
+def to_J_per_mol(value: float, unit: str) -> float:
+    """
+    Convert a given value to Joules per mole (J/mol) based on the specified unit.
+
+    Parameters
+    ----------
+    value : float
+        The numerical value to be converted.
+    unit : str
+        The unit of the input value. Supported units include 'J/mol', 'kJ/mol', 'cal/mol', etc.
+
+    Returns
+    -------
+    float
+        The converted value in Joules per mole (J/mol).
+
+    Raises
+    ------
+    ValueError
+        If the provided unit is not supported for conversion.
+    """
+    try:
+        # Use pycuc for unit conversion
+        return pycuc.convert_from_to(value, from_unit=unit, to_unit='J/mol')
+    except Exception as e:
+        logging.error(f"Error converting {value} from {unit} to J/mol: {e}")
+        raise ValueError(f"Unsupported unit for conversion: {unit}")

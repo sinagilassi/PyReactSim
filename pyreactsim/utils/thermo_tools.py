@@ -82,3 +82,25 @@ def calc_tot_pressure_ideal(
     """
     # ideal gas model
     return n_total * R * temperature / float(reactor_volume_value)
+
+
+def calc_dH_rxn_298(
+        nu: np.ndarray,
+        EnFo_IG_298: np.ndarray
+):
+    """
+    Calculate the reaction enthalpy at 298 K (ΔH_rxn_298) for each reaction based on the stoichiometry and enthalpy of formation values.
+
+    Parameters
+    ----------
+    nu : np.ndarray
+        The stoichiometry matrix for the reactions, where rows correspond to components and columns correspond to reactions.
+    EnFo_IG_298 : np.ndarray
+        An array of enthalpy of formation values for the components at 298 K in J/mol.
+
+    Returns
+    -------
+    np.ndarray
+        An array of reaction enthalpies at 298 K (ΔH_rxn_298) for each reaction in J/mol.
+    """
+    return EnFo_IG_298 @ nu

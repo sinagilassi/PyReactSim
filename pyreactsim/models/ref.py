@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union, TypeAlias
 ReactorPhase = Literal['gas', 'liquid']
 # NOTE: Isothermal non-isothermal models
 HeatTransferMode = Literal['isothermal', 'non-isothermal']
-# NOTE: Volume mode
-VolumeMode = Literal['constant', 'variable']
+# NOTE: Operation modes
+OperationMode = Literal['constant_volume', 'constant_pressure']
 # NOTE: Gas Model
 GasModel = Literal['ideal', 'real']

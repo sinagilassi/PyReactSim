@@ -220,7 +220,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # ! dn_i/dt = V * Σ_k ν_i,k * r_k
         dn_dt = self._build_dn_dt(
             ns=ns,
-            rates=rates
+            rates=rates,
+            reactor_volume=reactor_volume
         )
 
         # >>> calculate dn/dt for isothermal case
@@ -233,7 +234,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         dT_dt = self._build_dT_dt(
             n=n,
             rates=rates,
-            temp=temp
+            temp=temp,
+            reactor_volume=reactor_volume
         )
 
         # >>> calculate both dn/dt and dT/dt
@@ -308,7 +310,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
     def _build_dn_dt(
             self,
             ns: int,
-            rates: np.ndarray
+            rates: np.ndarray,
+            reactor_volume: float
     ):
         """
         Build the rate of change of moles (dn/dt) for each component based on the reaction rates and stoichiometry.
@@ -319,6 +322,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             Number of components in the reactor.
         rates : np.ndarray
             Array of reaction rates for each reaction in the reactor.
+        reactor_volume : float
+            Volume of the reactor (in m3).
 
         Returns
         -------
@@ -341,7 +346,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             # >> calculate dn/dt for each component i based on reaction k
             for sp_name, nu_ik in stoich_k:
                 i = name_to_idx[sp_name]
-                dn_dt[i] += self.reactor_volume_value * nu_ik * r_k
+                dn_dt[i] += reactor_volume * nu_ik * r_k
 
         return dn_dt
 
@@ -350,7 +355,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             self,
             n: np.ndarray,
             rates: np.ndarray,
-            temp: float
+            temp: float,
+            reactor_volume: float
     ):
         """
         Calculate the rate of change of temperature (dT/dt) based on the energy balance for the non-isothermal gas-phase batch reactor.
@@ -363,36 +369,23 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             Array of reaction rates for each reaction in the reactor.
         temp : float
             Current temperature of the system (in K).
+        reactor_volume : float
+            Volume of the reactor (in m3).
 
         Returns
         -------
         float
             The rate of change of temperature (dT/dt) for the non-isothermal gas-phase batch reactor.
         """
+        # ! temperature
+        temperature = Temperature(value=temp, unit="K")
+        temperature_value = temperature.value
+
         # ! (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
         # ??? Cp_i(T)
-        if self.heat_capacity_mode == "temperature-dependent":
-            # NOTE: calculate temperature-dependent heat capacity
-            Cp_IG_values = self.calc_Cp_IG(
-                inputs={
-                    "T": temp
-                },
-                Cp_IG_src=self.Cp_IG_src,
-                output_unit="J/mol.K"
-            )
-        elif self.heat_capacity_mode == "constant":
-            # NOTE: use constant heat capacity from model inputs
-            Cp_IG_values = self.heat_capacity_values
-        else:
-            raise ValueError(
-                f"Invalid heat_capacity_mode '{self.heat_capacity_mode}'. Must be 'temperature-dependent' or 'constant'."
-            )
-
-        # >> check heat capacity values
-        if Cp_IG_values is None:
-            raise ValueError(
-                "Heat capacity values could not be calculated or retrieved."
-            )
+        Cp_IG_values = self.calc_Cp_IG(
+            temperature=temperature
+        )
 
         # ??? Σ_i n_i Cp_i
         c_total = calc_total_heat_capacity(n, Cp_IG_values)
@@ -404,14 +397,14 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # V[m3], ΔH[J/mol], r[mol/m3.s] => Q_rxn [J/s] or [W]
         # ??? ΔH_k
         delta_h = self.calc_dH_rxns(
-            temperature=Temperature(value=temp, unit="K")
+            temperature=temperature
         )
 
         # ??? Q_rxn
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
             rates=rates,
-            reactor_volume=self.reactor_volume_value
+            reactor_volume=reactor_volume
         )
 
         # ! calculate heat exchange with surroundings: Q_exchange = UA (T_s - T)
@@ -421,7 +414,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # >>> check if heat exchange is enabled
         if self.heat_exchange:
             q_exchange = calc_heat_exchange(
-                temperature=temp,
+                temperature=temperature_value,
                 jacket_temperature=self.jacket_temperature_value,
                 heat_transfer_area=self.heat_transfer_area_value,
                 heat_transfer_coefficient=self.heat_transfer_coefficient_value
@@ -463,7 +456,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         """
         # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
         # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
-        if self.volume_mode == "constant":
+        if self.operation_mode == "constant_volume":
             # ??? Constant volume assumption: V = V0
             reactor_volume = self.reactor_volume_value
             # NOTE: calculate total pressure
@@ -474,7 +467,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
                 R=self.R,
                 gas_model=self.gas_model
             )
-        elif self.volume_mode == "variable":
+        elif self.operation_mode == "constant_pressure":
             # ??? Constant pressure assumption: P = P0
             p_total = self.pressure.value
             # NOTE:calculate volume
@@ -487,7 +480,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             )
         else:
             raise ValueError(
-                f"Invalid volume_mode '{self.volume_mode}'. Must be 'constant' or 'variable'."
+                f"Invalid operation mode '{self.operation_mode}'. Must be 'constant' or 'variable'."
             )
 
         # NOTE: partial pressures:

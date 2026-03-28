@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union, TypeAlias
 from pythermodb_settings.models import Component, CustomProp, Volume, Temperature
 # locals
-from .ref import HeatTransferMode, ReactorPhase, VolumeMode, GasModel
+from .ref import HeatTransferMode, ReactorPhase, OperationMode, GasModel
 
 
 class BatchReactorOptions(BaseModel):
@@ -15,8 +15,8 @@ class BatchReactorOptions(BaseModel):
         Phase of the batch reactor (gas or liquid).
     heat_transfer_mode : HeatTransferMode
         Heat transfer mode (isothermal or non-isothermal).
-    volume_mode : VolumeMode
-        Volume mode (constant or variable).
+    operation_mode : OperationMode
+        Operating condition of the reactor (constant volume or constant pressure).
     gas_model : GasModel
         Gas model to use (required if phase is gas).
     reactor_volume : Optional[CustomProp]
@@ -38,9 +38,9 @@ class BatchReactorOptions(BaseModel):
         ...,
         description="Heat transfer mode (isothermal or non-isothermal)."
     )
-    volume_mode: VolumeMode = Field(
+    operation_mode: OperationMode = Field(
         ...,
-        description="Volume mode (constant or variable)."
+        description="Operating condition of the reactor (constant volume or constant pressure)."
     )
     gas_model: GasModel = Field(
         default='ideal',

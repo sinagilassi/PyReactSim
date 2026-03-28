@@ -63,13 +63,13 @@ heat_transfer_area = CustomProp(
 reactor_inputs = BatchReactorOptions(
     phase='gas',
     heat_transfer_mode='non-isothermal',
-    volume_mode='constant',
+    operation_mode='constant_volume',
     gas_model='ideal',
     reactor_volume=reactor_volume,
     jacket_temperature=jacket_temperature,
     heat_transfer_coefficient=heat_transfer_coefficient,
     heat_transfer_area=heat_transfer_area,
-    heat_capacity_mode='constant',
+    heat_capacity_mode='temperature-dependent',
 )
 
 # ====================================================

@@ -2,7 +2,7 @@
 import logging
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
-from pythermodb_settings.models import Component, ComponentKey, CustomProp, CustomProperty, Temperature
+from pythermodb_settings.models import Component, ComponentKey, CustomProp, CustomProperty, Temperature, Pressure
 from pythermodb_settings.utils import set_component_id, build_components_mapper
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
@@ -17,7 +17,8 @@ from ..sources.interface import (
     ext_components_eq,
     exec_component_eq
 )
-from ..utils.unit_tools import to_K
+from ..utils.unit_tools import to_K, to_J_per_mol, to_J_per_mol_K
+from ..utils.tools import find_components_property, collect_keys
 from ..utils.reaction_tools import stoichiometry_mat
 from ..models.rate_exp import ReactionRateExpression
 from ..models.br import GasModel
@@ -31,6 +32,12 @@ class ThermoSource:
     """
     THermo class for handling thermodynamic calculations and properties related to chemical reactions and processes. This class provides methods for calculating various thermodynamic properties, such as heat capacities, enthalpies, and entropies, as well as methods for performing energy balance calculations in chemical systems.
     """
+    # NOTE: Attributes
+    # reference temperature
+    T_ref = Temperature(value=298.15, unit="K")
+    T_ref_K = 298.15
+    # reference pressure
+    P_ref = Pressure(value=101325, unit="Pa")
 
     def __init__(
         self,
@@ -54,8 +61,20 @@ class ThermoSource:
 
         # NOTE: Create component ID list
         self.component_ids = [
-            set_component_id(component=comp, component_key=self.component_key)
+            set_component_id(
+                component=comp,
+                component_key=self.component_key
+            )
             for comp in self.components
+        ]
+
+        # >>> formula-state
+        self.component_formula_state = [
+            set_component_id(
+                component=component,
+                component_key='Formula-State'
+            )
+            for component in self.components
         ]
 
         # NOTE: build component mapper
@@ -70,19 +89,56 @@ class ThermoSource:
         # NOTE: reactions
         self.reactions: List[Reaction] = self.build_reactions()
 
+        # SECTION: Process model configuration
+        # lower case keys for easier access
+        self.model_inputs_keys = collect_keys(self.model_inputs)
+
+        # SECTION: Reactor configuration
+        self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
+
         # SECTION: Thermodynamic properties
+        # heat transfer more
+        self.heat_transfer_mode = self.reactor_inputs.heat_transfer_mode
+
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
-        if self.reactor_inputs.heat_transfer_mode == "non-isothermal":
+        if self.heat_transfer_mode == "non-isothermal":
             # check heat capacity mode
             if self.reactor_inputs.heat_capacity_mode == "temperature-dependent":
-                self.Cp_IG_src = self.prop_eq_src(prop_name="Cp_IG")
+                # NOTE: extract heat capacity equation source for the components from the model source
+                self.Cp_IG_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
+                    prop_name="Cp_IG")
+            elif self.reactor_inputs.heat_capacity_mode == "constant":
+                # NOTE: use constant heat capacity from model inputs
+                # >> constant heat capacity
+                # ! to J/mol.K
+                (
+                    self.heat_capacity_constant_values,
+                    self.heat_capacity_constant_comp
+                ) = self._config_heat_capacity()
+
+                # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
+                self.dCp_rxns = self.calc_dCp_IG()
+            else:
+                raise ValueError(
+                    f"Invalid heat_capacity_mode '{self.heat_capacity_mode}'. Must be 'temperature-dependent' or 'constant'."
+                )
 
         # ! Ideal Gas Enthalpy of formation at 298 K
-        if self.reactor_inputs.heat_transfer_mode == "non-isothermal":
+        if self.heat_transfer_mode == "non-isothermal":
+            # source
             self.EnFo_IG_298_src = self.prop_dt_src(
                 component_ids=self.component_ids,
                 prop_name="EnFo_IG"
             )
+
+            # values in J/mol
+            self.EnFo_IG_298_comp: Dict[
+                str,
+                float
+            ] = self._config_EnFo_IG_unit()
+
+            # dH_rxn at 298 K [J/mol]
+            self.dH_rxns_298 = self.calc_dH_rxns_298()
 
     # SECTION: Property equation source extraction methods
     # ! Extract property equation source for components
@@ -138,6 +194,53 @@ class ThermoSource:
 
         return dt_src
 
+    # NOTE: heat capacity configuration
+    def _config_heat_capacity(
+            self,
+    ) -> Tuple[Optional[np.ndarray], Optional[Dict[str, float]]] | Tuple[None, None]:
+        """Configure the heat capacity for the batch reactor based on the model inputs and reactor configuration."""
+        # check heat capacity mode
+        if self.heat_capacity_mode is None:
+            return None, None
+
+        # heat capacity constant
+        if self.heat_capacity_mode == "constant":
+            if "heat_capacity" in self.model_inputs_keys:
+                heat_capacity_: dict[
+                    str,
+                    CustomProp
+                ] = self.model_inputs["heat_capacity"]
+
+                # iterate through components and extract heat capacity values
+                heat_capacity_values = []
+                heat_capacity_comp = {}
+
+                for id in self.component_formula_state:
+                    if id in heat_capacity_:
+                        cp_value = to_J_per_mol_K(
+                            heat_capacity_[id].value,
+                            heat_capacity_[id].unit
+                        )
+
+                        # add
+                        heat_capacity_values.append(cp_value)
+                        heat_capacity_comp[id] = cp_value
+                    else:
+                        raise ValueError(
+                            f"Heat capacity value for component '{id}' not found in model_inputs."
+                        )
+
+                heat_capacity_array = np.array(heat_capacity_values)
+
+                # res
+                return heat_capacity_array, heat_capacity_comp
+            else:
+                raise ValueError(
+                    "Heat capacity must be provided in model_inputs for constant heat capacity mode."
+                )
+        else:
+            return None, None
+
     # SECTION: Reaction and stoichiometry related methods
     # ! Extract all reactions
     def build_reactions(self):
@@ -172,30 +275,78 @@ class ThermoSource:
         return mat
 
     # SECTION: Thermodynamic property calculations
-    # ! Heat capacity at ideal gas at temperature T (Cp_IG)
     def calc_Cp_IG(
             self,
+            temperature: Temperature,
+    ):
+        """
+        Calculate the ideal gas heat capacity (Cp_IG) for the components in the batch reactor at the specified temperature.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the ideal gas heat capacity (Cp_IG) for the components in the batch reactor.
+
+        Returns
+        -------
+        np.ndarray
+            An array of ideal gas heat capacity (Cp_IG) values for the components in the batch reactor, calculated at the specified temperature.
+        """
+        # NOTE: temperature in K
+        temp = to_K(temperature.value, temperature.unit)
+
+        # NOTE: calculate heat capacity at ideal gas for the components based on the heat capacity mode
+        if self.heat_capacity_mode == "temperature-dependent":
+            # NOTE: calculate temperature-dependent heat capacity
+            Cp_IG_values = self.calc_Cp_IG_real(
+                inputs={
+                    "T": temp
+                },
+            )
+        elif self.heat_capacity_mode == "constant":
+            # NOTE: use constant heat capacity from model inputs
+            # ! J/mol.K
+            Cp_IG_values = self.heat_capacity_constant_values
+        else:
+            raise ValueError(
+                f"Invalid heat_capacity_mode '{self.heat_capacity_mode}'. Must be 'temperature-dependent' or 'constant'."
+            )
+
+        # >> check heat capacity values
+        if Cp_IG_values is None:
+            raise ValueError(
+                "Heat capacity values could not be calculated or retrieved."
+            )
+
+        return Cp_IG_values
+
+    # ! Heat capacity at ideal gas at temperature T (Cp_IG)
+
+    def calc_Cp_IG_real(
+            self,
             inputs: Dict[str, Any],
-            Cp_IG_src: Dict[str, ComponentEquationSource],
-            output_unit: Optional[str] = "J/mol.K"
     ) -> np.ndarray:
         # NOTE: extract Cp_IG at reference temperature (e.g., 298 K)
         Cp_IG_ref: Dict[str, CustomProperty] = {}
         for comp in self.component_ids:
-            eq_src = Cp_IG_src.get(comp)
+            eq_src = self.Cp_IG_src.get(comp)
             if eq_src is None:
                 raise ValueError(
-                    f"No Cp_IG source found for component: {comp}")
+                    f"No Cp_IG source found for component: {comp}"
+                )
 
             # >> execute equation to get Cp_IG at reference conditions
             cp_value = exec_component_eq(
                 component_eq_src=eq_src,
                 inputs=inputs,
-                output_unit=output_unit
+                output_unit="J/mol.K"
             )
             if cp_value is None:
                 raise ValueError(
-                    f"Failed to extract Cp_IG value for component: {comp}")
+                    f"Failed to extract Cp_IG value for component: {comp}"
+                )
+
+            # store
             Cp_IG_ref[comp] = cp_value
 
         # NOTE: build a list of Cp_IG values for all components
@@ -214,10 +365,153 @@ class ThermoSource:
 
         return Cp_IG_values
 
+    def calc_dCp_IG(
+            self,
+    ):
+        """
+        Calculate the change in heat capacity at ideal gas (ΔCp_IG) for the reactions as:
+            ΔCp_rxn = sum(nu_i * Cp_IG_i) for all components i
+
+        Returns
+        -------
+        np.ndarray
+            An array of changes in heat capacity at ideal gas (ΔCp_IG) for each reaction.
+        """
+        # res
+        dCp = []
+
+        # check heat capacity constant
+        if self.heat_capacity_constant_comp is None:
+            raise ValueError("Constant heat capacity values not found.")
+
+        # iterate over reactions
+        for rxn in self.reactions:
+            # >> calculate reaction enthalpy for the reaction at 298 K
+            # stoichiometry matrix
+            nu = rxn.reaction_stoichiometry_matrix
+            nu = np.array(nu, dtype=float)
+
+            # components
+            components = rxn.components
+            # >> check
+            if components is None:
+                raise ValueError(
+                    f"No components found for reaction: {rxn.name}")
+
+            # heat capacity at ideal gas at reference temperature (e.g., 298 K) for the components
+            Cp_IG_values, _ = find_components_property(
+                components=components,
+                prop_values=self.heat_capacity_constant_comp,
+                component_key="Formula-State"
+            )
+
+            # calculate mix heat capacity change for the reaction using the formula:
+            # ΔCp_rxn = sum(nu_i * Cp_IG_i) for all components i
+            dCp_rxn = np.sum(nu * Cp_IG_values)
+
+            # >> check
+            if dCp_rxn is None:
+                raise ValueError(
+                    f"Failed to calculate heat capacity change for reaction: {rxn.name}"
+                )
+
+            dCp.append(dCp_rxn)
+
+        # NOTE: convert to numpy array
+        res = np.array(dCp, dtype=float)
+
+        return res
+
     # ! Calculate reaction enthalpies (ΔH) for reactions
+
+    def calc_dH_rxns_298(
+            self,
+    ):
+        """
+        Calculate the reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor at 298 K using the provided reaction rates and components.
+
+        Returns
+        -------
+        np.ndarray
+            An array of reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor, calculated at 298 K.
+        """
+        # res
+        dH_rxns = []
+
+        # iterate over reactions
+        for rxn in self.reactions:
+            # >> calculate reaction enthalpy for the reaction at 298 K
+            # stoichiometry matrix
+            nu = rxn.reaction_stoichiometry_matrix
+            nu = np.array(nu, dtype=float)
+
+            # components
+            components = rxn.components
+            # >> check
+            if components is None:
+                raise ValueError(
+                    f"No components found for reaction: {rxn.name}")
+
+            # Enthalpy of formation at 298 K for the components
+            EnFo_IG_298_values, _ = find_components_property(
+                components=components,
+                prop_values=self.EnFo_IG_298_comp,
+                component_key="Formula-State"
+            )
+
+            # calc
+            dH_rxn = EnFo_IG_298_values @ nu
+
+            # >> check
+            if dH_rxn is None:
+                raise ValueError(
+                    f"Failed to calculate reaction enthalpy for reaction: {rxn.name}")
+
+            dH_rxns.append(dH_rxn)
+
+        # NOTE: convert to numpy array
+        res = [dH.value for dH in dH_rxns]
+        res = np.array(res, dtype=float)
+
+        return res
+
     def calc_dH_rxns(
             self,
-            temperature: Temperature
+            temperature: Temperature,
+    ):
+        """
+        Calculate the reaction enthalpies (ΔH) for the reactions in the reactor.
+
+        """
+        # ! calculate heat generated by reactions: Q_rxn = V Σ_k [(-ΔH_k) r_k]
+        # V[m3], ΔH[J/mol], r[mol/m3.s] => Q_rxn [J/s] or [W]
+        # ??? ΔH_k
+        if self.heat_capacity_mode == "temperature-dependent":
+            # NOTE: calculate temperature-dependent enthalpy of formation
+            delta_h = self.calc_dH_rxns_real(
+                temperature=temperature
+            )
+        elif self.heat_capacity_mode == "constant":
+            # NOTE: use constant enthalpy of formation from model inputs
+            delta_h = self.calc_dH_rxns_linear(
+                temperature=temperature,
+            )
+        else:
+            raise ValueError(
+                f"Invalid heat_capacity_mode '{self.heat_capacity_mode}'. Must be 'temperature-dependent' or 'constant'."
+            )
+
+        # >> check enthalpy of formation values
+        if delta_h is None:
+            raise ValueError(
+                "Enthalpy of formation values could not be calculated or retrieved."
+            )
+
+        return delta_h
+
+    def calc_dH_rxns_real(
+            self,
+            temperature: Temperature,
     ) -> np.ndarray:
         """
         Calculate the reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
@@ -242,6 +536,7 @@ class ThermoSource:
         #
         dH_rxns = []
         for rxn in self.reactions:
+            # >> calculate reaction enthalpy for the reaction at the specified temperature
             dH_rxn = dH_rxn_STD(
                 reaction=rxn,
                 temperature=temperature,
@@ -258,6 +553,93 @@ class ThermoSource:
         # NOTE: convert to numpy array
         res = [dH.value for dH in dH_rxns]
         res = np.array(res, dtype=float)
+
+        return res
+
+    def calc_dH_rxns_linear(
+            self,
+            temperature: Temperature,
+    ):
+        """
+        Calculate the average reaction enthalpies (ΔH) for the reactions as:
+            ΔH_rxn_avg = ΔH_rxn_298 + sum(nu_i * Cp_IG_i * (T - 298)) for all components i
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the average reaction enthalpies (ΔH) for the reactions
+            in the reactor.
+
+        Returns
+        -------
+        np.ndarray
+            An array of average reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor, calculated at the specified temperature.
+        """
+        # res
+        dH_rxns = []
+
+        # iterate over reactions
+        for rxn, dH_rxn_298, dCp_mix in zip(self.reactions, self.dH_rxns_298, self.dCp_rxns):
+            # nu
+            nu = rxn.reaction_stoichiometry_matrix
+            nu = np.array(nu, dtype=float)
+
+            # calculate average reaction enthalpy using the formula:
+            # ΔH_rxn_avg = ΔH_rxn_298 + dCp_mix * (T - 298)
+            T = to_K(temperature.value, temperature.unit)
+            dH_rxn_avg = dH_rxn_298 + dCp_mix * (T - self.T_ref_K)
+
+            # >> check
+            if dH_rxn_avg is None:
+                raise ValueError(
+                    f"Failed to calculate average reaction enthalpy for reaction: {rxn.name}")
+
+            dH_rxns.append(dH_rxn_avg)
+
+        # NOTE: convert to numpy array
+        res = [dH.value for dH in dH_rxns]
+        res = np.array(res, dtype=float)
+
+        return res
+
+    # ! set enthalpy of formation unit to J/mol
+    def _config_EnFo_IG_unit(
+            self,
+    ) -> Dict[str, float]:
+        """
+        Configure the unit for the enthalpy of formation at ideal gas at 298 K (EnFo_IG_298) for the components in the batch reactor based on the model source and reactor configuration.
+
+        Returns
+        -------
+        Dict[str, float]
+            A dictionary where the keys are component IDs and the values are the enthalpy of formation values for the components in J/mol.
+        """
+        # NOTE: extract EnFo_IG_298 at reference temperature (e.g., 298 K) and convert to output unit
+        res = {}
+
+        # normalized to unit
+        for comp in self.component_ids:
+            dt_src = self.EnFo_IG_298_src.get(comp)
+            if dt_src is None:
+                raise ValueError(
+                    f"No EnFo_IG_298 source found for component: {comp}")
+
+            # >> extract EnFo_IG_298 value
+            dt_value = dt_src.get("value")
+            dt_unit = dt_src.get("unit")
+
+            # >> check
+            if dt_value is None or dt_unit is None:
+                raise ValueError(
+                    f"Failed to extract EnFo_IG_298 value or unit for component: {comp}")
+
+            # >> convert to output unit
+            dt_value_converted = to_J_per_mol(
+                value=dt_value,
+                unit=dt_unit
+            )
+
+            res[comp] = dt_value_converted
 
         return res
 

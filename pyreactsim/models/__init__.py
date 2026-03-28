@@ -1,7 +1,7 @@
 # NOTE: reaction_exp
 from .rate_exp import ReactionRateExpression
 from .rate_exp_refs import X, rArgs, rParams, rRet, rXs
-from .ref import HeatTransferMode, ReactorPhase, VolumeMode, GasModel
+from .ref import HeatTransferMode, ReactorPhase, OperationMode, GasModel
 
 __all__ = [
     'rArgs',
@@ -12,6 +12,6 @@ __all__ = [
     'ReactionRateExpression',
     'HeatTransferMode',
     'ReactorPhase',
-    'VolumeMode',
+    'OperationMode',
     'GasModel'
 ]
