@@ -12,7 +12,7 @@ from pyreactlab_core.models.reaction import Reaction
 from pyreactsim.models.br import BatchReactorOptions, BatchReactorResult
 from pyreactsim.docs.brs import batch_react
 # ! model sources
-from model_source_exp_1 import model_source, components
+from model_source_exp_1 import model_source, CO2, H2, CH3OH, H2O
 from rate_exp_2 import rate_expression
 from examples.plot.plot_res import plot_batch_reactor_result
 
@@ -34,6 +34,9 @@ logging.getLogger("pyreactsim").setLevel(logging.INFO)
 # SECTION: Inputs
 # ====================================================
 # ! assumptions: variable pressure, isothermal, ideal gas behavior, single component system
+
+# Components
+components = [CO2, H2, CH3OH, H2O]
 
 # NOTE: reactor vessel volume in m3
 reactor_volume = Volume(

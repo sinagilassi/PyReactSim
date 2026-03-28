@@ -61,4 +61,49 @@ def stoichiometry_mat(
         raise
 
 
-# SECTION: State key checker
+# SECTION: stoichiometry matrix based on component key
+def stoichiometry_mat_key(
+        reactions: List[Reaction],
+        component_key: ComponentKey
+) -> List[Dict[str, float]]:
+    """
+    Generate the stoichiometry matrix for a given list of reactions and components based on a specified component key.
+
+    Parameters
+    ----------
+    reactions : List[Reaction]
+        A list of Reaction objects representing the chemical reactions.
+    component_key : ComponentKey
+        A ComponentKey object representing the key to be used for the components in the reactions.
+
+    Returns
+    -------
+    List[Dict[str, float]]
+        A list of dictionaries where each dictionary represents the stoichiometry of a reaction with component names as keys and their corresponding stoichiometric coefficients as values.
+    """
+    try:
+        # NOTE: res
+        res: List[Dict[str, float]] = []
+
+        # iterate over reactions
+        for reaction in reactions:
+            # >> stoichiometry
+            stoichiometry_: Dict[str, float] | None = reaction.reaction_stoichiometry_source.get(
+                component_key,
+                None
+            )
+
+            # >> check
+            if stoichiometry_ is None:
+                raise ValueError(
+                    f"Stoichiometry not found for reaction {reaction.name} with component key {component_key}"
+                )
+
+            # add
+            res.append(stoichiometry_)
+
+        # res
+        return res
+    except Exception as e:
+        logger.error(f"Error in generating stoichiometry matrix: {e}")
+        raise

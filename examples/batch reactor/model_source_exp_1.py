@@ -86,8 +86,21 @@ H2O = Component(
     }
 )
 
+# Carbon monoxide
+CO = Component(
+    name='carbon monoxide',
+    formula='CO',
+    state='g',
+    X={
+        "name": "mole",
+        "value": 0,
+        "unit": "mol",
+        "symbol": "n"
+    }
+)
+
 # components
-components = [CO2, H2, CH3OH, H2O]
+components = [CO2, H2, CH3OH, H2O, CO]
 
 # NOTE: ignore state properties
 ignore_state_props = ['MW', 'VaPr', 'Cp_IG']

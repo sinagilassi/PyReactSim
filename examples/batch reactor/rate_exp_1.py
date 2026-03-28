@@ -8,12 +8,16 @@ from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 # ! model source
-from model_source_exp_1 import components, CO2, H2, CH3OH, H2O
+from model_source_exp_1 import CO2, H2, CH3OH, H2O
 
 
 # ====================================================
 # SECTION: Reaction Rate Expression
 # ====================================================
+
+# NOTE: Components
+components = [CO2, H2, CH3OH, H2O]
+
 # NOTE: Reaction
 reaction = Reaction(
     name="reaction 1",

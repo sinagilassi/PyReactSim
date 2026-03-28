@@ -393,7 +393,7 @@ class ThermoSource:
             nu = np.array(nu, dtype=float)
 
             # components
-            components = rxn.components
+            components = rxn.available_components
             # >> check
             if components is None:
                 raise ValueError(
@@ -447,7 +447,7 @@ class ThermoSource:
             nu = np.array(nu, dtype=float)
 
             # components
-            components = rxn.components
+            components = rxn.available_components
             # >> check
             if components is None:
                 raise ValueError(

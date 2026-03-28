@@ -10,6 +10,7 @@ from .thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.unit_tools import to_m3, to_Pa, to_K
+from ..utils.reaction_tools import stoichiometry_mat_key
 from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
 from ..utils.opt_tools import calc_heat_exchange, set_component_X
 from ..models.br import GasModel
@@ -96,8 +97,11 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         self.reaction_rates = reaction_rates
         # >> build reactions
         self.reactions = self.build_reactions()
-        # >> extract stoichiometry matrix
-        self.stoichiometry_matrix = self.build_stoichiometry()
+        # >>> build stoichiometry matrix
+        self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
+            reactions=self.reactions,
+            component_key=component_key
+        )
 
         # SECTION: Thermodynamic properties
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
@@ -338,10 +342,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             # > calculate reaction rate for reaction k
             r_k = rates[k]
 
-            # > reaction stoichiometry for reaction k: ν_i,k
-            stoich_k = rxn.reaction_stoichiometry_source[
-                self.component_key
-            ].items()
+            # > extract stoichiometry for reaction k
+            stoich_k = self.reaction_stoichiometry[k].items()
 
             # >> calculate dn/dt for each component i based on reaction k
             for sp_name, nu_ik in stoich_k:
