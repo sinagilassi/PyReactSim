@@ -15,7 +15,7 @@ from ..sources.interface import (
     ext_component_eq,
     ext_components_eq
 )
-from ..utils.unit_tools import to_m3, to_Pa, to_K, to_J_per_mol_K, to_W_per_m2_K, to_m2
+from ..utils.unit_tools import to_m3, to_Pa, to_K, to_W_per_m2_K, to_m2
 from ..utils.tools import collect_keys
 from ..models.br import BatchReactorOptions, BatchReactorResult, HeatTransferMode
 from ..models.rate_exp import ReactionRateExpression
@@ -86,16 +86,7 @@ class BatchReactor:
         # ! to Kelvin
         self.temperature: Temperature = self._config_temperature()
         self.temperature_value = self.temperature.value
-
-        # >> pressure
-        # ! to Pa
-        self.pressure: Pressure = self._config_pressure()
-        self.pressure_value = self.pressure.value
-
-        # >> reactor volume
-        # ! to m3
-        self.reactor_volume = self._config_reactor_volume()
-        self.reactor_volume_value = self.reactor_volume.value
+        self._T0 = self.temperature_value
 
         # SECTION: component IDs and related properties
         self.component_num = len(components)

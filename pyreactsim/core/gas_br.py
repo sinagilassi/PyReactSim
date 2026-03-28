@@ -9,11 +9,9 @@ from .br import BatchReactor
 from .thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
-from ..utils.unit_tools import to_m3, to_Pa, to_K
 from ..utils.reaction_tools import stoichiometry_mat_key, stoichiometry_mat
 from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
 from ..utils.opt_tools import calc_heat_exchange, set_component_X
-from ..models.br import GasModel
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -80,12 +78,47 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             component_key=component_key
         )
 
-        # ! N: initial mole
+        # ! N: initial mole [-]
         _, self._N0 = set_component_X(
             components=components,
             prop_name="mole",
             component_key=component_key
         )
+
+        # ! P: initial pressure [Pa]
+        if self.operation_mode == "constant_volume":
+            # retrieve
+            self.volume = self._config_reactor_volume()
+            self._V0 = self.volume.value
+
+            # calc
+            self._P0 = self.calc_tot_pressure(
+                n_total=np.sum(self._N0),
+                temperature=self._T0,
+                reactor_volume_value=self._V0,
+                R=self.R,
+                gas_model=self.gas_model
+            )
+
+        # ! V: initial volume [m3]
+        elif self.operation_mode == "constant_pressure":
+            # retrieve
+            self.pressure = self._config_pressure()
+            self._P0 = self.pressure.value
+
+            # calc
+            self._V0 = self.calc_volume(
+                n_total=np.sum(self._N0),
+                temperature=self._T0,
+                pressure=self._P0,
+                R=self.R,
+                gas_model=self.gas_model
+            )
+
+        else:
+            raise ValueError(
+                f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
+            )
 
         # SECTION: Model inputs
         self.model_inputs = model_inputs
@@ -140,10 +173,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         n0 = self.N0
 
         # NOTE: initial temperature
-        if self.heat_transfer_mode == "isothermal":
-            T0 = self.temperature_fixed
-        else:
-            T0 = self.temperature_value
+        T0 = self._T0
 
         # NOTE: build initial value vector
         if self.heat_transfer_mode == "isothermal":
@@ -351,21 +381,22 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             # > extract stoichiometry for reaction k
             stoich_k = self.reaction_stoichiometry[k].items()
 
-            # > stoichiometry matrix
-            stoich_k_matrix = self.reaction_stoichiometry_matrix[k]
-
             # >> generation term for reaction k
             # ??? g[k] = V * Σ_k ν[i][k] * r[k]
-            g_k = reactor_volume * np.dot(stoich_k_matrix, r_k)
 
             # >> calculate dn/dt for each component i based on reaction k
-            # for sp_name, nu_ik in stoich_k:
-            #     i = name_to_idx[sp_name]
-            #     dn_dt[i] += reactor_volume * nu_ik * r_k
+            for sp_name, nu_ik in stoich_k:
+                i = name_to_idx[sp_name]
+                dn_dt[i] += reactor_volume * nu_ik * r_k
 
             # >> Alternatively, using matrix multiplication:
-            for i in range(ns):
-                dn_dt[i] += g_k[i]
+            # > stoichiometry matrix
+            # stoich_k_matrix = self.reaction_stoichiometry_matrix[k]
+
+            # g_k = reactor_volume * np.dot(stoich_k_matrix, r_k)
+
+            # for i in range(ns):
+            #     dn_dt[i] += g_k[i]
 
         return dn_dt
 
@@ -477,18 +508,21 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
         if self.operation_mode == "constant_volume":
             # ??? Constant volume assumption: V = V0
-            reactor_volume = self.reactor_volume_value
+            reactor_volume = self._V0
+
             # NOTE: calculate total pressure
+            # ! P_total = f(n_total(t), P(t))
             p_total = self.calc_tot_pressure(
                 n_total=n_total,
                 temperature=T,
-                reactor_volume_value=self.reactor_volume_value,
+                reactor_volume_value=reactor_volume,
                 R=self.R,
                 gas_model=self.gas_model
             )
         elif self.operation_mode == "constant_pressure":
             # ??? Constant pressure assumption: P = P0
-            p_total = self.pressure.value
+            p_total = self._P0
+
             # NOTE: calculate volume
             # ! V(t) = f(n_total(t), T(t))
             reactor_volume = self.calc_volume(
@@ -509,10 +543,11 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             sp: y_mole[i] * p_total for i, sp in enumerate(self.component_formula_state)
         }
 
+        # NOTE: standardize partial pressures to be used in rate calculations:
+        # ??? r[k] = k(T, P_i) for each reaction k
         # >> std partial pressures
         partial_pressures_std = {}
 
-        # iterate over partial pressures and convert to CustomProperty with unit "Pa"
         for k, v in partial_pressures.items():
             partial_pressures_std[k] = CustomProperty(
                 value=v,

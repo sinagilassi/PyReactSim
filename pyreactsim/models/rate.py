@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Literal, Optional, Callable
 from pythermodb_settings.models import Component, CustomProperty, Pressure, Temperature, Volume, CustomProp, ComponentKey
 from pythermodb_settings.utils import set_component_id
 from pyreactlab_core.models.reaction import Reaction
+import pycuc
 # locals
 from .rate_exp_refs import X, rXs, rArgs, rParams, rRet
 
@@ -110,13 +111,34 @@ class ReactionRate:
             if current_x is None:
                 current_x = X(component=comp)
 
+            # state unit
+            current_x_unit = current_x.unit
+
             # check if component state is provided in xi
             if id_ in xi.keys():
+                # internal state unit and value
+                unit_ = xi[id_].unit
+                value_ = xi[id_].value
+
+                # ! convert xi value to the same unit as current_x if needed
+                if (
+                    current_x_unit is not None and
+                    current_x_unit != '' and
+                    unit_ != current_x_unit
+                ):
+                    # set
+                    value_ = pycuc.convert_from_to(
+                        value=value_,
+                        from_unit=unit_,
+                        to_unit=current_x_unit
+                    )
+
+                # upd
                 xi_converted[id_] = X(
                     component=comp,
                     order=current_x.order,
-                    value=xi[id_].value,
-                    unit=xi[id_].unit
+                    value=value_,
+                    unit=current_x_unit
                 )
             else:
                 logger.warning(
@@ -131,23 +153,74 @@ class ReactionRate:
 
         # NOTE: Add Temperature and Pressure to args if provided
         if temperature is not None:
-            call_args['T'] = CustomProperty(
-                value=temperature.value,
-                unit=temperature.unit,
-                symbol="T"
-            )
+            # internal temperature unit and value
+            value_internal = temperature.value
+            unit_internal = temperature.unit
+
+            # check if temperature argument is already provided in args, if not add it
+            if 'T' in call_args:
+                # external temperature unit and value
+                # value_external = call_args['T'].value
+                unit_external = call_args['T'].unit
+
+                # ! convert external temperature to the same unit as internal if needed
+                if unit_external != unit_internal:
+                    value_external_converted = pycuc.convert_from_to(
+                        value=value_internal,
+                        from_unit=unit_internal,
+                        to_unit=unit_external
+                    )
+
+                    # update call args with converted temperature
+                    call_args['T'] = CustomProperty(
+                        value=value_external_converted,
+                        unit=unit_external,
+                        symbol="T"
+                    )
+            else:
+                call_args['T'] = CustomProperty(
+                    value=temperature.value,
+                    unit=temperature.unit,
+                    symbol="T"
+                )
 
         if pressure is not None:
-            call_args['P'] = CustomProperty(
-                value=pressure.value,
-                unit=pressure.unit,
-                symbol="P"
-            )
+            # internal pressure unit and value
+            value_internal = pressure.value
+            unit_internal = pressure.unit
+
+            # check if pressure argument is already provided in args, if not add it
+            if 'P' in call_args:
+                # external pressure unit and value
+                # value_external = call_args['P'].value
+                unit_external = call_args['P'].unit
+
+                # ! convert external pressure to the same unit as internal if needed
+                if unit_external != unit_internal:
+                    value_external_converted = pycuc.convert_from_to(
+                        value=value_internal,
+                        from_unit=unit_internal,
+                        to_unit=unit_external
+                    )
+
+                    # update call args with converted pressure
+                    call_args['P'] = CustomProperty(
+                        value=value_external_converted,
+                        unit=unit_external,
+                        symbol="P"
+                    )
+            else:
+                call_args['P'] = CustomProperty(
+                    value=pressure.value,
+                    unit=pressure.unit,
+                    symbol="P"
+                )
 
         # NOTE: persist updated state for subsequent calculations
         self.state.update(xi_converted)
 
         # NOTE: Calculate rate
+        # ! call the rate expression function as defined
         return self.eq(
             xi_converted,
             call_args,

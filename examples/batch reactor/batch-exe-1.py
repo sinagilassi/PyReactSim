@@ -12,9 +12,12 @@ from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models.br import BatchReactorOptions, BatchReactorResult
 from pyreactsim.docs.brs import batch_react
+# NOTE: for example
 # ! model sources
-from model_source_exp_1 import model_source, CO2, H2, CH3OH, H2O, CO
-from rate_exp_4 import reaction_rates
+from model_source_exp_1 import model_source
+# ! rate expressions & components
+from rate_exp_5 import reaction_rates, components
+# ! plot function
 from examples.plot.plot_res import plot_batch_reactor_result
 
 # check version
@@ -32,19 +35,15 @@ for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactsi
 # ====================================================
 # ! assumptions: variable pressure, isothermal, ideal gas behavior, single component system
 
-# Components
-# components = [CO2, H2, CH3OH, H2O]
-components = [CO2, H2, CO, CH3OH, H2O]
-
 # NOTE: reactor vessel volume in m3
 reactor_volume = Volume(
-    value=10.0,
+    value=3.0,
     unit="m3",
 )
 
 # NOTE: Jacket temperature
 jacket_temperature = Temperature(
-    value=450.0,
+    value=340,
     unit="K",
 )
 
@@ -56,7 +55,7 @@ heat_transfer_coefficient = CustomProp(
 
 # NOTE: Heat transfer area
 heat_transfer_area = CustomProp(
-    value=1,
+    value=2,
     unit="m2",
 )
 
@@ -64,12 +63,12 @@ heat_transfer_area = CustomProp(
 reactor_inputs = BatchReactorOptions(
     phase='gas',
     heat_transfer_mode='non-isothermal',
-    operation_mode='constant_volume',
+    operation_mode='constant_pressure',
     gas_model='ideal',
     reactor_volume=reactor_volume,
-    jacket_temperature=None,
-    heat_transfer_coefficient=None,
-    heat_transfer_area=None,
+    jacket_temperature=jacket_temperature,
+    heat_transfer_coefficient=heat_transfer_coefficient,
+    heat_transfer_area=heat_transfer_area,
     heat_capacity_mode='temperature-dependent',
 )
 
@@ -78,29 +77,29 @@ reactor_inputs = BatchReactorOptions(
 # ====================================================
 # NOTE: initial temperature
 initial_temperature = Temperature(
-    value=523,
+    value=340,
     unit="K",
 )
 
 # NOTE: initial pressure
 initial_pressure = Pressure(
-    value=50,
-    unit="bar",
+    value=5,
+    unit="atm",
 )
 
 # NOTE: constant heat capacity (Cp) for the system in J/mol.K
-constant_heat_capacity = {
-    "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
-    "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
-    "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
-    "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
-}
+# constant_heat_capacity = {
+#     "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
+#     "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
+#     "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
+#     "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
+# }
 
 # ! model inputs
 model_inputs = {
     "temperature": initial_temperature,
     "pressure": initial_pressure,
-    "heat_capacity": constant_heat_capacity,
+    # "heat_capacity": constant_heat_capacity,
 }
 
 # ====================================================
@@ -115,7 +114,7 @@ simulation_result: BatchReactorResult | None = batch_react(
     component_key='Name-Formula',
     solver_options={
         "method": "BDF",
-        "time_span": (0, 150),
+        "time_span": (0, 200),
         "rtol": 1e-6,
         "atol": 1e-9
     }

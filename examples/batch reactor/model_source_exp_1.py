@@ -99,8 +99,34 @@ CO = Component(
     }
 )
 
+# ethylene
+C2H4 = Component(
+    name='ethylene',
+    formula='C2H4',
+    state='g',
+    X={
+        "name": "mole",
+        "value": 1,
+        "unit": "mol",
+        "symbol": "n"
+    }
+)
+
+# ethane
+C2H6 = Component(
+    name='ethane',
+    formula='C2H6',
+    state='g',
+    X={
+        "name": "mole",
+        "value": 0,
+        "unit": "mol",
+        "symbol": "n"
+    }
+)
+
 # components
-components = [CO2, H2, CH3OH, H2O, CO]
+components = [CO2, H2, CH3OH, H2O, CO, C2H4, C2H6]
 
 # NOTE: ignore state properties
 ignore_state_props = ['MW', 'VaPr', 'Cp_IG']
