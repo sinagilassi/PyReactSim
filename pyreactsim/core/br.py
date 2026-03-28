@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 import pycuc
-from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProp
+from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProp, Volume
 from pythermodb_settings.utils import set_component_id, set_feed_specification
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
@@ -68,6 +68,17 @@ class BatchReactor:
         self.reactor_inputs = reactor_inputs
         self.component_key = component_key
 
+        # SECTION: reactor configuration
+        # >> extract
+        self.phase = "gas"
+        self.gas_model: GasModel = reactor_inputs.gas_model
+        self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
+        self.operation_mode = reactor_inputs.operation_mode
+        self.jacket_temperature = reactor_inputs.jacket_temperature
+        self.heat_transfer_coefficient = reactor_inputs.heat_transfer_coefficient
+        self.heat_transfer_area = reactor_inputs.heat_transfer_area
+        self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
+
         # SECTION: Process model configuration
         # lower case keys for easier access
         self.model_inputs_keys = collect_keys(self.model_inputs)
@@ -80,6 +91,11 @@ class BatchReactor:
         # ! to Pa
         self.pressure: Pressure = self._config_pressure()
         self.pressure_value = self.pressure.value
+
+        # >> reactor volume
+        # ! to m3
+        self.reactor_volume = self._config_reactor_volume()
+        self.reactor_volume_value = self.reactor_volume.value
 
         # SECTION: component IDs and related properties
         self.component_num = len(components)
@@ -117,81 +133,23 @@ class BatchReactor:
             c.state for c in self.components
         ]
 
-        # SECTION: reactor configuration
-        # >> extract
-        self.phase = "gas"
-        self.gas_model: GasModel = reactor_inputs.gas_model
-        self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
-        self.operation_mode = reactor_inputs.operation_mode
-        self.jacket_temperature = reactor_inputs.jacket_temperature
-        self.heat_transfer_coefficient = reactor_inputs.heat_transfer_coefficient
-        self.heat_transfer_area = reactor_inputs.heat_transfer_area
-        self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
-
+        # SECTION: heat transfer configuration
         # NOTE: heat transfer mode
-        if self.heat_transfer_mode == "isothermal":
-            # fixed temperature in K
-            self.temperature_fixed = self.temperature_value
-            # set T0
-            self._T0 = self.temperature_value
-        elif self.heat_transfer_mode == "non-isothermal":
-            self.temperature_fixed = None
-            self._T0 = self.temperature_value
-        else:
-            raise ValueError(
-                "Invalid heat_transfer_mode. Must be 'isothermal' or 'non-isothermal'."
-            )
+        (
+            self.temperature_fixed,
+            self._T0,
+        ) = self._config_heat_transfer_mode()
 
-        # ! heat exchange
-        self.heat_exchange = False
-        if (
-            self.jacket_temperature is not None and
-            self.heat_transfer_coefficient is not None and
-            self.heat_transfer_area is not None and
-            self.heat_transfer_mode == 'non-isothermal'
-        ):
-            self.heat_exchange = True
-
-            # >> conversions for heat exchange parameters
-            self.jacket_temperature = Temperature(
-                value=to_K(
-                    self.jacket_temperature.value,
-                    self.jacket_temperature.unit
-                ),
-                unit="K"
-            )
-            # >>> set
-            # ! [K]
-            self.jacket_temperature_value = self.jacket_temperature.value
-
-            # >> heat transfer coefficient
-            # ! [W/m2.K]
-            self.heat_transfer_coefficient_value = to_W_per_m2_K(
-                self.heat_transfer_coefficient.value,
-                self.heat_transfer_coefficient.unit
-            )
-
-            # >> heat transfer area
-            # ! [m2]
-            self.heat_transfer_area_value = to_m2(
-                self.heat_transfer_area.value,
-                self.heat_transfer_area.unit
-            )
-
-        # ! reactor volume
-        if reactor_inputs.reactor_volume is None:
-            raise ValueError(
-                "reactor_volume must be provided for constant volume mode."
-            )
-        # >> set
-        self.reactor_volume = reactor_inputs.reactor_volume
-        self.reactor_volume_value = to_m3(
-            self.reactor_volume.value,
-            self.reactor_volume.unit
-        )
+        # NOTE: heat exchange configuration
+        (
+            self.heat_exchange,
+            self.jacket_temperature_value,
+            self.heat_transfer_coefficient_value,
+            self.heat_transfer_area_value,
+        ) = self._config_heat_exchange()
 
     # SECTION: Model Inputs configuration
-    # NOTE: temperature configuration
+    # NOTE: temperature configuration [K]
     def _config_temperature(
             self,
     ):
@@ -211,7 +169,7 @@ class BatchReactor:
         else:
             raise ValueError("Temperature must be provided in model_inputs.")
 
-    # NOTE: pressure configuration
+    # NOTE: pressure configuration [Pa]
     def _config_pressure(
             self,
     ):
@@ -231,3 +189,88 @@ class BatchReactor:
             return pressure
         else:
             raise ValueError("Pressure must be provided in model_inputs.")
+
+    # NOTE: reactor volume configuration [m3]
+    def _config_reactor_volume(
+            self,
+    ):
+        """Configure the reactor volume for the batch reactor based on the model inputs."""
+        if self.reactor_inputs.reactor_volume is None:
+            raise ValueError(
+                "reactor_volume must be provided for constant volume mode."
+            )
+
+        # set reactor volume from model inputs
+        reactor_volume = self.reactor_inputs.reactor_volume
+
+        if reactor_volume is not None:
+            reactor_volume_value = to_m3(
+                reactor_volume.value,
+                reactor_volume.unit
+            )
+            # >> update
+            reactor_volume = Volume(
+                value=reactor_volume_value,
+                unit="m3"
+            )
+
+            return reactor_volume
+        else:
+            raise ValueError(
+                "Reactor volume must be provided for constant volume mode.")
+
+    # NOTE: heat transfer mode configuration
+    def _config_heat_transfer_mode(
+            self,
+    ) -> Tuple[Optional[float], float]:
+        """
+        Configure the temperature fixed and initial temperature based on the heat transfer mode.
+        """
+        if self.heat_transfer_mode == "isothermal":
+            return self.temperature_value, self.temperature_value
+        elif self.heat_transfer_mode == "non-isothermal":
+            return None, self.temperature_value
+        else:
+            raise ValueError(
+                "Invalid heat_transfer_mode. Must be 'isothermal' or 'non-isothermal'."
+            )
+
+    # NOTE: heat exchange configuration
+    def _config_heat_exchange(
+            self,
+    ) -> Tuple[bool, float, float, float]:
+        """Configure the heat exchange parameters for the batch reactor based on the model inputs."""
+        if (
+            self.jacket_temperature is not None and
+            self.heat_transfer_coefficient is not None and
+            self.heat_transfer_area is not None and
+            self.heat_transfer_mode == 'non-isothermal'
+        ):
+            # >> conversions for heat exchange parameters
+            self.jacket_temperature = Temperature(
+                value=to_K(
+                    self.jacket_temperature.value,
+                    self.jacket_temperature.unit
+                ),
+                unit="K"
+            )
+            # ! [K]
+            jacket_temperature_value = self.jacket_temperature.value
+
+            # >> heat transfer coefficient
+            # ! [W/m2.K]
+            heat_transfer_coefficient_value = to_W_per_m2_K(
+                self.heat_transfer_coefficient.value,
+                self.heat_transfer_coefficient.unit
+            )
+
+            # >> heat transfer area
+            # ! [m2]
+            heat_transfer_area_value = to_m2(
+                self.heat_transfer_area.value,
+                self.heat_transfer_area.unit
+            )
+
+            return True, jacket_temperature_value, heat_transfer_coefficient_value, heat_transfer_area_value
+        else:
+            return False, 0.0, 0.0, 0.0
