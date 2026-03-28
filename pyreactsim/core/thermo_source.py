@@ -106,7 +106,8 @@ class ThermoSource:
             if self.reactor_inputs.heat_capacity_mode == "temperature-dependent":
                 # NOTE: extract heat capacity equation source for the components from the model source
                 self.Cp_IG_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
-                    prop_name="Cp_IG")
+                    prop_name="Cp_IG"
+                )
             elif self.reactor_inputs.heat_capacity_mode == "constant":
                 # NOTE: use constant heat capacity from model inputs
                 # >> constant heat capacity
@@ -456,7 +457,7 @@ class ThermoSource:
             EnFo_IG_298_values, _ = find_components_property(
                 components=components,
                 prop_values=self.EnFo_IG_298_comp,
-                component_key="Formula-State"
+                component_key=cast(ComponentKey, self.component_key)
             )
 
             # calc
@@ -470,8 +471,7 @@ class ThermoSource:
             dH_rxns.append(dH_rxn)
 
         # NOTE: convert to numpy array
-        res = [dH.value for dH in dH_rxns]
-        res = np.array(res, dtype=float)
+        res = np.array(dH_rxns, dtype=float)
 
         return res
 
@@ -597,8 +597,7 @@ class ThermoSource:
             dH_rxns.append(dH_rxn_avg)
 
         # NOTE: convert to numpy array
-        res = [dH.value for dH in dH_rxns]
-        res = np.array(res, dtype=float)
+        res = np.array(dH_rxns, dtype=float)
 
         return res
 
