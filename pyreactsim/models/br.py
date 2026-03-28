@@ -66,6 +66,10 @@ class BatchReactorOptions(BaseModel):
         default='temperature-dependent',
         description="Heat capacity mode as constant, temperature-dependant, and differential."
     )
+    density_mode: Optional[Literal['constant', 'temperature-dependent']] = Field(
+        default=None,
+        description="Density mode as constant, temperature-dependant."
+    )
 
 
 class BatchReactorResult(BaseModel):

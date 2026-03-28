@@ -95,6 +95,10 @@ class ThermoSource:
 
         # SECTION: Reactor configuration
         self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
+        # phase
+        self.phase = reactor_inputs.phase
+        # density mode
+        self.density_mode = reactor_inputs.density_mode
 
         # SECTION: Thermodynamic properties
         # heat transfer more
@@ -141,8 +145,17 @@ class ThermoSource:
             # dH_rxn at 298 K [J/mol]
             self.dH_rxns_298 = self.calc_dH_rxns_298()
 
+        # ! molecular weights
+        if self.phase == "liquid":
+            # source
+            self.MW_src = self.prop_dt_src(
+                component_ids=self.component_ids,
+                prop_name="MW"
+            )
+
     # SECTION: Property equation source extraction methods
     # ! Extract property equation source for components
+
     def prop_eq_src(self, prop_name: str) -> Dict[str, ComponentEquationSource]:
         """
         Extracts the property equation for the components from the source and returns it as a dictionary.
@@ -241,6 +254,54 @@ class ThermoSource:
                 )
         else:
             return None, None
+
+    def _config_density(
+            self
+    ):
+        """
+        Configure the density for the batch reactor based on the model inputs and reactor configuration.
+        """
+        # check density mode
+        if self.density_mode is None:
+            return None
+
+        # density constant
+        if self.density_mode == "constant":
+            if "density" in self.model_inputs_keys:
+                density_: dict[
+                    str,
+                    CustomProp
+                ] = self.model_inputs["density"]
+
+                # iterate through components and extract density values
+                density_values = []
+                density_comp = {}
+
+                for id in self.component_formula_state:
+                    if id in density_:
+                        density_value = to_J_per_mol_K(
+                            density_[id].value,
+                            density_[id].unit
+                        )
+
+                        # add
+                        density_values.append(density_value)
+                        density_comp[id] = density_value
+                    else:
+                        raise ValueError(
+                            f"Density value for component '{id}' not found in model_inputs."
+                        )
+
+                density_array = np.array(density_values)
+
+                # res
+                return density_array, density_comp
+            else:
+                raise ValueError(
+                    "Density must be provided in model_inputs for constant density mode."
+                )
+        else:
+            return None
 
     # SECTION: Reaction and stoichiometry related methods
     # ! Extract all reactions
@@ -683,7 +744,7 @@ class ThermoSource:
         return n_total * R * temperature / float(reactor_volume_value)
 
     # ! Calculate volume
-    def calc_volume(
+    def calc_gas_volume(
         self,
         n_total: float,
         temperature: float,
@@ -719,3 +780,30 @@ class ThermoSource:
 
         # ideal gas model
         return n_total * R * temperature / pressure
+
+    def calc_liquid_volume(
+            self,
+            n: np.ndarray,
+            molecular_weights: np.ndarray,
+            density: np.ndarray
+    ) -> float:
+        """
+        Calculate the volume of the liquid in the reactor using the formula:
+            V = sigma_i (n_i * MW_i) / density_i
+
+        Parameters
+        ----------
+        n : np.ndarray
+            An array of moles of each component in the liquid phase.
+        molecular_weights : np.ndarray
+            An array of molecular weights for each component in the liquid phase [g/mol].
+        density : np.ndarray
+            An array of densities for each component in the liquid phase [g/m3].
+        """
+        # calculate volume for each component
+        volumes = n * molecular_weights / density
+
+        # total volume is the sum of the volumes of each component
+        total_volume = np.sum(volumes)
+
+        return total_volume

@@ -107,7 +107,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             self._P0 = self.pressure.value
 
             # calc
-            self._V0 = self.calc_volume(
+            self._V0 = self.calc_gas_volume(
                 n_total=np.sum(self._N0),
                 temperature=self._T0,
                 pressure=self._P0,
@@ -525,7 +525,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
             # NOTE: calculate volume
             # ! V(t) = f(n_total(t), T(t))
-            reactor_volume = self.calc_volume(
+            reactor_volume = self.calc_gas_volume(
                 n_total=n_total,
                 temperature=T,
                 pressure=p_total,
