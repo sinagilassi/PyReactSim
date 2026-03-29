@@ -260,6 +260,34 @@ def exec_component_eq(
                 f"Equation source does not have a 'cal' method: {eq_src}")
             return None
 
+        # NOTE: check inputs units
+        eq_inputs = component_eq_src.inputs
+
+        # iterate through the expected inputs and convert if necessary
+        for input_name, input_info in eq_inputs.items():
+            # >> check input provided
+            if input_name not in inputs.keys():
+                logger.error(
+                    f"Missing input for equation execution: {input_name}")
+                return None
+
+            # >> must have unit for conversion
+            input_unit = input_info.get('unit')
+
+            # NOTE: convert input to expected unit if specified
+            if input_unit is not None:
+                try:
+                    converted_value = pycuc.convert_from_to(
+                        value=inputs[input_name],
+                        from_unit=inputs[input_name],
+                        to_unit=input_unit  # convert to same unit for consistency
+                    )
+                    inputs[input_name] = converted_value
+                except Exception as e:
+                    logger.error(
+                        f"Error converting input '{input_name}' to required unit '{input_unit}': {e}")
+                    return None
+
         # result from equation source
         # ! Use ** to unpack the inputs dictionary as keyword arguments for the cal method
         res_src = eq_src.cal(**inputs)

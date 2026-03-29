@@ -8,6 +8,10 @@ ReactorPhase = Literal['gas', 'liquid']
 # NOTE: Isothermal non-isothermal models
 HeatTransferMode = Literal['isothermal', 'non-isothermal']
 # NOTE: Operation modes
-OperationMode = Literal['constant_volume', 'constant_pressure']
+OperationMode = Literal[
+    'constant_volume',
+    'constant_pressure',
+    'variable_volume'
+]
 # NOTE: Gas Model
 GasModel = Literal['ideal', 'real']

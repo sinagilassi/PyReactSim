@@ -77,7 +77,8 @@ class BatchReactor:
         self.jacket_temperature = reactor_inputs.jacket_temperature
         self.heat_transfer_coefficient = reactor_inputs.heat_transfer_coefficient
         self.heat_transfer_area = reactor_inputs.heat_transfer_area
-        self.heat_capacity_mode = reactor_inputs.heat_capacity_mode
+        self.gas_heat_capacity_mode = reactor_inputs.gas_heat_capacity_mode
+        self.liquid_heat_capacity_mode = reactor_inputs.liquid_heat_capacity_mode
 
         # SECTION: Process model configuration
         # lower case keys for easier access

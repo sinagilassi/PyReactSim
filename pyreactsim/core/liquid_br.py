@@ -92,25 +92,26 @@ class LiquidBatchReactor(BatchReactor, ThermoSource):
             component_key=component_key
         )
 
-        # ! P: initial pressure [Pa]
+        # ! rho: density of liquid phase [g/m3]
+        # FIXME:
+        # self._rho_LIQ0 = self.calc_rho_LIQ(temperature=self.temperature_fixed)
+        self._rho_LIQ0 = np.array([1000.0] * self.component_num, dtype=float)
+
+        # ! V: initial volume [m3]
         if self.operation_mode == "constant_volume":
             # retrieve
             self.volume = self._config_reactor_volume()
             self._V0 = self.volume.value
 
-        # ! V: initial volume [m3]
-        elif self.operation_mode == "constant_pressure":
-            # retrieve
-            self.pressure = self._config_pressure()
-            self._P0 = self.pressure.value
+        elif self.operation_mode == "variable_volume":
+            # calculate density
 
             # calc
             self._V0 = self.calc_liquid_volume(
                 n=self._N0,
                 molecular_weights=self.MW,
-                density=self.rho_LIQ
+                density=self._rho_LIQ0
             )
-
         else:
             raise ValueError(
                 f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
@@ -141,3 +142,409 @@ class LiquidBatchReactor(BatchReactor, ThermoSource):
         # SECTION: Thermodynamic properties
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
         # ! Ideal Gas Enthalpy of formation at 298 K
+
+    # SECTION: Properties
+    @property
+    def N0(self) -> np.ndarray:
+        if self._N0 is None:
+            raise ValueError("N0 has not been set.")
+        return self._N0
+
+    @N0.setter
+    def N0(self, value: np.ndarray):
+        self._N0 = value
+
+    @property
+    def T0(self) -> float:
+        if self._T0 is None:
+            raise ValueError("T0 has not been set.")
+        return self._T0
+
+    @T0.setter
+    def T0(self, value: float):
+        self._T0 = value
+
+    # SECTION: Build initial value for n and T
+    def build_y0(self) -> np.ndarray:
+        # NOTE: initial moles
+        n0 = self.N0
+
+        # NOTE: initial temperature
+        T0 = self._T0
+
+        # NOTE: build initial value vector
+        if self.heat_transfer_mode == "isothermal":
+            # state vector: [n1, n2, ..., nNc]
+            y0 = n0
+        else:
+            # state vector: [n1, n2, ..., nNc, T]
+            y0 = np.concatenate([n0, np.array([T0], dtype=float)])
+
+        return y0
+
+    # SECTION: ODE system for solve_ivp
+    def rhs(
+            self,
+            t: float,
+            y: np.ndarray
+    ) -> np.ndarray:
+        """
+        Right-hand side for solve_ivp.
+
+        State vector:
+        - isothermal: [n1, n2, ..., nNc]
+        - non-isothermal: [n1, n2, ..., nNc, T]
+
+        Parameters
+        ----------
+        t : float
+            Current time in the simulation (in seconds).
+        y : np.ndarray
+            Current state vector of the system, which includes the moles of each component and, if applicable, the temperature.
+        """
+        ns = self.component_num
+
+        if self.heat_transfer_mode == "isothermal":
+            if self.temperature_fixed is None:
+                raise ValueError(
+                    "temperature_fixed must be provided for isothermal simulation.")
+            n = y[:ns]
+            temp = float(self.temperature_fixed)
+        else:
+            n = y[:ns]
+            temp = float(y[ns])
+
+        # NOTE: Calculate total moles
+        n_total = np.sum(n)
+        n_total = max(n_total, 1e-30)
+
+        # mole fraction
+        y_mole = n / n_total
+
+        # ! calculate density of liquid phase
+        # FIXME:
+        rho_LIQ = self.calc_rho_LIQ(
+            temperature=Temperature(value=temp, unit="K")
+        )
+
+        # ! calculate system volume
+        reactor_volume = self._calc_system_volume(
+            n=n,
+            rho_LIQ=rho_LIQ,
+            temperature=temp,
+        )
+
+        # ! calculate concentration: C_i = n_i / V
+        (
+            c,
+            concentration_std,
+            _
+        ) = self._calc_concentration(
+            n=n,
+            reactor_volume=reactor_volume
+        )
+
+        # NOTE: Calculate Reaction rates for each component (partial pressures and temperature)
+        # ! r_k = k(T, P_i) for each reaction k
+        rates = self._calc_rates(
+            concentration=concentration_std,
+            temperature=Temperature(value=temp, unit="K"),
+        )
+
+        # NOTE: Species balances:
+        # ! dn_i/dt = V * Σ_k ν_i,k * r_k
+        dn_dt = self._build_dn_dt(
+            ns=ns,
+            rates=rates,
+            reactor_volume=reactor_volume
+        )
+
+        # >>> calculate dn/dt for isothermal case
+        if self.heat_transfer_mode == "isothermal":
+            return dn_dt
+
+        # NOTE: Energy balance:
+        # ! (Σ_i c_i Cp_i) dT/dt = Σ_k [(-ΔH_k) r_k] + UA (T_s - T)/V
+        # >>> calculate dT/dt
+        dT_dt = self._build_dT_dt(
+            c=c,
+            rates=rates,
+            temp=temp,
+            reactor_volume=reactor_volume
+        )
+
+        # >>> calculate both dn/dt and dT/dt
+        return np.concatenate([dn_dt, np.array([dT_dt], dtype=float)])
+
+    # SECTION: Calculate rates
+    def _calc_rates(
+        self,
+        concentration: Dict[str, CustomProperty],
+        temperature: Temperature,
+    ):
+        """
+        Calculate reaction rates for each reaction based on the current partial pressures and temperature.
+
+        Parameters
+        ----------
+        concentration : Dict[str, CustomProperty]
+            Concentration of the components in the reactor (in mol/m3).
+        temperature : Temperature
+            Current temperature of the system (in K).
+
+        Returns
+        -------
+        np.ndarray
+            An array of reaction rates for each reaction in the reactor, calculated based on the current partial pressures and temperature.
+        """
+        # ! r_k = k(T, P_i) for each reaction k
+        rates = []
+
+        # iterate over reaction rate expressions
+        for rxn_name, rate_exp in self.reaction_rates.items():
+            # >> check basis
+            basis = rate_exp.basis
+
+            # >> calculate rate for reaction
+            if basis == "concentration":
+                # >> calculate rate based on concentrations
+                r_k = rate_exp.calc(
+                    xi=concentration,
+                    temperature=temperature,
+                    pressure=None
+                )
+            else:
+                raise ValueError(
+                    f"Invalid basis '{basis}' for reaction rate expression '{rxn_name}'. Must be 'concentration'."
+                )
+
+            # extract rate value
+            r_k_value = r_k.value
+            # append to rates list
+            rates.append(r_k_value)
+
+        # >> to array
+        rates = np.array(rates, dtype=float)
+
+        return rates
+
+    # SECTION: Building dn/dt
+    def _build_dn_dt(
+            self,
+            ns: int,
+            rates: np.ndarray,
+            reactor_volume: float
+    ):
+        """
+        Build the rate of change of moles (dn/dt) for each component based on the reaction rates and stoichiometry.
+
+        Parameters
+        ----------
+        ns : int
+            Number of components in the reactor.
+        rates : np.ndarray
+            Array of reaction rates for each reaction in the reactor.
+        reactor_volume : float
+            Volume of the reactor (in m3).
+
+        Returns
+        -------
+        np.ndarray
+            An array of the rate of change of moles (dn/dt) for each component in the reactor, calculated based on the reaction rates and stoichiometry.
+        """
+        # ! dn_i/dt = V * Σ_k ν_i,k * r_k
+        dn_dt = np.zeros(ns, dtype=float)
+        name_to_idx = self.component_id_to_index
+
+        for k, rxn in enumerate(self.reactions):
+            # > calculate reaction rate for reaction k
+            r_k = rates[k]
+
+            # > extract stoichiometry for reaction k
+            stoich_k = self.reaction_stoichiometry[k].items()
+
+            # >> generation term for reaction k
+            # ??? g[k] = V * Σ_k ν[i][k] * r[k]
+
+            # >> calculate dn/dt for each component i based on reaction k
+            for sp_name, nu_ik in stoich_k:
+                i = name_to_idx[sp_name]
+                dn_dt[i] += reactor_volume * nu_ik * r_k
+
+            # >> Alternatively, using matrix multiplication:
+            # > stoichiometry matrix
+            # stoich_k_matrix = self.reaction_stoichiometry_matrix[k]
+
+            # g_k = reactor_volume * np.dot(stoich_k_matrix, r_k)
+
+            # for i in range(ns):
+            #     dn_dt[i] += g_k[i]
+
+        return dn_dt
+
+    # SECTION: Building dT/dt
+    def _build_dT_dt(
+            self,
+            c: np.ndarray,
+            rates: np.ndarray,
+            temp: float,
+            reactor_volume: float
+    ):
+        """
+        Calculate the rate of change of temperature (dT/dt) based on the energy balance for the non-isothermal gas-phase batch reactor.
+
+        Parameters
+        ----------
+        c : np.ndarray
+            Array of concentration of each component in the reactor.
+        rates : np.ndarray
+            Array of reaction rates for each reaction in the reactor.
+        temp : float
+            Current temperature of the system (in K).
+        reactor_volume : float
+            Volume of the reactor (in m3).
+
+        Returns
+        -------
+        float
+            The rate of change of temperature (dT/dt) for the non-isothermal gas-phase batch reactor.
+        """
+        # ! temperature
+        temperature = Temperature(value=temp, unit="K")
+        temperature_value = temperature.value
+
+        # ! (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
+        # ??? Cp_i(T)
+        Cp_LIQ_values = self.calc_Cp_LIQ(
+            temperature=temperature
+        )
+
+        # ??? Σ_i n_i Cp_i
+        Cp_LIQ_total = calc_total_heat_capacity(c, Cp_LIQ_values)
+
+        if Cp_LIQ_total <= 1e-16:
+            raise ValueError("Total heat capacity is too small or zero.")
+
+        # ! calculate heat generated by reactions: Q_rxn = Σ_k [(-ΔH_k) r_k]
+        # ΔH[J/mol], r[mol/m3.s] => Q_rxn [J/s.m^3] or [W/m^3]
+        # ??? ΔH_k
+        delta_h = self.calc_dH_rxns(
+            temperature=temperature
+        )
+
+        # ??? Q_rxn
+        q_rxn = calc_rxn_heat_generation(
+            delta_h=delta_h,
+            rates=rates,
+            reactor_volume=1
+        )
+
+        # ! calculate heat exchange with surroundings: Q_exchange = UA (T_s - T) / Vr
+        # U [W/m^2.K], A [m^2], T_s [K], temp [K], Vr [m^3] => Q_exchange [W/m^3] or [J/s.m^3]
+        # ??? Q_exchange
+        q_exchange = 0.0
+
+        # >>> check if heat exchange is enabled
+        if self.heat_exchange:
+            q_exchange = calc_heat_exchange(
+                temperature=temperature_value,
+                jacket_temperature=self.jacket_temperature_value,
+                heat_transfer_area=self.heat_transfer_area_value,
+                heat_transfer_coefficient=self.heat_transfer_coefficient_value,
+                reactor_volume=reactor_volume
+            )
+
+        # ! >>> calculate dT/dt
+        # (K/s) = (J/s.m^3) / (J/K.m^3) => K/s
+        dT_dt = (q_rxn + q_exchange) / Cp_LIQ_total
+
+        return dT_dt
+
+    # SECTION: Building xi (partial pressure)
+    def _calc_concentration(
+            self,
+            n: np.ndarray,
+            reactor_volume: float
+    ) -> Tuple[np.ndarray, Dict[str, CustomProperty], float]:
+        """
+        Calculate the concentration of each component in the reactor based on the moles and reactor volume.
+
+        Parameters
+        ----------
+        n : np.ndarray
+            Array of moles of each component in the reactor.
+        reactor_volume : float
+            Volume of the reactor (in m3).
+
+        Returns
+        -------
+        Tuple[np.ndarray, Dict[str, CustomProperty], float]
+            A tuple containing:
+            - An array of concentrations for each component (in mol/m3).
+            - A dictionary of concentrations for each component as CustomProperty objects (in mol/m3).
+            - The total concentration of the system (in mol/m3).
+        """
+        # ! C_i = n_i / V
+        # unit check: n_i [mol], V [m3] => C_i [mol/m3]
+        concentration = n / reactor_volume
+
+        # total concentration
+        # ! C_total = N_total / V
+        n_total = np.sum(n)
+        concentration_total = n_total / reactor_volume
+
+        # NOTE: create ids for concentration array
+        conc_ids = [
+            sp for sp in self.component_formula_state
+        ]
+
+        # std concentration as dict
+        concentration_std = {
+            sp: CustomProperty(
+                value=conc,
+                unit="mol/m3",
+                symbol="C"
+            ) for sp, conc in zip(conc_ids, concentration)
+        }
+
+        return concentration, concentration_std, concentration_total
+
+    def _calc_system_volume(
+            self,
+            n: np.ndarray,
+            rho_LIQ: np.ndarray,
+            temperature: float,
+    ):
+        """
+        Calculate the system volume based on the current moles, temperature, and pressure.
+
+        Parameters
+        ----------
+        n : np.ndarray
+            Array of moles of each component in the reactor.
+        rho_LIQ : np.ndarray
+            Density of the liquid phase (in kg/m3).
+        temperature : float
+            Current temperature of the system (in K).
+
+        Returns
+        -------
+        float
+            The calculated system volume (in m3) based on the current moles, temperature, and pressure, taking into account the operation mode of the reactor (constant volume or variable volume).
+        """
+        if self.operation_mode == "constant_volume":
+            # ??? Constant volume assumption: V = V0
+            reactor_volume = self._V0
+        elif self.operation_mode == "variable_volume":
+            # ??? Variable volume assumption: V = f(n_total(t), T(t), P(t))
+            reactor_volume = self.calc_liquid_volume(
+                n=n,
+                molecular_weights=self.MW,
+                density=rho_LIQ
+            )
+        else:
+            raise ValueError(
+                "Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
+            )
+
+        return reactor_volume

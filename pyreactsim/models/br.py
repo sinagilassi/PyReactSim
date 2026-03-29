@@ -62,11 +62,15 @@ class BatchReactorOptions(BaseModel):
         default=None,
         description="Heat transfer area (required if heat transfer mode is non-isothermal)."
     )
-    heat_capacity_mode: Optional[Literal['constant', 'temperature-dependent', 'differential']] = Field(
+    gas_heat_capacity_mode: Optional[Literal['constant', 'temperature-dependent', 'differential']] = Field(
         default='temperature-dependent',
         description="Heat capacity mode as constant, temperature-dependant, and differential."
     )
-    density_mode: Optional[Literal['constant', 'temperature-dependent']] = Field(
+    liquid_heat_capacity_mode: Optional[Literal['constant', 'temperature-dependent', 'differential']] = Field(
+        default='temperature-dependent',
+        description="Heat capacity mode as constant, temperature-dependant."
+    )
+    liquid_density_mode: Optional[Literal['constant', 'temperature-dependent']] = Field(
         default=None,
         description="Density mode as constant, temperature-dependant."
     )

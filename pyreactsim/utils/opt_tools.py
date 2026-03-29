@@ -21,6 +21,7 @@ def calc_heat_exchange(
     jacket_temperature: float,
     heat_transfer_area: float,
     heat_transfer_coefficient: float,
+    reactor_volume: float
 ) -> float:
     """
     Calculate the heat exchange with the surroundings based on the current temperature of the system.
@@ -35,6 +36,8 @@ def calc_heat_exchange(
         Area available for heat transfer [m2].
     heat_transfer_coefficient : float
         Heat transfer coefficient [W/m2.K].
+    reactor_volume : float
+        Volume of the reactor [m3].
 
     Returns
     -------
@@ -46,10 +49,11 @@ def calc_heat_exchange(
     T_s = jacket_temperature
     A = heat_transfer_area
     U = heat_transfer_coefficient
+    Vr = reactor_volume
 
     # ! calculate heat exchange using the formula: Q = U * A * (T_s - T)
-    # unit check: U [W/m^2.K], A [m^2], T_s [K], temp [K] => Q [W] or [J/s]
-    return U * A * (T_s - T)
+    # unit check: U [W/m^2.K], A [m^2], T_s [K], temp [K] => Q [W/m^3] or [J/s.m^3]
+    return U * A * (T_s - T) / Vr
 
 
 # SECTION: Set feed mole specification

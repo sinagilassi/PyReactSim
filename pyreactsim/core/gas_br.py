@@ -467,7 +467,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
                 temperature=temperature_value,
                 jacket_temperature=self.jacket_temperature_value,
                 heat_transfer_area=self.heat_transfer_area_value,
-                heat_transfer_coefficient=self.heat_transfer_coefficient_value
+                heat_transfer_coefficient=self.heat_transfer_coefficient_value,
+                reactor_volume=1
             )
 
         # >>> calculate dT/dt
