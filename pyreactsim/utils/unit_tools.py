@@ -233,3 +233,32 @@ def to_g_per_m3(value: float, unit: str) -> float:
     except Exception as e:
         logging.error(f"Error converting {value} from {unit} to g/m3: {e}")
         raise ValueError(f"Unsupported unit for conversion: {unit}")
+
+
+def to_g_per_mol(value: float, unit: str) -> float:
+    """
+    Convert a given value to grams per mole (g/mol) based on the specified unit.
+
+    Parameters
+    ----------
+    value : float
+        The numerical value to be converted.
+    unit : str
+        The unit of the input value. Supported units include 'g/mol', 'kg/mol', 'lb/mol', etc.
+
+    Returns
+    -------
+    float
+        The converted value in grams per mole (g/mol).
+
+    Raises
+    ------
+    ValueError
+        If the provided unit is not supported for conversion.
+    """
+    try:
+        # Use pycuc for unit conversion
+        return pycuc.convert_from_to(value, from_unit=unit, to_unit='g/mol')
+    except Exception as e:
+        logging.error(f"Error converting {value} from {unit} to g/mol: {e}")
+        raise ValueError(f"Unsupported unit for conversion: {unit}")

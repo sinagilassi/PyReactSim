@@ -17,7 +17,7 @@ from ..sources.interface import (
     ext_components_eq,
     exec_component_eq
 )
-from ..utils.unit_tools import to_K, to_J_per_mol, to_J_per_mol_K
+from ..utils.unit_tools import to_K, to_J_per_mol, to_J_per_mol_K, to_g_per_m3, to_g_per_mol
 from ..utils.tools import find_components_property, collect_keys
 from ..utils.reaction_tools import stoichiometry_mat
 from ..models.rate_exp import ReactionRateExpression
@@ -107,19 +107,19 @@ class ThermoSource:
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
         if self.heat_transfer_mode == "non-isothermal":
             # check heat capacity mode
-            if self.reactor_inputs.heat_capacity_mode == "temperature-dependent":
+            if self.heat_capacity_mode == "temperature-dependent":
                 # NOTE: extract heat capacity equation source for the components from the model source
                 self.Cp_IG_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                     prop_name="Cp_IG"
                 )
-            elif self.reactor_inputs.heat_capacity_mode == "constant":
+            elif self.heat_capacity_mode == "constant":
                 # NOTE: use constant heat capacity from model inputs
                 # >> constant heat capacity
                 # ! to J/mol.K
                 (
                     self.heat_capacity_constant_values,
                     self.heat_capacity_constant_comp
-                ) = self._config_heat_capacity()
+                ) = self._config_constant_heat_capacity()
 
                 # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
                 self.dCp_rxns = self.calc_dCp_IG()
@@ -147,11 +147,36 @@ class ThermoSource:
 
         # ! molecular weights
         if self.phase == "liquid":
-            # source
+            # MW source
             self.MW_src = self.prop_dt_src(
                 component_ids=self.component_ids,
                 prop_name="MW"
             )
+
+            # ! values in g/mol
+            (
+                self.MW,
+                self.MW_comp
+            ) = self._config_MW_unit()
+
+            # density
+            if self.density_mode == "temperature-dependent":
+                # NOTE: extract density equation source for the components from the model source
+                self.rho_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
+                    prop_name="rho_LIQ"
+                )
+            elif self.density_mode == "constant":
+                # NOTE: use constant density from model inputs
+                # >> constant density
+                # ! to g/m3
+                (
+                    self.rho_LIQ,
+                    self.rho_LIQ_comp
+                ) = self._config_constant_density()
+            else:
+                raise ValueError(
+                    f"Invalid density_mode '{self.density_mode}'. Must be 'temperature-dependent' or 'constant'."
+                )
 
     # SECTION: Property equation source extraction methods
     # ! Extract property equation source for components
@@ -209,99 +234,95 @@ class ThermoSource:
         return dt_src
 
     # NOTE: heat capacity configuration
-    def _config_heat_capacity(
+    def _config_constant_heat_capacity(
             self,
-    ) -> Tuple[Optional[np.ndarray], Optional[Dict[str, float]]] | Tuple[None, None]:
+    ) -> Tuple[np.ndarray, Dict[str, float]]:
         """Configure the heat capacity for the batch reactor based on the model inputs and reactor configuration."""
         # check heat capacity mode
         if self.heat_capacity_mode is None:
-            return None, None
+            raise ValueError(
+                "Heat capacity mode must be specified in reactor_inputs for non-isothermal reactors.")
 
         # heat capacity constant
-        if self.heat_capacity_mode == "constant":
-            if "heat_capacity" in self.model_inputs_keys:
-                heat_capacity_: dict[
-                    str,
-                    CustomProp
-                ] = self.model_inputs["heat_capacity"]
+        if "heat_capacity" in self.model_inputs_keys:
+            heat_capacity_: dict[
+                str,
+                CustomProp
+            ] = self.model_inputs["heat_capacity"]
 
-                # iterate through components and extract heat capacity values
-                heat_capacity_values = []
-                heat_capacity_comp = {}
+            # iterate through components and extract heat capacity values
+            heat_capacity_values = []
+            heat_capacity_comp = {}
 
-                for id in self.component_formula_state:
-                    if id in heat_capacity_:
-                        cp_value = to_J_per_mol_K(
-                            heat_capacity_[id].value,
-                            heat_capacity_[id].unit
-                        )
+            for id in self.component_formula_state:
+                if id in heat_capacity_:
+                    cp_value = to_J_per_mol_K(
+                        heat_capacity_[id].value,
+                        heat_capacity_[id].unit
+                    )
 
-                        # add
-                        heat_capacity_values.append(cp_value)
-                        heat_capacity_comp[id] = cp_value
-                    else:
-                        raise ValueError(
-                            f"Heat capacity value for component '{id}' not found in model_inputs."
-                        )
+                    # add
+                    heat_capacity_values.append(cp_value)
+                    heat_capacity_comp[id] = cp_value
+                else:
+                    raise ValueError(
+                        f"Heat capacity value for component '{id}' not found in model_inputs."
+                    )
 
-                heat_capacity_array = np.array(heat_capacity_values)
+            heat_capacity_array = np.array(heat_capacity_values)
 
-                # res
-                return heat_capacity_array, heat_capacity_comp
-            else:
-                raise ValueError(
-                    "Heat capacity must be provided in model_inputs for constant heat capacity mode."
-                )
+            # res
+            return heat_capacity_array, heat_capacity_comp
         else:
-            return None, None
+            raise ValueError(
+                "Heat capacity must be provided in model_inputs for constant heat capacity mode."
+            )
 
-    def _config_density(
+    def _config_constant_density(
             self
-    ):
+    ) -> Tuple[np.ndarray, Dict[str, float]]:
         """
         Configure the density for the batch reactor based on the model inputs and reactor configuration.
         """
         # check density mode
         if self.density_mode is None:
-            return None
+            raise ValueError(
+                "Density mode must be specified in reactor_inputs for liquid phase.")
 
         # density constant
-        if self.density_mode == "constant":
-            if "density" in self.model_inputs_keys:
-                density_: dict[
-                    str,
-                    CustomProp
-                ] = self.model_inputs["density"]
+        if "density" in self.model_inputs_keys:
+            density_: dict[
+                str,
+                CustomProp
+            ] = self.model_inputs["density"]
 
-                # iterate through components and extract density values
-                density_values = []
-                density_comp = {}
+            # iterate through components and extract density values
+            density_values = []
+            density_comp = {}
 
-                for id in self.component_formula_state:
-                    if id in density_:
-                        density_value = to_J_per_mol_K(
-                            density_[id].value,
-                            density_[id].unit
-                        )
+            for id in self.component_formula_state:
+                if id in density_:
+                    density_value = to_g_per_m3(
+                        density_[id].value,
+                        density_[id].unit
+                    )
 
-                        # add
-                        density_values.append(density_value)
-                        density_comp[id] = density_value
-                    else:
-                        raise ValueError(
-                            f"Density value for component '{id}' not found in model_inputs."
-                        )
+                    # add
+                    density_values.append(density_value)
+                    density_comp[id] = density_value
+                else:
+                    raise ValueError(
+                        f"Density value for component '{id}' not found in model_inputs."
+                    )
 
-                density_array = np.array(density_values)
+            density_array = np.array(density_values)
 
-                # res
-                return density_array, density_comp
-            else:
-                raise ValueError(
-                    "Density must be provided in model_inputs for constant density mode."
-                )
+            # res
+            return density_array, density_comp
         else:
-            return None
+            raise ValueError(
+                "Density must be provided in model_inputs for constant density mode."
+            )
 
     # SECTION: Reaction and stoichiometry related methods
     # ! Extract all reactions
@@ -702,6 +723,57 @@ class ThermoSource:
             res[comp] = dt_value_converted
 
         return res
+
+    # ! set molecular weight unit to g/mol
+    def _config_MW_unit(
+            self,
+    ) -> Tuple[np.ndarray, Dict[str, float]]:
+        """
+        Configure the unit for the molecular weight (MW) for the components in the batch reactor based on the model source and reactor configuration.
+
+        Returns
+        -------
+        Tuple[np.ndarray, Dict[str, float]]
+            A tuple containing:
+            - An array of molecular weight values for the components in g/mol.
+            - A dictionary where the keys are component IDs and the values are the molecular weight values for the components in g/mol.
+        """
+        # NOTE: extract MW at reference temperature (e.g., 298 K) and convert to output unit
+        res = []
+        res_comp = {}
+
+        # normalized to unit
+        for comp in self.component_ids:
+            dt_src = self.MW_src.get(comp)
+            if dt_src is None:
+                raise ValueError(
+                    f"No MW source found for component: {comp}")
+
+            # >> extract MW value
+            dt_value = dt_src.get("value")
+            dt_unit = dt_src.get("unit")
+
+            # >> check
+            if (
+                dt_value is None or
+                dt_unit is None
+            ):
+                raise ValueError(
+                    f"Failed to extract MW value or unit for component: {comp}")
+
+            # >> convert to output unit
+            dt_value_converted = to_g_per_mol(
+                value=dt_value,
+                unit=dt_unit
+            )
+
+            res_comp[comp] = dt_value_converted
+            res.append(dt_value_converted)
+
+        # convert to numpy array
+        res = np.array(res, dtype=float)
+
+        return res, res_comp
 
     # SECTION: EOS related methods
     # ! Calculate total pressure using ideal gas law

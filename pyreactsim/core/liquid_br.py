@@ -98,15 +98,6 @@ class LiquidBatchReactor(BatchReactor, ThermoSource):
             self.volume = self._config_reactor_volume()
             self._V0 = self.volume.value
 
-            # calc
-            self._P0 = self.calc_tot_pressure(
-                n_total=np.sum(self._N0),
-                temperature=self._T0,
-                reactor_volume_value=self._V0,
-                R=self.R,
-                gas_model=self.gas_model
-            )
-
         # ! V: initial volume [m3]
         elif self.operation_mode == "constant_pressure":
             # retrieve
@@ -114,12 +105,11 @@ class LiquidBatchReactor(BatchReactor, ThermoSource):
             self._P0 = self.pressure.value
 
             # calc
-            # FIXME
-            # self._V0 = self.calc_liquid_volume(
-            #     n_total=np.sum(self._N0),
-            #     molecular_weights=self.molecular_weights,
-            #     density=self.density
-            # )
+            self._V0 = self.calc_liquid_volume(
+                n=self._N0,
+                molecular_weights=self.MW,
+                density=self.rho_LIQ
+            )
 
         else:
             raise ValueError(
