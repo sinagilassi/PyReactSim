@@ -5,6 +5,7 @@ import pycuc
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty
 from pythermodb_settings.utils import set_component_id, build_component_mapper
 from pyThermoLinkDB.thermo import Source
+from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # locals
 
@@ -261,31 +262,39 @@ def exec_component_eq(
             return None
 
         # NOTE: check inputs units
+        # ! all inputs created automatically
         eq_inputs = component_eq_src.inputs
+        # ! units
+        eq_input_units: Dict[str, str] = {
+            k: v.get('unit', '') for k, v in eq_inputs.items()
+        }
 
         # iterate through the expected inputs and convert if necessary
-        for input_name, input_info in eq_inputs.items():
-            # >> check input provided
-            if input_name not in inputs.keys():
-                logger.error(
-                    f"Missing input for equation execution: {input_name}")
-                return None
+        for input_symbol, input_unit in eq_input_units.items():
 
-            # >> must have unit for conversion
-            input_unit = input_info.get('unit')
+            # >> check input value exists
+            if input_symbol not in inputs:
+                continue  # skip if input value is not provided
+
+            # set
+            value_ = inputs[input_symbol]
+            unit_ = inputs[input_symbol]
 
             # NOTE: convert input to expected unit if specified
-            if input_unit is not None:
+            if input_unit is not None and input_unit != inputs:
                 try:
+                    # convert to same unit for consistency
                     converted_value = pycuc.convert_from_to(
-                        value=inputs[input_name],
-                        from_unit=inputs[input_name],
-                        to_unit=input_unit  # convert to same unit for consistency
+                        value=value_,
+                        from_unit=unit_,
+                        to_unit=input_unit
                     )
-                    inputs[input_name] = converted_value
+
+                    # replace input value with converted value
+                    inputs[input_symbol] = converted_value
                 except Exception as e:
                     logger.error(
-                        f"Error converting input '{input_name}' to required unit '{input_unit}': {e}")
+                        f"Error converting input '{input_symbol}' to required unit '{input_unit}': {e}")
                     return None
 
         # result from equation source
@@ -303,7 +312,11 @@ def exec_component_eq(
                 res['symbol'] = res_src['symbol']
 
         # NOTE: convert to output unit if specified
-        if output_unit is not None and 'value' in res and 'unit' in res:
+        if (
+            output_unit is not None and
+            'value' in res and
+            'unit' in res
+        ):
             try:
                 converted_value = pycuc.convert_from_to(
                     value=res['value'],
