@@ -889,14 +889,14 @@ dependencies = [
 requires-dist = [
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.3" },
-    { name = "pycuc", specifier = ">=2.5.0" },
+    { name = "pycuc", specifier = ">=2.6.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "pyreactlab-core", specifier = ">=0.1.6" },
     { name = "pythermocalcdb", specifier = ">=0.7.10" },
     { name = "pythermodb", specifier = ">=1.12.2" },
-    { name = "pythermodb-settings", specifier = ">=0.2.9" },
-    { name = "pythermolinkdb", specifier = ">=1.4.10" },
+    { name = "pythermodb-settings", specifier = ">=0.2.10" },
+    { name = "pythermolinkdb", specifier = ">=1.4.13" },
     { name = "rich", specifier = ">=14.3.3" },
     { name = "scipy", specifier = ">=1.17.1" },
 ]
@@ -941,21 +941,21 @@ wheels = [
 
 [[package]]
 name = "pythermodb-settings"
-version = "0.2.9"
+version = "0.2.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3a/2b/a9adda98fa88d1dbe5bf91098a9edf91e78efde493f0e8c8711d95658f1a/pythermodb_settings-0.2.9.tar.gz", hash = "sha256:872c5195f3eae41ae1d010f5ff8337d415eda485931597314461a98c42fffbc7", size = 24208, upload-time = "2026-03-26T02:56:38.547Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/df/a6d3d05be411d0734350c3ca8f5ba6faa884f6dbfa21ab7d3755eda3eb32/pythermodb_settings-0.2.10.tar.gz", hash = "sha256:f3c58d091dfa21977569d7ca248300efc6782b82515a0ce0455f17c6b828d9d4", size = 24584, upload-time = "2026-03-26T17:38:38.491Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/57/39/c6f61f2e5dc4e757ebc541b3249a63d76d195036b9bc4e5ea8241f053f1d/pythermodb_settings-0.2.9-py3-none-any.whl", hash = "sha256:574628f77935eb555548f6cc5ca188e323b1f829017d9db48c1d2dcc37be6374", size = 28336, upload-time = "2026-03-26T02:56:37.374Z" },
+    { url = "https://files.pythonhosted.org/packages/63/39/e1570814697544ead41d5d9fffb21c49bdcb26390a6ad32d75b2c37903aa/pythermodb_settings-0.2.10-py3-none-any.whl", hash = "sha256:6281add1f8ab5447f32a440eb40ea028e297566b50bbfdd397e03f2afeb2c3d6", size = 28600, upload-time = "2026-03-26T17:38:37.346Z" },
 ]
 
 [[package]]
 name = "pythermolinkdb"
-version = "1.4.10"
+version = "1.4.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -964,9 +964,9 @@ dependencies = [
     { name = "pythermodb-settings" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/70/8e785fca04b149b28f69bf0f5e75bed732581e120cf6b5c91f9656ab16cc/pythermolinkdb-1.4.10.tar.gz", hash = "sha256:0ea833b487c00b8c88d0ea726b06dd2638b99cdaa9f250be222fb22286c730ec", size = 34925, upload-time = "2026-03-26T01:29:59.169Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/29/c0f11d61e2f751995174aa4bec13bcb26fc40ba3d1945a75d4a086226c4b/pythermolinkdb-1.4.13.tar.gz", hash = "sha256:5db0e951ea94ce7690d9132bb051e5a16c2ece525bce050a4e53557b559fa3a8", size = 35428, upload-time = "2026-03-29T16:28:53.186Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/74/8286d37d6dfdb1d6f49abc18797d8eab2c84ee1b0ce610851569e412fcfc/pythermolinkdb-1.4.10-py3-none-any.whl", hash = "sha256:1b7be3d2a53d9fef77f814ce04b8a35bf5dcae79f5fb86942b42d5e89169d790", size = 42985, upload-time = "2026-03-26T01:29:57.974Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/0f/96bd5355a2288a0a5790b7b4ab0fe95fb9c3cd89c5a204ac1b93439f573f/pythermolinkdb-1.4.13-py3-none-any.whl", hash = "sha256:947970123560203a2121c271a7671984e3d240cb19acf630fc61e12110430a06", size = 43591, upload-time = "2026-03-29T16:28:52.225Z" },
 ]
 
 [[package]]
