@@ -142,10 +142,6 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             component_key=component_key,
         )
 
-        # SECTION: Thermodynamic properties
-        # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
-        # ! Ideal Gas Enthalpy of formation at 298 K
-
     # SECTION: Properties
     @property
     def N0(self) -> np.ndarray:
@@ -241,7 +237,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         (
             _,
             concentration_std,
-            C_total
+            _
         ) = self._calc_concentration(
             n=n,
             reactor_volume=reactor_volume

@@ -456,14 +456,16 @@ class ThermoSource(ThermoCalc):
             An array of ideal gas heat capacity (Cp_IG) values for the components in the batch reactor, calculated at the specified temperature.
         """
         # NOTE: temperature in K
-        temp = to_K(temperature.value, temperature.unit)
 
         # NOTE: calculate heat capacity at ideal gas for the components based on the heat capacity mode
         if self.gas_heat_capacity_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent heat capacity
             Cp_IG_values = self.calc_Cp_IG_real(
                 inputs={
-                    "T": temp
+                    "T": {
+                        "value": temperature.value,
+                        "unit": temperature.unit
+                    }
                 },
             )
         elif self.gas_heat_capacity_mode == "constant":

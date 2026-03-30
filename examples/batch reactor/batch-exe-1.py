@@ -2,13 +2,9 @@
 import logging
 import warnings
 from rich import print
-from typing import Callable, Dict, Optional, Union, List, Any
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
 from pythermodb_settings.models import Pressure, Temperature, CustomProp, Volume
-from pyThermoDB import ComponentThermoDB
-from pyThermoDB import build_component_thermodb_from_reference
-from pyreactlab_core.models.reaction import Reaction
 # locals
 from pyreactsim.models.br import BatchReactorOptions, BatchReactorResult
 from pyreactsim.docs.brs import batch_react
