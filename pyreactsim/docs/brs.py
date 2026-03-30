@@ -20,7 +20,7 @@ def batch_react(
     components: List[Component],
     model_inputs: Dict[str, Any],
     reactor_inputs: BatchReactorOptions,
-    reaction_rates: Dict[str, ReactionRateExpression],
+    reaction_rates: List[ReactionRateExpression],
     model_source: ModelSource,
     component_key: ComponentKey,
     solver_options: Optional[Dict[str, Any]] = None,
@@ -40,8 +40,8 @@ def batch_react(
         - feed pressure: Pressure
     reactor_inputs : BatchReactorOptions
         A BatchReactorOptions object containing the inputs for the batch reactor simulation.
-    reaction_rates : Dict[str, ReactionRateExpression]
-        A dictionary of reaction rate expressions, where the keys are the names
+    reaction_rates : List[ReactionRateExpression]
+        A list of reaction rate expressions, where the keys are the names
         of the reactions and the values are the ReactionRateExpression objects.
     model_source : ModelSource
         A ModelSource object containing the source of the model to be used

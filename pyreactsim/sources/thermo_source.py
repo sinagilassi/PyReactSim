@@ -44,7 +44,7 @@ class ThermoSource(ThermoCalc):
         source: Source,
         model_inputs: Dict[str, Any],
         reactor_inputs: BatchReactorOptions,
-        reaction_rates: Dict[str, ReactionRateExpression],
+        reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
     ):
         """
@@ -410,7 +410,7 @@ class ThermoSource(ThermoCalc):
         Build the list of Reaction objects for the gas-phase batch reactor using the provided reaction rates and components.
         """
         reactions = []
-        for rxn_name, rate_exp in self.reaction_rates.items():
+        for rate_exp in self.reaction_rates:
             rxn = rate_exp.reaction
             reactions.append(rxn)
         return reactions
@@ -423,7 +423,7 @@ class ThermoSource(ThermoCalc):
         # >> extract reactions from reaction rates
         reactions = []
 
-        for rxn_name, rate_exp in self.reaction_rates.items():
+        for rate_exp in self.reaction_rates:
             rxn = rate_exp.reaction
             reactions.append(rxn)
 
@@ -435,6 +435,35 @@ class ThermoSource(ThermoCalc):
         )
 
         return mat
+
+    def get_reaction_names(self) -> List[str]:
+        """
+        Get the list of reaction names for the reactions in the gas-phase batch reactor using the provided reaction rates.
+
+        Returns
+        -------
+        List[str]
+            A list of reaction names for the reactions in the gas-phase batch reactor.
+        """
+        reaction_names = []
+        for rate_exp in self.reaction_rates:
+            rxn = rate_exp.reaction
+            reaction_names.append(rxn.name)
+        return reaction_names
+
+    def get_reaction_index(self) -> Dict[str, int]:
+        """
+        Get the reaction index for the reactions in the reactor using the provided reaction rates.
+        Returns
+        -------
+        Dict[str, int]
+            A dictionary where the keys are reaction names and the values are the reaction orders for the reactions in the gas-phase batch reactor.
+        """
+        res = {}
+        for index, rate_exp in enumerate(self.reaction_rates):
+            rxn = rate_exp.reaction
+            res[rxn.name] = index
+        return res
 
     # SECTION: Thermodynamic property calculations
     # ! Calculate heat capacity at ideal gas for the components (Cp_IG)

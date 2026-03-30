@@ -33,7 +33,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         source: Source,
         model_inputs: Dict[str, Any],
         reactor_inputs: BatchReactorOptions,
-        reaction_rates: Dict[str, ReactionRateExpression],
+        reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
         **kwargs
     ):
@@ -50,8 +50,8 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             A dictionary containing the model inputs for the gas-phase batch reactor simulations, such as temperature, pressure, and initial mole numbers.
         reactor_inputs : BatchReactorOptions
             A BatchReactorOptions object containing the options and parameters specific to the gas-phase batch reactor setup, such as heat transfer mode, volume mode, and gas model.
-        reaction_rates : Dict[str, ReactionRateExpression]
-            A dictionary containing the reaction rate expressions for the reactions occurring in the gas-phase batch reactor,
+        reaction_rates : List[ReactionRateExpression]
+            A list containing the reaction rate expressions for the reactions occurring in the gas-phase batch reactor,
             where the keys are the names of the reactions and the values are ReactionRateExpression objects.
         component_key : ComponentKey
             A ComponentKey object representing the key to be used for the components in the model source.
@@ -308,7 +308,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         rates = []
 
         # iterate over reaction rate expressions
-        for rxn_name, rate_exp in self.reaction_rates.items():
+        for rate_exp in self.reaction_rates:
             # >> check basis
             basis = rate_exp.basis
 
@@ -329,7 +329,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
                 )
             else:
                 raise ValueError(
-                    f"Invalid basis '{basis}' for reaction rate expression '{rxn_name}'. Must be 'pressure' or 'concentration'."
+                    f"Invalid basis '{basis}' for reaction rate expression '{rate_exp.name}'. Must be 'pressure' or 'concentration'."
                 )
 
             # extract rate value
