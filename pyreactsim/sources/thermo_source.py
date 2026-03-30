@@ -10,7 +10,7 @@ from pyreactlab_core.models.reaction import Reaction
 from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
 
 # locals
-from ..sources.interface import (
+from .interface import (
     ext_component_dt,
     ext_components_dt,
     ext_component_eq,
