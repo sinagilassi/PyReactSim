@@ -277,8 +277,9 @@ def exec_component_eq(
                 continue  # skip if input value is not provided
 
             # set
-            value_ = inputs[input_symbol]
-            unit_ = inputs[input_symbol]
+            input_src = inputs[input_symbol]
+            value_ = input_src.value
+            unit_ = input_src.unit
 
             # NOTE: convert input to expected unit if specified
             if input_unit is not None and input_unit != inputs:

@@ -378,14 +378,17 @@ class ThermoSource:
             An array of ideal gas heat capacity (Cp_IG) values for the components in the batch reactor, calculated at the specified temperature.
         """
         # NOTE: temperature in K
-        temp = to_K(temperature.value, temperature.unit)
+        T = {
+            "value": to_K(temperature.value, temperature.unit),
+            "unit": "K"
+        }
 
         # NOTE: calculate heat capacity at ideal gas for the components based on the heat capacity mode
         if self.gas_heat_capacity_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent heat capacity
             Cp_IG_values = self.calc_Cp_IG_real(
                 inputs={
-                    "T": temp
+                    "T": T
                 },
             )
         elif self.gas_heat_capacity_mode == "constant":
@@ -468,14 +471,17 @@ class ThermoSource:
             An array of liquid phase heat capacity (Cp_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
         """
         # NOTE: temperature in K
-        temp = to_K(temperature.value, temperature.unit)
+        T = {
+            "value": to_K(temperature.value, temperature.unit),
+            "unit": "K"
+        }
 
         # NOTE: calculate heat capacity at liquid phase for the components based on the heat capacity mode
         if self.liquid_heat_capacity_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent heat capacity
             Cp_LIQ_values = self.calc_Cp_LIQ_real(
                 inputs={
-                    "T": temp
+                    "T": T
                 },
             )
         elif self.liquid_heat_capacity_mode == "constant":
@@ -996,12 +1002,18 @@ class ThermoSource:
         np.ndarray
             An array of density values for the liquid phase, calculated at the specified temperature.
         """
+        # NOTE: temperature in K
+        T = {
+            "value": to_K(temperature.value, temperature.unit),
+            "unit": "K"
+        }
+
         # NOTE: calculate density based on the density mode
         if self.liquid_density_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent density
             rho_LIQ_values = self.calc_rho_LIQ_real(
                 inputs={
-                    "T": temperature
+                    "T": T
                 },
             )
         elif self.liquid_density_mode == "constant":
