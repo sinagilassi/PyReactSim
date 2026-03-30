@@ -110,25 +110,25 @@ class ThermoSource:
 
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
         self.Cp_IG_src: Dict[str, ComponentEquationSource] = {}
-        self.gas_heat_capacity_constant_values = None
-        self.gas_heat_capacity_constant_comp = None
-        self.dCp_rxns = None
+        self.gas_heat_capacity_constant_values: np.ndarray = np.array([])
+        self.gas_heat_capacity_constant_comp: Dict[str, float] = {}
+        self.dCp_rxns: np.ndarray = np.array([])
 
         # ! Ideal Gas Enthalpy of formation at 298 K
         self.EnFo_IG_298_src: Dict[str, Dict[str, Any]] = {}
         self.EnFo_IG_298_comp: Dict[str, float] = {}
-        self.dH_rxns_298 = None
+        self.dH_rxns_298: np.ndarray = np.array([])
 
         # ! Phase-specific properties
-        self.MW_src = {}
-        self.MW = None
-        self.MW_comp = None
-        self.liquid_density_constant_values = None
-        self.liquid_density_constant_comp = None
+        self.MW_src: Dict[str, Dict[str, Any]] = {}
+        self.MW: np.ndarray = np.array([])
+        self.MW_comp: Dict[str, float] = {}
+        self.rho_LIQ_src: Dict[str, ComponentEquationSource] = {}
+        self.liquid_density_constant_values: np.ndarray = np.array([])
+        self.liquid_density_constant_comp: Dict[str, float] = {}
         self.Cp_LIQ_src: Dict[str, ComponentEquationSource] = {}
-        self.liquid_heat_capacity_constant_values = None
-        self.liquid_heat_capacity_constant_comp = None
-        self.dCp_rxns = None
+        self.liquid_heat_capacity_constant_values: np.ndarray = np.array([])
+        self.liquid_heat_capacity_constant_comp: Dict[str, float] = {}
 
     # SECTION: Property equation source extraction methods
     # ! Extract property equation source for components
@@ -752,6 +752,8 @@ class ThermoSource:
         np.ndarray
             An array of average reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor, calculated at the specified temperature.
         """
+        # NOTE: check availability of data
+
         # res
         dH_rxns = []
 
