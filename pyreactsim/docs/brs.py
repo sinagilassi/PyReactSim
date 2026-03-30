@@ -1,12 +1,12 @@
 # import libs
 import logging
 from scipy.integrate import solve_ivp
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 from pythermodb_settings.models import Component, ComponentKey
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
 # locals
-from ..models.br import BatchReactorOptions, BatchReactorResult, HeatTransferMode
+from ..models.br import BatchReactorOptions, BatchReactorResult
 from ..models.rate_exp import ReactionRateExpression
 from ..core.gas_br import GasBatchReactor
 

@@ -6,7 +6,7 @@ from pythermodb_settings.models import Component, Temperature, Pressure, Compone
 from pyThermoLinkDB.thermo import Source
 # locals
 from .br import BatchReactor
-from .thermo_source import ThermoSource
+from ..sources.thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.reaction_tools import stoichiometry_mat_key, stoichiometry_mat

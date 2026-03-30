@@ -10,10 +10,8 @@ from pyreactlab_core.models.reaction import Reaction
 from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
 
 # locals
-from .interface import (
-    ext_component_dt,
+from ..sources.interface import (
     ext_components_dt,
-    ext_component_eq,
     ext_components_eq,
     exec_component_eq
 )
@@ -23,12 +21,13 @@ from ..utils.reaction_tools import stoichiometry_mat
 from ..models.rate_exp import ReactionRateExpression
 from ..models.br import GasModel
 from ..models.br import BatchReactorOptions
+from .thermo_calc import ThermoCalc
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class ThermoSource:
+class ThermoSource(ThermoCalc):
     """
     THermo class for handling thermodynamic calculations and properties related to chemical reactions and processes. This class provides methods for calculating various thermodynamic properties, such as heat capacities, enthalpies, and entropies, as well as methods for performing energy balance calculations in chemical systems.
     """
@@ -51,6 +50,9 @@ class ThermoSource:
         """
         Initializes the THermo instance with default properties and settings for thermodynamic calculations.
         """
+        # LINK: ThermoCalc initialization
+        super().__init__()
+
         # NOTE: Set attributes
         self.components = components
         self.source = source
@@ -106,29 +108,105 @@ class ThermoSource:
         # heat transfer more
         self.heat_transfer_mode = self.reactor_inputs.heat_transfer_mode
 
-        # SECTION: Voids
-
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
-        self.Cp_IG_src: Dict[str, ComponentEquationSource] = {}
-        self.gas_heat_capacity_constant_values: np.ndarray = np.array([])
-        self.gas_heat_capacity_constant_comp: Dict[str, float] = {}
-        self.dCp_rxns: np.ndarray = np.array([])
+        if self.heat_transfer_mode == "non-isothermal":
+            # check heat capacity mode
+            if self.gas_heat_capacity_mode == "temperature-dependent":
+                # NOTE: extract heat capacity equation source for the components from the model source
+                self.Cp_IG_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
+                    prop_name="Cp_IG"
+                )
+            elif self.gas_heat_capacity_mode == "constant":
+                # NOTE: use constant heat capacity from model inputs
+                # >> constant heat capacity
+                # ! to J/mol.K
+                (
+                    self.gas_heat_capacity_constant_values,
+                    self.gas_heat_capacity_constant_comp
+                ) = self._config_constant_gas_heat_capacity()
+
+                # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
+                self.dCp_rxns = self.calc_dCp_IG()
+            else:
+                raise ValueError(
+                    f"Invalid heat_capacity_mode '{self.gas_heat_capacity_mode}'. Must be 'temperature-dependent' or 'constant'."
+                )
 
         # ! Ideal Gas Enthalpy of formation at 298 K
-        self.EnFo_IG_298_src: Dict[str, Dict[str, Any]] = {}
-        self.EnFo_IG_298_comp: Dict[str, float] = {}
-        self.dH_rxns_298: np.ndarray = np.array([])
+        if self.heat_transfer_mode == "non-isothermal":
+            # source
+            self.EnFo_IG_298_src = self.prop_dt_src(
+                component_ids=self.component_ids,
+                prop_name="EnFo_IG"
+            )
 
-        # ! Phase-specific properties
-        self.MW_src: Dict[str, Dict[str, Any]] = {}
-        self.MW: np.ndarray = np.array([])
-        self.MW_comp: Dict[str, float] = {}
-        self.rho_LIQ_src: Dict[str, ComponentEquationSource] = {}
-        self.liquid_density_constant_values: np.ndarray = np.array([])
-        self.liquid_density_constant_comp: Dict[str, float] = {}
-        self.Cp_LIQ_src: Dict[str, ComponentEquationSource] = {}
-        self.liquid_heat_capacity_constant_values: np.ndarray = np.array([])
-        self.liquid_heat_capacity_constant_comp: Dict[str, float] = {}
+            # values in J/mol
+            self.EnFo_IG_298_comp: Dict[
+                str,
+                float
+            ] = self._config_EnFo_IG_unit()
+
+            # dH_rxn at 298 K [J/mol]
+            self.dH_rxns_298 = self.calc_dH_rxns_298()
+
+        # SECTION: Phase-specific properties
+        if self.phase == "liquid":
+            # MW source
+            self.MW_src = self.prop_dt_src(
+                component_ids=self.component_ids,
+                prop_name="MW"
+            )
+
+            # ! values in g/mol
+            (
+                self.MW,
+                self.MW_comp
+            ) = self._config_MW_unit()
+
+            # density
+            if self.liquid_density_mode == "temperature-dependent":
+                # NOTE: extract density equation source for the components from the model source
+                self.rho_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
+                    prop_name="rho_LIQ"
+                )
+            elif self.liquid_density_mode == "constant":
+                # NOTE: use constant density from model inputs
+                # >> constant density
+                # ! to g/m3
+                (
+                    self.liquid_density_constant_values,
+                    self.liquid_density_constant_comp
+                ) = self._config_constant_liquid_density()
+            else:
+                raise ValueError(
+                    f"Invalid density_mode '{self.liquid_density_mode}'. Must be 'temperature-dependent' or 'constant'."
+                )
+
+        if (
+            self.heat_transfer_mode == "non-isothermal" and
+            self.phase == "liquid"
+        ):
+            # check heat capacity mode
+            if self.liquid_heat_capacity_mode == "temperature-dependent":
+                # NOTE: extract heat capacity equation source for the components from the model source
+                self.Cp_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
+                    prop_name="Cp_LIQ"
+                )
+            elif self.liquid_heat_capacity_mode == "constant":
+                # NOTE: use constant heat capacity from model inputs
+                # >> constant heat capacity
+                # ! to J/mol.K
+                (
+                    self.liquid_heat_capacity_constant_values,
+                    self.liquid_heat_capacity_constant_comp
+                ) = self._config_constant_liquid_heat_capacity()
+
+                # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
+                self.dCp_rxns = self.calc_dCp_IG()
+            else:
+                raise ValueError(
+                    f"Invalid heat_capacity_mode '{self.liquid_heat_capacity_mode}'. Must be 'temperature-dependent' or 'constant'."
+                )
 
     # SECTION: Property equation source extraction methods
     # ! Extract property equation source for components
@@ -378,17 +456,14 @@ class ThermoSource:
             An array of ideal gas heat capacity (Cp_IG) values for the components in the batch reactor, calculated at the specified temperature.
         """
         # NOTE: temperature in K
-        T = {
-            "value": to_K(temperature.value, temperature.unit),
-            "unit": "K"
-        }
+        temp = to_K(temperature.value, temperature.unit)
 
         # NOTE: calculate heat capacity at ideal gas for the components based on the heat capacity mode
         if self.gas_heat_capacity_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent heat capacity
             Cp_IG_values = self.calc_Cp_IG_real(
                 inputs={
-                    "T": T
+                    "T": temp
                 },
             )
         elif self.gas_heat_capacity_mode == "constant":
@@ -471,17 +546,14 @@ class ThermoSource:
             An array of liquid phase heat capacity (Cp_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
         """
         # NOTE: temperature in K
-        T = {
-            "value": to_K(temperature.value, temperature.unit),
-            "unit": "K"
-        }
+        temp = to_K(temperature.value, temperature.unit)
 
         # NOTE: calculate heat capacity at liquid phase for the components based on the heat capacity mode
         if self.liquid_heat_capacity_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent heat capacity
             Cp_LIQ_values = self.calc_Cp_LIQ_real(
                 inputs={
-                    "T": T
+                    "T": temp
                 },
             )
         elif self.liquid_heat_capacity_mode == "constant":
@@ -758,8 +830,6 @@ class ThermoSource:
         np.ndarray
             An array of average reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor, calculated at the specified temperature.
         """
-        # NOTE: check availability of data
-
         # res
         dH_rxns = []
 
@@ -880,111 +950,6 @@ class ThermoSource:
 
         return res, res_comp
 
-    # SECTION: EOS related methods
-    # ! Calculate total pressure using ideal gas law
-    def calc_tot_pressure(
-            self,
-            n_total: float,
-            temperature: float,
-            reactor_volume_value: float,
-            R: float,
-            gas_model: GasModel
-    ) -> float:
-        """
-        Total pressure [Pa].
-        Default: ideal gas
-            P = N_total * R * T / V
-
-        Parameters
-        ----------
-        n_total : float
-            Total moles of gas in the reactor.
-        temperature : float
-            Temperature of the gas in the reactor [K].
-        reactor_volume_value : float
-            Volume of the reactor [m3].
-        R : float
-            Ideal gas constant [J/mol.K].
-        gas_model : GasModel
-            The gas model to use for the calculation (e.g., "ideal", "real").
-
-        Returns
-        -------
-        float
-            Total pressure of the gas in the reactor [Pa].
-        """
-        if gas_model == "real":
-            # FIXME: implement real gas model
-            return 0
-
-        # ideal gas model
-        return n_total * R * temperature / float(reactor_volume_value)
-
-    # ! Calculate volume
-    def calc_gas_volume(
-        self,
-        n_total: float,
-        temperature: float,
-        pressure: float,
-        R: float,
-        gas_model: GasModel
-    ) -> float:
-        """
-        Calculate the volume of the gas in the reactor using the ideal gas law.
-            V = N_total * R * T / P
-
-        Parameters
-        ----------
-        n_total : float
-            Total moles of gas in the reactor.
-        temperature : float
-            Temperature of the gas in the reactor [K].
-        pressure : float
-            Pressure of the gas in the reactor [Pa].
-        R : float
-            Ideal gas constant [J/mol.K].
-        gas_model : GasModel
-            The gas model to use for the calculation (e.g., "ideal", "real").
-
-        Returns
-        -------
-        float
-            Volume of the gas in the reactor [m3].
-        """
-        if gas_model == "real":
-            # FIXME: implement real gas model
-            return 0
-
-        # ideal gas model
-        return n_total * R * temperature / pressure
-
-    def calc_liquid_volume(
-            self,
-            n: np.ndarray,
-            molecular_weights: np.ndarray,
-            density: np.ndarray
-    ) -> float:
-        """
-        Calculate the volume of the liquid in the reactor using the formula:
-            V = sigma_i (n_i * MW_i) / density_i
-
-        Parameters
-        ----------
-        n : np.ndarray
-            An array of moles of each component in the liquid phase.
-        molecular_weights : np.ndarray
-            An array of molecular weights for each component in the liquid phase [g/mol].
-        density : np.ndarray
-            An array of densities for each component in the liquid phase [g/m3].
-        """
-        # calculate volume for each component
-        volumes = n * molecular_weights / density
-
-        # total volume is the sum of the volumes of each component
-        total_volume = np.sum(volumes)
-
-        return total_volume
-
     def calc_rho_LIQ(
             self,
             temperature: Temperature,
@@ -1002,18 +967,12 @@ class ThermoSource:
         np.ndarray
             An array of density values for the liquid phase, calculated at the specified temperature.
         """
-        # NOTE: temperature in K
-        T = {
-            "value": to_K(temperature.value, temperature.unit),
-            "unit": "K"
-        }
-
         # NOTE: calculate density based on the density mode
         if self.liquid_density_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent density
             rho_LIQ_values = self.calc_rho_LIQ_real(
                 inputs={
-                    "T": T
+                    "T": temperature
                 },
             )
         elif self.liquid_density_mode == "constant":
