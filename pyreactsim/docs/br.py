@@ -36,8 +36,6 @@ class BatchReactor:
             - feed pressure: Pressure
         thermo_source : ThermoSource
             A ThermoSource object containing the thermodynamic source information for the batch reactor simulation.
-        component_key : ComponentKey
-            A ComponentKey object representing the key to be used for the components in the model source.
         """
         # NOTE: set attributes
         self.model_inputs = model_inputs
