@@ -9,12 +9,6 @@ from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from scipy.integrate import solve_ivp
 # ! locals
-from ..sources.interface import (
-    ext_component_dt,
-    ext_components_dt,
-    ext_component_eq,
-    ext_components_eq
-)
 from ..utils.unit_tools import to_m3, to_Pa, to_K, to_W_per_m2_K, to_m2
 from ..utils.tools import collect_keys
 from ..models.br import BatchReactorOptions, BatchReactorResult, HeatTransferMode
@@ -25,9 +19,9 @@ from ..models.br import GasModel
 logger = logging.getLogger(__name__)
 
 
-class BatchReactor:
+class BatchReactorCore:
     """
-    Batch Reactor (BR) class for simulating chemical reactions in a batch reactor setup. This class encapsulates the components, source, and component key information necessary for performing simulations and analyses related to batch reactors.
+    Batch Reactor Core (BRC) class for simulating chemical reactions in a batch reactor setup. This class encapsulates the components, source, and component key information necessary for performing simulations and analyses related to batch reactors.
     """
     # NOTE: Properties
     # reference temperature
@@ -70,7 +64,7 @@ class BatchReactor:
 
         # SECTION: reactor configuration
         # >> extract
-        self.phase = "gas"
+        self.phase = reactor_inputs.phase
         self.gas_model: GasModel = reactor_inputs.gas_model
         self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
         self.operation_mode = reactor_inputs.operation_mode

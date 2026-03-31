@@ -1,9 +1,9 @@
 # import libs
 import logging
 import numpy as np
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, Pressure, Temperature, CustomProperty
-from pythermodb_settings.utils import set_component_id
+from pythermodb_settings.utils import set_component_id, build_components_mapper
 
 
 def find_components_property(
@@ -65,3 +65,112 @@ def collect_keys(
         key.lower().strip() for key in keys
     ]
     return keys
+
+# SECTION: config property values for components
+
+
+def config_components_property(
+        component_ids: List[str],
+        prop_source: Dict[str, Any],
+        unit_conversion_func: Callable[[float, str], float],
+) -> Tuple[np.ndarray, Dict[str, float]]:
+    """
+    Configure the specified property values for the components based on the component IDs and the property source.
+
+    Parameters
+    ----------
+    component_ids : List[str]
+        A list of component IDs representing the components for which the property values need to be configured.
+    prop_source : Dict[str, Any]
+        A dictionary with component names as keys and CustomProp objects containing the property values and units as values.
+    unit_conversion_func : Callable[[float, str], float]
+        A function that takes a value and its unit as input and returns the value converted to the desired unit.
+
+    Returns
+    -------
+    Tuple[np.ndarray, Dict[str, float]]
+        A numpy array of the configured property values for each component and a dictionary with component names as keys and the configured property values as values.
+
+    Raises
+    ------
+    ValueError
+        If a component specified in the component_ids list is not found in the prop_source dictionary.
+    """
+    # iterate through components and extract property values
+    prop_values = []
+    prop_values_comp = {}
+
+    for comp_id in component_ids:
+        if comp_id in prop_source:
+            # component source
+            dt_src = prop_source[comp_id]
+
+            # >> extract value and unit
+            dt_value: float = dt_src.get("value")
+            dt_unit: str = dt_src.get("unit")
+
+            # conversion
+            prop_value_converted = unit_conversion_func(dt_value, dt_unit)
+
+            # store
+            prop_values.append(prop_value_converted)
+            prop_values_comp[comp_id] = prop_value_converted
+        else:
+            raise ValueError(
+                f"Component '{comp_id}' not found in the provided property source."
+            )
+
+    # to array
+    prop_values_array = np.array(prop_values, dtype=float)
+
+    return prop_values_array, prop_values_comp
+
+
+# SECTION: Component references
+def generate_component_references(
+        components: List[Component],
+        component_key: ComponentKey
+) -> Tuple[
+    List[str],
+    List[str],
+    Dict[str, Dict[ComponentKey, str]],
+    Dict[str, int]
+]:
+    """
+    Generate component references based on the components and the component key. This method creates a mapping of component IDs, formula-state representations, and other relevant references for the components in the model source.
+
+    Returns
+    -------
+    Tuple[List[str], List[str], Dict[str, Dict[ComponentKey, str]], Dict[str, int]]
+        A tuple containing a list of component IDs, a list of formula-state representations for the components, and a dictionary mapping component IDs to their corresponding component keys for different properties.
+    """
+    # NOTE: Create component ID list
+    component_ids = [
+        set_component_id(
+            component=comp,
+            component_key=cast(ComponentKey, component_key)
+        )
+        for comp in components
+    ]
+
+    # >>> formula-state
+    component_formula_state = [
+        set_component_id(
+            component=component,
+            component_key='Formula-State'
+        )
+        for component in components
+    ]
+
+    # NOTE: build component mapper
+    component_mapper: Dict[str, Dict[ComponentKey, str]] = build_components_mapper(
+        components=components,
+        component_key=cast(ComponentKey, component_key)
+    )
+
+    # >> index mapping
+    component_id_to_index = {
+        comp_id: idx for idx, comp_id in enumerate(component_ids)
+    }
+
+    return component_ids, component_formula_state, component_mapper, component_id_to_index

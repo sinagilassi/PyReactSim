@@ -84,18 +84,22 @@ initial_pressure = Pressure(
 )
 
 # NOTE: constant heat capacity (Cp) for the system in J/mol.K
-# constant_heat_capacity = {
-#     "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
-#     "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
-#     "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
-#     "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
-# }
+constant_heat_capacity = {
+    "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
+    "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
+    "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
+    "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
+}
+
+# ! data inputs
+model_inputs = {
+    "heat_capacity": constant_heat_capacity,
+}
 
 # ! model inputs
-model_inputs = {
+input_stream = {
     "temperature": initial_temperature,
     "pressure": initial_pressure,
-    # "heat_capacity": constant_heat_capacity,
 }
 
 # ====================================================

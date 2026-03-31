@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty
 from pyThermoLinkDB.thermo import Source
 # locals
-from .br import BatchReactor
+from .brc import BatchReactorCore
 from ..sources.thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
@@ -17,7 +17,7 @@ from ..utils.opt_tools import calc_heat_exchange, set_component_X
 logger = logging.getLogger(__name__)
 
 
-class LiquidBatchReactor(BatchReactor, ThermoSource):
+class LiquidBatchReactor(BatchReactorCore, ThermoSource):
     """
     Liquid Batch Reactor (LBR) class for simulating batch reactions in liquid phase.
 
@@ -40,7 +40,7 @@ class LiquidBatchReactor(BatchReactor, ThermoSource):
         source: Source,
         model_inputs: Dict[str, Any],
         reactor_inputs: BatchReactorOptions,
-        reaction_rates: Dict[str, ReactionRateExpression],
+        reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
         **kwargs
     ):
@@ -57,8 +57,8 @@ class LiquidBatchReactor(BatchReactor, ThermoSource):
             A dictionary containing the model inputs for the gas-phase batch reactor simulations, such as temperature, pressure, and initial mole numbers.
         reactor_inputs : BatchReactorOptions
             A BatchReactorOptions object containing the options and parameters specific to the gas-phase batch reactor setup, such as heat transfer mode, volume mode, and gas model.
-        reaction_rates : Dict[str, ReactionRateExpression]
-            A dictionary containing the reaction rate expressions for the reactions occurring in the gas-phase batch reactor,
+        reaction_rates : List[ReactionRateExpression]
+            A list containing the reaction rate expressions for the reactions occurring in the gas-phase batch reactor,
             where the keys are the names of the reactions and the values are ReactionRateExpression objects.
         component_key : ComponentKey
             A ComponentKey object representing the key to be used for the components in the model source.
@@ -66,7 +66,7 @@ class LiquidBatchReactor(BatchReactor, ThermoSource):
             Additional keyword arguments that can be passed to the initialization of the GasBatchReactor instance.
         """
         # LINK: Initialize the parent BatchReactor class
-        BatchReactor.__init__(
+        BatchReactorCore.__init__(
             self,
             components=components,
             source=source,
@@ -301,7 +301,7 @@ class LiquidBatchReactor(BatchReactor, ThermoSource):
         rates = []
 
         # iterate over reaction rate expressions
-        for rxn_name, rate_exp in self.reaction_rates.items():
+        for rate_exp in self.reaction_rates:
             # >> check basis
             basis = rate_exp.basis
 
@@ -315,7 +315,7 @@ class LiquidBatchReactor(BatchReactor, ThermoSource):
                 )
             else:
                 raise ValueError(
-                    f"Invalid basis '{basis}' for reaction rate expression '{rxn_name}'. Must be 'concentration'."
+                    f"Invalid basis '{basis}' for reaction rate expression '{rate_exp.name}'. Must be 'concentration'."
                 )
 
             # extract rate value

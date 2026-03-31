@@ -5,19 +5,20 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty
 from pyThermoLinkDB.thermo import Source
 # locals
-from .br import BatchReactor
+from .brc import BatchReactorCore
 from ..sources.thermo_source import ThermoSource
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.reaction_tools import stoichiometry_mat_key, stoichiometry_mat
 from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
 from ..utils.opt_tools import calc_heat_exchange, set_component_X
+from ..models.br import GasModel
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class GasBatchReactor(BatchReactor, ThermoSource):
+class GasBatchReactor(BatchReactorCore):
     """
     GasBatchReactor class for simulating chemical reactions in a gas-phase batch reactor setup. This class inherits from the BatchReactor class and is specifically designed to handle gas-phase reactions, incorporating properties and methods relevant to gas-phase systems.
 
@@ -26,6 +27,21 @@ class GasBatchReactor(BatchReactor, ThermoSource):
     - Constant heat capacity (Cp) for energy balance calculations.
     """
     # NOTE: Attributes
+    # ! moles
+    _N0: np.ndarray = np.array([])
+    # ! temperature
+    temperature: Temperature = (Temperature(value=0.0, unit="K"))
+    _T0: float = 0.0
+    # ! volume
+    volume: CustomProperty = (
+        CustomProperty(value=0.0, unit="m3", symbol="V")
+    )
+    _V0: float = 0.0
+    # ! pressure
+    pressure: CustomProperty = (
+        CustomProperty(value=0.0, unit="Pa", symbol="P")
+    )
+    _P0: float = 0.0
 
     def __init__(
         self,
@@ -35,6 +51,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         reactor_inputs: BatchReactorOptions,
         reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
+        thermo_source: ThermoSource,
         **kwargs
     ):
         """
@@ -58,78 +75,28 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         **kwargs
             Additional keyword arguments that can be passed to the initialization of the GasBatchReactor instance.
         """
-        # LINK: Initialize the parent BatchReactor class
-        BatchReactor.__init__(
+        # NOTE: set
+        self.components = components
+        self.source = source
+        self.component_key = component_key
+
+        # LINK: BatchReactor initialization
+        BatchReactorCore.__init__(
             self,
             components=components,
-            source=source,
             model_inputs=model_inputs,
             reactor_inputs=reactor_inputs,
-            component_key=component_key
-        )
-        # LINK: Initialize the parent ThermoSource class
-        ThermoSource.__init__(
-            self,
-            components=components,
-            source=source,
-            model_inputs=model_inputs,
-            reactor_inputs=reactor_inputs,
-            reaction_rates=reaction_rates,
-            component_key=component_key
+            component_key=component_key,
+            **kwargs
         )
 
-        # ! N: initial mole [-]
-        _, self._N0 = set_component_X(
-            components=components,
-            prop_name="mole",
-            component_key=component_key
-        )
-
-        # ! P: initial pressure [Pa]
-        if self.operation_mode == "constant_volume":
-            # retrieve
-            self.volume = self._config_reactor_volume()
-            self._V0 = self.volume.value
-
-            # calc
-            self._P0 = self.calc_tot_pressure(
-                n_total=np.sum(self._N0),
-                temperature=self._T0,
-                reactor_volume_value=self._V0,
-                R=self.R,
-                gas_model=self.gas_model
-            )
-
-        # ! V: initial volume [m3]
-        elif self.operation_mode == "constant_pressure":
-            # retrieve
-            self.pressure = self._config_pressure()
-            self._P0 = self.pressure.value
-
-            # calc
-            self._V0 = self.calc_gas_volume(
-                n_total=np.sum(self._N0),
-                temperature=self._T0,
-                pressure=self._P0,
-                R=self.R,
-                gas_model=self.gas_model
-            )
-
-        else:
-            raise ValueError(
-                f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
-            )
-
-        # SECTION: Model inputs
-        self.model_inputs = model_inputs
-
-        # SECTION: GasBatchReactor-specific properties
-        self.reactor_inputs = reactor_inputs
+        # SECTION: thermo source
+        self.thermo_source = thermo_source
 
         # SECTION: Reaction rates
         self.reaction_rates = reaction_rates
         # >> build reactions
-        self.reactions = self.build_reactions()
+        self.reactions = self.thermo_source.thermal_reaction.build_reactions()
         # >>> build stoichiometry matrix
         self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
             reactions=self.reactions,
@@ -142,7 +109,26 @@ class GasBatchReactor(BatchReactor, ThermoSource):
             component_key=component_key,
         )
 
+        # NOTE: component
+        self.component_num = len(self.components)
+
+        # component references
+        self.component_ids = self.thermo_source.component_refs['component_ids']
+        self.component_formula_state = self.thermo_source.component_refs[
+            'component_formula_state'
+        ]
+        self.component_mapper = self.thermo_source.component_refs['component_mapper']
+        self.component_id_to_index = self.thermo_source.component_refs['component_id_to_index']
+
+    # SECTION: Configuration Input Stream
+
+    def config_input_stream(
+            self
+    ):
+        pass
+
     # SECTION: Properties
+
     @property
     def N0(self) -> np.ndarray:
         if self._N0 is None:
@@ -172,7 +158,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         T0 = self._T0
 
         # NOTE: build initial value vector
-        if self.heat_transfer_mode == "isothermal":
+        if self.reactor_inputs.heat_transfer_mode == "isothermal":
             # state vector: [n1, n2, ..., nNc]
             y0 = n0
         else:
@@ -203,12 +189,12 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         """
         ns = self.component_num
 
-        if self.heat_transfer_mode == "isothermal":
-            if self.temperature_fixed is None:
+        if self.reactor_inputs.heat_transfer_mode == "isothermal":
+            if self._T0 is None:
                 raise ValueError(
-                    "temperature_fixed must be provided for isothermal simulation.")
+                    "initial temperature must be provided for isothermal simulation.")
             n = y[:ns]
-            temp = float(self.temperature_fixed)
+            temp = float(self._T0)
         else:
             n = y[:ns]
             temp = float(y[ns])
@@ -261,7 +247,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         )
 
         # >>> calculate dn/dt for isothermal case
-        if self.heat_transfer_mode == "isothermal":
+        if self.reactor_inputs.heat_transfer_mode == "isothermal":
             return dn_dt
 
         # NOTE: Energy balance:
@@ -429,7 +415,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
         # ! (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
         # ??? Cp_i(T)
-        Cp_IG_values = self.calc_Cp_IG(
+        Cp_IG_values = self.thermo_source.calc_Cp_IG(
             temperature=temperature
         )
 
@@ -442,7 +428,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
         # ! calculate heat generated by reactions: Q_rxn = V Σ_k [(-ΔH_k) r_k]
         # V[m3], ΔH[J/mol], r[mol/m3.s] => Q_rxn [J/s] or [W]
         # ??? ΔH_k
-        delta_h = self.calc_dH_rxns(
+        delta_h = self.thermo_source.calc_dH_rxns(
             temperature=temperature
         )
 
@@ -509,7 +495,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
             # NOTE: calculate total pressure
             # ! P_total = f(n_total(t), P(t))
-            p_total = self.calc_tot_pressure(
+            p_total = self.thermo_source.calc_tot_pressure(
                 n_total=n_total,
                 temperature=T,
                 reactor_volume_value=reactor_volume,
@@ -522,7 +508,7 @@ class GasBatchReactor(BatchReactor, ThermoSource):
 
             # NOTE: calculate volume
             # ! V(t) = f(n_total(t), T(t))
-            reactor_volume = self.calc_gas_volume(
+            reactor_volume = self.thermo_source.calc_gas_volume(
                 n_total=n_total,
                 temperature=T,
                 pressure=p_total,
