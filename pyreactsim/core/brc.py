@@ -4,7 +4,7 @@ import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, Volume
 # ! locals
-from ..utils.unit_tools import to_m3, to_Pa, to_K, to_W_per_m2_K, to_m2
+from ..utils.unit_tools import to_m3, to_Pa, to_K, to_W_per_m2_K, to_m2, to_W
 from ..utils.tools import collect_keys
 from ..models.br import BatchReactorOptions
 from ..models.heat import HeatTransferOptions
@@ -67,7 +67,7 @@ class BatchReactorCore:
         self.jacket_temperature = heat_transfer_options.jacket_temperature
         self.heat_transfer_coefficient = heat_transfer_options.heat_transfer_coefficient
         self.heat_transfer_area = heat_transfer_options.heat_transfer_area
-        self.heat_flux = heat_transfer_options.heat_flux
+        self.heat_rate = heat_transfer_options.heat_rate
 
         # SECTION: Process model configuration
         # lower case keys for easier access
@@ -101,6 +101,9 @@ class BatchReactorCore:
             self.heat_transfer_coefficient_value,
             self.heat_transfer_area_value,
         ) = self.config_heat_exchange()
+
+        # NOTE: heat rate configuration
+        self.heat_rate_value = self.config_heat_flux()
 
     # SECTION: Model Inputs configuration
     # NOTE: temperature configuration
@@ -264,3 +267,22 @@ class BatchReactorCore:
         res = np.array(res, dtype=float)
 
         return res_comp, res
+
+    def config_heat_flux(
+            self,
+    ) -> Optional[float]:
+        """Configure the heat flux for the batch reactor based on the model inputs."""
+        if (
+            self.heat_rate is not None and
+            self.heat_transfer_mode == 'non-isothermal'
+        ):
+            # >> conversion for heat flux
+            # ! [W/s]
+            heat_flux_value = to_W(
+                self.heat_rate.value,
+                self.heat_rate.unit
+            )
+
+            return heat_flux_value
+        else:
+            return None

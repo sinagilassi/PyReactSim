@@ -39,7 +39,7 @@ class HeatTransferOptions(BaseModel):
         default=None,
         description="Temperature of the jacket (required if mode is non-isothermal)."
     )
-    heat_flux: Optional[CustomProp] = Field(
+    heat_rate: Optional[CustomProp] = Field(
         default=None,
-        description="Constant heat flux (required if mode is non-isothermal and heat transfer coefficient and area are not provided)."
+        description="Constant heat rate in W or J/s (optional, can be used instead of heat transfer coefficient and area)."
     )

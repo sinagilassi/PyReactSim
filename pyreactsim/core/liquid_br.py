@@ -74,13 +74,17 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
         # SECTION: batch reactor core
         self.batch_reactor_core = batch_reactor_core
         # >>>
-        self.heat_exchange = batch_reactor_core.heat_exchange
         self.heat_transfer_mode = batch_reactor_core.heat_transfer_mode
+        self.gas_model = batch_reactor_core.gas_model
         self.operation_mode = batch_reactor_core.operation_mode
+        # ! heat exchange
+        self.heat_exchange = batch_reactor_core.heat_exchange
         self.heat_transfer_coefficient_value = batch_reactor_core.heat_transfer_coefficient_value
         self.heat_transfer_area_value = batch_reactor_core.heat_transfer_area_value
         self.jacket_temperature_value = batch_reactor_core.jacket_temperature_value
-        self.gas_model = batch_reactor_core.gas_model
+        # ! heat flux [W]
+        self.heat_rate = batch_reactor_core.heat_rate
+        self.heat_rate_value = batch_reactor_core.heat_rate_value
 
         # SECTION: Reaction rates
         self.reaction_rates = reaction_rates
@@ -127,10 +131,13 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
         # ! N: initial mole [-]
         _, self._N0 = _, self._N0 = self.batch_reactor_core.config_mole()
 
+        # ! T: initial temperature [K]
+        self.temperature = self.batch_reactor_core.config_temperature()
+        self._T0 = self.temperature.value
+
         # ! rho: density of liquid phase [g/m3]
         # FIXME:
-        # self._rho_LIQ0 = self.calc_rho_LIQ(temperature=self.temperature_fixed)
-        self._rho_LIQ0 = np.array([1000.0] * self.component_num, dtype=float)
+        self._rho_LIQ0 = self.calc_rho_LIQ(temperature=self.temperature)
 
         # ! V: initial volume [m3]
         if self.operation_mode == "constant_volume":
@@ -230,20 +237,22 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
         # mole fraction
         y_mole = n / n_total
 
-        # ! calculate density of liquid phase
-        # FIXME:
+        # temperature
+        temperature = Temperature(value=temp, unit="K")
+
+        # ! calculate density of liquid phase [g/m3]
         rho_LIQ = self.calc_rho_LIQ(
-            temperature=Temperature(value=temp, unit="K")
+            temperature=temperature
         )
 
-        # ! calculate system volume
+        # ! calculate system volume [m3]
         reactor_volume = self._calc_system_volume(
             n=n,
             rho_LIQ=rho_LIQ,
             temperature=temp,
         )
 
-        # ! calculate concentration: C_i = n_i / V
+        # ! calculate concentration: C_i = n_i / V [mol/m3]
         (
             c,
             concentration_std,
@@ -254,10 +263,10 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
         )
 
         # NOTE: Calculate Reaction rates for each component (partial pressures and temperature)
-        # ! r_k = k(T, P_i) for each reaction k
+        # ! r_k = k(T, P_i) for each reaction k [mol/m3.s]
         rates = self._calc_rates(
             concentration=concentration_std,
-            temperature=Temperature(value=temp, unit="K"),
+            temperature=temperature,
         )
 
         # NOTE: Species balances:
@@ -463,9 +472,17 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
                 reactor_volume=reactor_volume
             )
 
+        # ??? Q_constant: constant heat rate (in W or J/s)
+        # W/m^3 => J/s.m^3
+        q_constant = 0.0
+
+        # >>> check if constant heat rate is provided
+        if self.heat_rate_value:
+            q_constant = self.heat_rate_value/reactor_volume
+
         # ! >>> calculate dT/dt
         # (K/s) = (J/s.m^3) / (J/K.m^3) => K/s
-        dT_dt = (q_rxn + q_exchange) / Cp_LIQ_total
+        dT_dt = (q_rxn + q_exchange + q_constant) / Cp_LIQ_total
 
         return dT_dt
 
@@ -532,7 +549,7 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
         n : np.ndarray
             Array of moles of each component in the reactor.
         rho_LIQ : np.ndarray
-            Density of the liquid phase (in kg/m3).
+            Density of the liquid phase (in g/m3).
         temperature : float
             Current temperature of the system (in K).
 

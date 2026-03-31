@@ -6,15 +6,17 @@ import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
 from pythermodb_settings.models import Pressure, Temperature, CustomProp, Volume
 # locals
-from pyreactsim.models import BatchReactorOptions, BatchReactorResult, HeatTransferOptions
-from pyreactsim.docs.brs import batch_react
+from pyreactsim.models import BatchReactorOptions, HeatTransferOptions
+from pyreactsim.thermo import build_thermo_source
+from pyreactsim import create_batch_reactor, BatchReactor
 # NOTE: for example
 # ! model sources
 from model_source_exp_1 import model_source
 # ! rate expressions & components
-from rate_exp_5 import reaction_rates, components
+from rate_exp_1 import reaction_rates, components
 # ! plot function
 from examples.plot.plot_res import plot_batch_reactor_result
+
 
 # check version
 print(ptdb.__version__)
@@ -52,7 +54,7 @@ heat_transfer_area = CustomProp(
 # ! batch reactor options
 batch_reactor_options = BatchReactorOptions(
     phase='gas',
-    operation_mode='constant_pressure',
+    operation_mode='constant_volume',
     gas_model='ideal',
     gas_heat_capacity_mode='temperature-dependent',
 )
@@ -86,8 +88,16 @@ initial_pressure = Pressure(
     unit="atm",
 )
 
+# NOTE: initial mole feed for the system in mol
+initial_mole = {
+    "CO2-g": CustomProp(value=1.0, unit="mol"),
+    "H2-g": CustomProp(value=3.0, unit="mol"),
+    "CH3OH-g": CustomProp(value=0.0, unit="mol"),
+    "H2O-g": CustomProp(value=0.0, unit="mol"),
+}
+
 # NOTE: constant heat capacity (Cp) for the system in J/mol.K
-constant_heat_capacity = {
+constant_gas_heat_capacity = {
     "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
     "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
     "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
@@ -96,37 +106,52 @@ constant_heat_capacity = {
 
 # ! thermo inputs
 thermo_inputs = {
-    "heat_capacity": constant_heat_capacity,
+    "gas_heat_capacity": constant_gas_heat_capacity,
 }
 
 # ! model inputs
 model_inputs = {
+    "mole": initial_mole,
     "temperature": initial_temperature,
     "pressure": initial_pressure,
     'reactor_volume': reactor_volume,
-
 }
 
 # ====================================================
-# SECTION: Simulation
+# SECTION: build thermo source
 # ====================================================
-# simulation_result: BatchReactorResult | None = batch_react(
-#     components=components,
-#     model_inputs=model_inputs,
-#     reaction_rates=reaction_rates,
-#     model_source=model_source,
-#     component_key='Name-Formula',
-#     solver_options={
-#         "method": "BDF",
-#         "time_span": (0, 200),
-#         "rtol": 1e-6,
-#         "atol": 1e-9
-#     }
-# )
-# print(simulation_result)
+# NOTE: build thermo source
+thermo_source = build_thermo_source(
+    components=components,
+    model_source=model_source,
+    thermo_inputs=thermo_inputs,
+    batch_reactor_options=batch_reactor_options,
+    heat_transfer_options=heat_transfer_options,
+    reaction_rates=reaction_rates,
+    component_key="Name-Formula",
+)
+print("[bold green]Thermo source successfully built![/bold green]")
+print(thermo_source)
 
-# if simulation_result is not None:
-#     plot_batch_reactor_result(
-#         result=simulation_result,
-#         components=components,
-#     )
+# ====================================================
+# SECTION: create batch reactor
+# ====================================================
+batch_reactor: BatchReactor = create_batch_reactor(
+    components=components,
+    model_inputs=model_inputs,
+    thermo_source=thermo_source,
+)
+print("[bold green]Batch reactor successfully created![/bold green]")
+print(batch_reactor)
+
+
+# NOTE: simulate batch reactor
+simulation_results = batch_reactor.simulate()
+print("[bold green]Batch reactor simulation completed![/bold green]")
+print(simulation_results)
+
+if simulation_results is not None:
+    plot_batch_reactor_result(
+        result=simulation_results,
+        components=components,
+    )

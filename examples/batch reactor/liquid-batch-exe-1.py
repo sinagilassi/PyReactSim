@@ -17,7 +17,6 @@ from rate_exp_1 import reaction_rates, components
 # ! plot function
 from examples.plot.plot_res import plot_batch_reactor_result
 
-
 # check version
 print(ptdb.__version__)
 print(ptdblink.__version__)
@@ -54,7 +53,7 @@ heat_transfer_area = CustomProp(
 # ! batch reactor options
 batch_reactor_options = BatchReactorOptions(
     phase='gas',
-    operation_mode='constant_volume',
+    operation_mode='constant_pressure',
     gas_model='ideal',
     gas_heat_capacity_mode='temperature-dependent',
 )
@@ -88,16 +87,8 @@ initial_pressure = Pressure(
     unit="atm",
 )
 
-# NOTE: initial mole feed for the system in mol
-initial_mole = {
-    "CO2-g": CustomProp(value=1.0, unit="mol"),
-    "H2-g": CustomProp(value=3.0, unit="mol"),
-    "CH3OH-g": CustomProp(value=0.0, unit="mol"),
-    "H2O-g": CustomProp(value=0.0, unit="mol"),
-}
-
 # NOTE: constant heat capacity (Cp) for the system in J/mol.K
-constant_heat_capacity = {
+constant_gas_heat_capacity = {
     "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
     "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
     "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
@@ -106,15 +97,15 @@ constant_heat_capacity = {
 
 # ! thermo inputs
 thermo_inputs = {
-    "gas_heat_capacity": constant_heat_capacity,
+    "heat_capacity": constant_gas_heat_capacity,
 }
 
 # ! model inputs
 model_inputs = {
-    "mole": initial_mole,
     "temperature": initial_temperature,
     "pressure": initial_pressure,
     'reactor_volume': reactor_volume,
+
 }
 
 # ====================================================
