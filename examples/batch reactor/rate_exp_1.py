@@ -74,6 +74,4 @@ rate_expression = ReactionRateExpression(
     component_key='Name-Formula'
 )
 
-reaction_rates = {
-    'r1': rate_expression
-}
+reaction_rates = [rate_expression]

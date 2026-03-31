@@ -6,7 +6,7 @@ from pythermodb_settings.models import Component, ComponentKey
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
 # locals
-from ..models.br import BatchReactorOptions, BatchReactorResult
+from ..models import BatchReactorOptions, BatchReactorResult, HeatTransferOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..core.gas_br import GasBatchReactor
 
@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 def batch_react(
     components: List[Component],
     model_inputs: Dict[str, Any],
-    reactor_inputs: BatchReactorOptions,
-    reaction_rates: List[ReactionRateExpression],
     model_source: ModelSource,
+    batch_reactor_options: BatchReactorOptions,
+    heat_transfer_options: HeatTransferOptions,
+    reaction_rates: List[ReactionRateExpression],
     component_key: ComponentKey,
     solver_options: Optional[Dict[str, Any]] = None,
     **kwargs,

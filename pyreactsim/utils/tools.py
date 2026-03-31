@@ -130,22 +130,25 @@ def config_components_property(
 def generate_component_references(
         components: List[Component],
         component_key: ComponentKey
-) -> Tuple[
-    List[str],
-    List[str],
-    Dict[str, Dict[ComponentKey, str]],
-    Dict[str, int]
-]:
+) -> Dict[str, Any]:
     """
     Generate component references based on the components and the component key. This method creates a mapping of component IDs, formula-state representations, and other relevant references for the components in the model source.
 
     Returns
     -------
-    Tuple[List[str], List[str], Dict[str, Dict[ComponentKey, str]], Dict[str, int]]
-        A tuple containing a list of component IDs, a list of formula-state representations for the components, and a dictionary mapping component IDs to their corresponding component keys for different properties.
+    Dict[str, Any]
+        A dictionary containing the generated component references, including:
+        - component_num: The number of components.
+        - component_ids: A list of component IDs generated based on the component key.
+        - component_formula_state: A list of formula-state representations for the components.
+        - component_mapper: A dictionary mapping component IDs to their corresponding component keys for different properties.
+        - component_id_to_index: A dictionary mapping component IDs to their corresponding indices in the components list.
     """
+    # NOTE: numbers
+    component_num = len(components)
+
     # NOTE: Create component ID list
-    component_ids = [
+    component_ids: list[str] = [
         set_component_id(
             component=comp,
             component_key=cast(ComponentKey, component_key)
@@ -154,7 +157,7 @@ def generate_component_references(
     ]
 
     # >>> formula-state
-    component_formula_state = [
+    component_formula_state: list[str] = [
         set_component_id(
             component=component,
             component_key='Formula-State'
@@ -169,8 +172,14 @@ def generate_component_references(
     )
 
     # >> index mapping
-    component_id_to_index = {
+    component_id_to_index: dict[str, int] = {
         comp_id: idx for idx, comp_id in enumerate(component_ids)
     }
 
-    return component_ids, component_formula_state, component_mapper, component_id_to_index
+    return {
+        "component_num": component_num,
+        "component_ids": component_ids,
+        "component_formula_state": component_formula_state,
+        "component_mapper": component_mapper,
+        "component_id_to_index": component_id_to_index
+    }

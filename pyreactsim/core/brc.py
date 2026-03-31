@@ -1,19 +1,12 @@
 # import libs
 import logging
 import numpy as np
-from typing import Any, Dict, List, Optional, Tuple, cast
-import pycuc
-from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProp, Volume
-from pythermodb_settings.utils import set_component_id, set_feed_specification
-from pyThermoLinkDB.thermo import Source
-from pyThermoLinkDB.models.component_models import ComponentEquationSource
-from scipy.integrate import solve_ivp
+from typing import Any, Dict, List, Optional, Tuple
+from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, Volume
 # ! locals
 from ..utils.unit_tools import to_m3, to_Pa, to_K, to_W_per_m2_K, to_m2
 from ..utils.tools import collect_keys
-from ..models.br import BatchReactorOptions, BatchReactorResult
-from ..models.rate_exp import ReactionRateExpression
-from ..models.br import GasModel
+from ..models.br import BatchReactorOptions
 from ..models.heat import HeatTransferOptions
 
 # NOTE: logger setup
@@ -28,10 +21,10 @@ class BatchReactorCore:
     def __init__(
         self,
         components: List[Component],
-        input_stream: Dict[str, Any],
+        model_inputs: Dict[str, Any],
         batch_reactor_options: BatchReactorOptions,
-        reactor_inputs: Dict[str, Any],
         heat_transfer_options: HeatTransferOptions,
+        component_refs: Dict[str, Any],
         component_key: ComponentKey,
     ):
         """
@@ -41,21 +34,23 @@ class BatchReactorCore:
         ----------
         components : List[Component]
             A list of Component objects representing the chemical components involved in the batch reactor.
-        source : Source
-            A Source object containing information about the source of the data or equations used in the batch reactor simulations.
         model_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
-        reactor_inputs : BatchReactorOptions
-            A BatchReactorOptions object containing the inputs for the batch reactor simulation, such as volume, heat transfer properties, etc.
+        batch_reactor_options : BatchReactorOptions
+            A BatchReactorOptions object containing the options for configuring the batch reactor, such as phase, operation mode, gas model, and heat capacity modes.
+        heat_transfer_options : HeatTransferOptions
+            A HeatTransferOptions object containing the options for configuring the heat transfer in the batch reactor, such as heat transfer mode, jacket temperature, heat transfer coefficient, and heat transfer area.
+        component_refs : Dict[str, Any]
+            A dictionary containing references for the components, which can include component IDs, formula states, mappers, and any other relevant information needed for the simulations.
         component_key : ComponentKey
             A ComponentKey object that serves as a key for identifying and categorizing the components in the batch reactor.
         """
         # NOTE: Set attributes
         self.components = components
-        self.input_stream = input_stream
+        self.model_inputs = model_inputs
         self.batch_reactor_options = batch_reactor_options
-        self.reactor_inputs = reactor_inputs
         self.heat_transfer_options = heat_transfer_options
+        self.component_refs = component_refs
         self.component_key = component_key
 
         # SECTION: reactor configuration
@@ -72,58 +67,32 @@ class BatchReactorCore:
         self.jacket_temperature = heat_transfer_options.jacket_temperature
         self.heat_transfer_coefficient = heat_transfer_options.heat_transfer_coefficient
         self.heat_transfer_area = heat_transfer_options.heat_transfer_area
+        self.heat_flux = heat_transfer_options.heat_flux
 
         # SECTION: Process model configuration
         # lower case keys for easier access
-        self.input_stream_keys = collect_keys(self.input_stream)
+        self.model_inputs_keys = collect_keys(self.model_inputs)
         # >> temperature
         # ! to Kelvin
-        self.temperature: Temperature = self._config_temperature()
+        self.temperature: Temperature = self.config_temperature()
         self.temperature_value = self.temperature.value
         self._T0 = self.temperature_value
 
         # SECTION: component IDs and related properties
         self.component_num = len(components)
 
-        # >> ids
-        self.component_ids = [
-            set_component_id(
-                component=component,
-                component_key=cast(ComponentKey, self.component_key)
-            )
-            for component in self.components
-        ]
-
-        # >>> formula-state
-        self.component_formula_state = [
-            set_component_id(
-                component=component,
-                component_key='Formula-State'
-            )
-            for component in self.components
-        ]
-
-        # >> index mapping
-        self.component_id_to_index = {
-            comp_id: idx for idx, comp_id in enumerate(self.component_ids)
-        }
-
-        # NOTE: mole fraction components
-        self.mole_fractions = [
-            c.mole_fraction for c in self.components
-        ]
-
-        # NOTE: state components
-        self.states = [
-            c.state for c in self.components
-        ]
+        # ! component refs
+        self.component_ids = component_refs['component_ids']
+        self.component_formula_state = component_refs['component_formula_state']
+        self.component_mapper = component_refs['component_mapper']
+        self.component_id_to_index = component_refs['component_id_to_index']
 
         # SECTION: heat transfer configuration
         # NOTE: heat transfer mode
         (
             self.temperature_fixed,
             self._T0,
-        ) = self._config_heat_transfer_mode()
+        ) = self.config_heat_transfer_mode()
 
         # NOTE: heat exchange configuration
         (
@@ -131,15 +100,17 @@ class BatchReactorCore:
             self.jacket_temperature_value,
             self.heat_transfer_coefficient_value,
             self.heat_transfer_area_value,
-        ) = self._config_heat_exchange()
+        ) = self.config_heat_exchange()
 
     # SECTION: Model Inputs configuration
-    # NOTE: temperature configuration [K]
-    def _config_temperature(
+    # NOTE: temperature configuration
+    # ! [K]
+
+    def config_temperature(
             self,
     ):
-        if "temperature" in self.input_stream_keys:
-            temperature_: Temperature = self.input_stream["temperature"]
+        if "temperature" in self.model_inputs_keys:
+            temperature_: Temperature = self.model_inputs["temperature"]
             temperature_value = to_K(
                 temperature_.value,
                 temperature_.unit
@@ -154,13 +125,14 @@ class BatchReactorCore:
         else:
             raise ValueError("Temperature must be provided in model_inputs.")
 
-    # NOTE: pressure configuration [Pa]
-    def _config_pressure(
+    # NOTE: pressure configuration
+    # ! [Pa]
+    def config_pressure(
             self,
     ):
         """Configure the pressure for the batch reactor based on the model inputs."""
-        if "pressure" in self.input_stream_keys:
-            pressure_: Pressure = self.input_stream["pressure"]
+        if "pressure" in self.model_inputs_keys:
+            pressure_: Pressure = self.model_inputs["pressure"]
             pressure_value = to_Pa(
                 pressure_.value,
                 pressure_.unit
@@ -175,18 +147,19 @@ class BatchReactorCore:
         else:
             raise ValueError("Pressure must be provided in model_inputs.")
 
-    # NOTE: reactor volume configuration [m3]
-    def _config_reactor_volume(
+    # NOTE: reactor volume configuration
+    # ! [m3]
+    def config_reactor_volume(
             self,
     ):
         """Configure the reactor volume for the batch reactor based on the model inputs."""
-        if self.reactor_inputs['reactor_volume'] is None:
+        if 'reactor_volume' not in self.model_inputs_keys:
             raise ValueError(
-                "reactor_volume must be provided for constant volume mode."
+                "Reactor volume must be provided in model_inputs."
             )
 
         # set reactor volume from model inputs
-        reactor_volume = self.reactor_inputs['reactor_volume']
+        reactor_volume = self.model_inputs['reactor_volume']
 
         if reactor_volume is not None:
             reactor_volume_value = to_m3(
@@ -205,7 +178,7 @@ class BatchReactorCore:
                 "Reactor volume must be provided for constant volume mode.")
 
     # NOTE: heat transfer mode configuration
-    def _config_heat_transfer_mode(
+    def config_heat_transfer_mode(
             self,
     ) -> Tuple[Optional[float], float]:
         """
@@ -221,7 +194,7 @@ class BatchReactorCore:
             )
 
     # NOTE: heat exchange configuration
-    def _config_heat_exchange(
+    def config_heat_exchange(
             self,
     ) -> Tuple[bool, float, float, float]:
         """Configure the heat exchange parameters for the batch reactor based on the model inputs."""
@@ -259,3 +232,35 @@ class BatchReactorCore:
             return True, jacket_temperature_value, heat_transfer_coefficient_value, heat_transfer_area_value
         else:
             return False, 0.0, 0.0, 0.0
+
+    def config_mole(
+            self
+    ):
+        """Configure the mole feed for the batch reactor based on the model inputs."""
+        # check
+        if "mole" not in self.model_inputs_keys:
+            raise ValueError("Mole feed must be provided in model_inputs.")
+
+        # NOTE: res
+        res = []
+        res_comp = {}
+
+        # mole feed value dict
+        mole_feed = self.model_inputs["mole"]
+        mole_feed_keys = list(mole_feed.keys())
+
+        # iterate through component IDs and extract mole feed values
+        for comp_id in self.component_formula_state:
+            # check if component ID is in mole feed
+            if comp_id in mole_feed_keys:
+                value_ = mole_feed[comp_id].value
+                unit_ = mole_feed[comp_id].unit
+
+                # add to res
+                res.append(value_)
+                res_comp[comp_id] = value_
+
+        # convert to array
+        res = np.array(res, dtype=float)
+
+        return res_comp, res

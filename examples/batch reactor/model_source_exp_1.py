@@ -39,12 +39,6 @@ CO2 = Component(
     name='carbon dioxide',
     formula='CO2',
     state='g',
-    X={
-        "name": "mole",
-        "value": 1,
-        "unit": "mol",
-        "symbol": "n"
-    }
 )
 
 # Hydrogen
@@ -52,12 +46,6 @@ H2 = Component(
     name='hydrogen',
     formula='H2',
     state='g',
-    X={
-        "name": "mole",
-        "value": 3,
-        "unit": "mol",
-        "symbol": "n"
-    }
 )
 
 # methanol
@@ -65,12 +53,6 @@ CH3OH = Component(
     name='methanol',
     formula='CH3OH',
     state='g',
-    X={
-        "name": "mole",
-        "value": 0,
-        "unit": "mol",
-        "symbol": "n"
-    }
 )
 
 # water
@@ -78,12 +60,6 @@ H2O = Component(
     name='water',
     formula='H2O',
     state='g',
-    X={
-        "name": "mole",
-        "value": 0,
-        "unit": "mol",
-        "symbol": "n"
-    }
 )
 
 # Carbon monoxide
@@ -91,12 +67,6 @@ CO = Component(
     name='carbon monoxide',
     formula='CO',
     state='g',
-    X={
-        "name": "mole",
-        "value": 0,
-        "unit": "mol",
-        "symbol": "n"
-    }
 )
 
 # ethylene
@@ -104,12 +74,6 @@ C2H4 = Component(
     name='ethylene',
     formula='C2H4',
     state='g',
-    X={
-        "name": "mole",
-        "value": 1,
-        "unit": "mol",
-        "symbol": "n"
-    }
 )
 
 # ethane
@@ -117,12 +81,6 @@ C2H6 = Component(
     name='ethane',
     formula='C2H6',
     state='g',
-    X={
-        "name": "mole",
-        "value": 0,
-        "unit": "mol",
-        "symbol": "n"
-    }
 )
 
 # components

@@ -7,6 +7,7 @@ from pyThermoLinkDB.thermo import Source
 # locals
 from ..models.br import BatchReactorOptions
 from ..models.rate_exp import ReactionRateExpression
+from ..models.heat import HeatTransferOptions
 from ..models import GasModel
 from ..utils.unit_tools import to_J_per_mol_K, to_g_per_m3
 
@@ -24,11 +25,11 @@ class ThermoModelInputs:
         self,
         components: List[Component],
         source: Source,
-        model_inputs: Dict[str, Any],
+        thermo_inputs: Dict[str, Any],
         batch_reactor_options: BatchReactorOptions,
+        heat_transfer_options: HeatTransferOptions,
+        component_refs: Dict[str, Any],
         component_key: ComponentKey,
-        component_formula_state: List[str],
-        model_inputs_keys: List[str],
     ):
         """
         Initializes the ThermoInputs instance with the provided components, source, model inputs, reactor inputs, reaction rates, and component key.
@@ -51,14 +52,20 @@ class ThermoModelInputs:
         # NOTE: Set attributes
         self.components = components
         self.source = source
-        self.model_inputs = model_inputs
+        self.thermo_inputs = thermo_inputs
+        self.batch_reactor_options = batch_reactor_options
+        self.heat_transfer_options = heat_transfer_options
+        self.component_refs = component_refs
         self.component_key = component_key
 
-        # SECTION: heat capacity and density modes
-        self.component_formula_state = component_formula_state
-        self.model_inputs_keys = model_inputs_keys
+        # SECTION: component reference
+        # ! component references
+        self.component_formula_state = self.component_refs['component_formula_state']
 
-        # NOTE: Reactor configuration
+        # ! model inputs keys
+        self.thermo_inputs_keys = list(self.thermo_inputs.keys())
+
+        # SECTION: Reactor configuration
         # ! gas heat capacity mode
         self.gas_heat_capacity_mode = batch_reactor_options.gas_heat_capacity_mode
         # ! liquid heat capacity mode
@@ -67,8 +74,10 @@ class ThermoModelInputs:
         self.liquid_density_mode = batch_reactor_options.liquid_density_mode
         # ! phase
         self.phase = batch_reactor_options.phase
-        # ! heat transfer more
-        self.heat_transfer_mode = batch_reactor_options.heat_transfer_mode
+
+        # SECTION: heat transfer options
+        # ! heat transfer mode
+        self.heat_transfer_mode = heat_transfer_options.heat_transfer_mode
 
         # SECTION: Extract property sources and configure properties
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
@@ -118,11 +127,11 @@ class ThermoModelInputs:
                 "Heat capacity mode must be specified in reactor_inputs for non-isothermal reactors.")
 
         # heat capacity constant
-        if "gas_heat_capacity" in self.model_inputs_keys:
+        if "gas_heat_capacity" in self.thermo_inputs_keys:
             heat_capacity_: dict[
                 str,
                 CustomProp
-            ] = self.model_inputs["gas_heat_capacity"]
+            ] = self.thermo_inputs["gas_heat_capacity"]
 
             # iterate through components and extract heat capacity values
             heat_capacity_values = []
@@ -165,11 +174,11 @@ class ThermoModelInputs:
                 "Heat capacity mode must be specified in reactor_inputs for non-isothermal reactors.")
 
         # heat capacity constant
-        if "liquid_heat_capacity" in self.model_inputs_keys:
+        if "liquid_heat_capacity" in self.thermo_inputs_keys:
             heat_capacity_: dict[
                 str,
                 CustomProp
-            ] = self.model_inputs["liquid_heat_capacity"]
+            ] = self.thermo_inputs["liquid_heat_capacity"]
 
             # iterate through components and extract heat capacity values
             heat_capacity_values = []
@@ -212,11 +221,11 @@ class ThermoModelInputs:
                 "Density mode must be specified in reactor_inputs for liquid phase.")
 
         # density constant
-        if "density" in self.model_inputs_keys:
+        if "density" in self.thermo_inputs_keys:
             density_: dict[
                 str,
                 CustomProp
-            ] = self.model_inputs["density"]
+            ] = self.thermo_inputs["density"]
 
             # iterate through components and extract density values
             density_values = []

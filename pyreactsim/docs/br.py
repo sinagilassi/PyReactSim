@@ -1,20 +1,17 @@
 import logging
-import numpy as np
 from scipy.integrate import solve_ivp
 from typing import Any, Dict, List, Optional, cast
 from pythermodb_settings.models import Component, ComponentKey
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
-
 # locals
 from ..models.heat import HeatTransferOptions
 from ..models.br import BatchReactorOptions, BatchReactorResult
 from ..models.rate_exp import ReactionRateExpression
 from ..core.gas_br import GasBatchReactor
+from ..core.liquid_br import LiquidBatchReactor
 from ..core.brc import BatchReactorCore
 from ..sources.thermo_source import ThermoSource
-from ..utils.opt_tools import set_component_X
-from ..utils.tools import generate_component_references
 
 # NOTE: set logger
 logger = logging.getLogger(__name__)
@@ -23,15 +20,8 @@ logger = logging.getLogger(__name__)
 class BatchReactor:
     def __init__(
         self,
-        components: List[Component],
-        input_stream: Dict[str, Any],
-        reactor_inputs: Dict[str, Any],
-        model_source: ModelSource,
         model_inputs: Dict[str, Any],
-        batch_reactor_option: BatchReactorOptions,
-        heat_transfer_options: HeatTransferOptions,
-        reaction_rates: List[ReactionRateExpression],
-        component_key: ComponentKey,
+        thermo_source: ThermoSource,
         **kwargs,
     ):
         """
@@ -39,105 +29,77 @@ class BatchReactor:
 
         Parameters
         ----------
-        components : List[Component]
-            A list of Component objects representing the components in the reaction.
         model_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values.
             - feed mole: Dict[str, CustomProp]
             - feed temperature: Temperature
             - feed pressure: Pressure
-        reactor_inputs : BatchReactorOptions
-            A BatchReactorOptions object containing the inputs for the batch reactor simulation.
-        reaction_rates : List[ReactionRateExpression]
-            A list of reaction rate expressions, where the keys are the names
-            of the reactions and the values are the ReactionRateExpression objects.
-        model_source : ModelSource
-            A ModelSource object containing the source of the model to be used
-            in the simulation.
+        thermo_source : ThermoSource
+            A ThermoSource object containing the thermodynamic source information for the batch reactor simulation.
         component_key : ComponentKey
             A ComponentKey object representing the key to be used for the components in the model source.
         """
         # NOTE: set attributes
-        self.components = components
-        self.input_stream = input_stream
-        self.reactor_inputs = reactor_inputs
         self.model_inputs = model_inputs
-        self.batch_reactor_option = batch_reactor_option
-        self.reaction_rates = reaction_rates
-        self.model_source = model_source
-        self.heat_transfer_options = heat_transfer_options
-        self.component_key = component_key
+        self.thermo_source = thermo_source
+
+        # NOTE: components
+        self.components = thermo_source.components
 
         # NOTE: generate component references
-        (
-            self.component_ids,
-            self.component_formula_state,
-            self.component_mapper,
-            self.component_id_to_index
-        ) = generate_component_references(
-            components=components,
-            component_key=component_key
-        )
+        self.component_refs = thermo_source.component_refs
 
-        # ! component
-        self.component_refs = {
-            "component_ids": self.component_ids,
-            "component_formula_state": self.component_formula_state,
-            "component_mapper": self.component_mapper,
-            "component_id_to_index": self.component_id_to_index
-        }
+        # NOTE: component key
+        self.component_key = thermo_source.component_key
 
+        # NOTE: batch reactor options
+        # ! batch reactor options
+        self.batch_reactor_options = thermo_source.batch_reactor_options
+        # ! heat transfer options
+        self.heat_transfer_options = thermo_source.heat_transfer_options
         # ! phase
-        self.phase = self.batch_reactor_option.phase
+        self.phase = self.batch_reactor_options.phase
 
-        # SECTION: Create source
-        source = Source(
-            model_source=model_source,
-            component_key=component_key,
-        )
+        # ! reaction rates
+        self.reaction_rates = thermo_source.reaction_rates
 
         # SECTION: Create batch reactor core
         self.batch_reactor_core = BatchReactorCore(
-            components=components,
-            input_stream=input_stream,
-            batch_reactor_options=batch_reactor_option,
-            reactor_inputs=reactor_inputs,
-            heat_transfer_options=heat_transfer_options,
-            component_key=component_key,
-        )
-
-        # SECTION: Create thermo source
-        self.thermo_source = ThermoSource(
-            components=components,
-            source=source,
+            components=self.components,
             model_inputs=model_inputs,
-            batch_reactor_options=batch_reactor_option,
-            reaction_rates=reaction_rates,
-            component_key=component_key,
-            component_refs=self.component_refs
+            batch_reactor_options=self.batch_reactor_options,
+            heat_transfer_options=self.heat_transfer_options,
+            component_refs=self.component_refs,
+            component_key=cast(ComponentKey, self.component_key)
         )
 
         # SECTION: Create reactor
-        self.reactor: GasBatchReactor = self._create_reactor(
-            source=source,
+        self.reactor: GasBatchReactor | LiquidBatchReactor = self._create_reactor(
             thermo_source=self.thermo_source
         )
 
     # SECTION: Reactor creation method
-    def _create_reactor(self, source, thermo_source) -> GasBatchReactor:
+    def _create_reactor(self, thermo_source) -> GasBatchReactor | LiquidBatchReactor:
         if self.phase == "gas":
             gas_br = GasBatchReactor(
                 components=self.components,
-                source=source,
-                model_inputs=self.model_inputs,
-                reactor_inputs=self.reactor_inputs,
                 reaction_rates=self.reaction_rates,
+                thermo_source=self.thermo_source,
+                batch_reactor_core=self.batch_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
-                thermo_source=thermo_source,
-                batch_reactor_core=self.batch_reactor_core
             )
 
             return gas_br
+        elif self.phase == "liquid":
+            liquid_br = LiquidBatchReactor(
+                components=self.components,
+                reaction_rates=self.reaction_rates,
+                thermo_source=self.thermo_source,
+                batch_reactor_core=self.batch_reactor_core,
+                component_key=cast(ComponentKey, self.component_key),
+            )
+
+            return liquid_br
         else:
             raise NotImplementedError(
                 f"Batch reactor for phase '{self.phase}' is not implemented yet.")

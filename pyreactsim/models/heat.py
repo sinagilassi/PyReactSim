@@ -35,7 +35,7 @@ class HeatTransferOptions(BaseModel):
         default=None,
         description="Heat transfer area (required if mode is non-isothermal)."
     )
-    jacket_temperature: Optional[CustomProp] = Field(
+    jacket_temperature: Optional[Temperature] = Field(
         default=None,
         description="Temperature of the jacket (required if mode is non-isothermal)."
     )

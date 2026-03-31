@@ -37,10 +37,9 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
     def __init__(
         self,
         components: List[Component],
-        source: Source,
-        model_inputs: Dict[str, Any],
-        reactor_inputs: BatchReactorOptions,
         reaction_rates: List[ReactionRateExpression],
+        thermo_source: ThermoSource,
+        batch_reactor_core: BatchReactorCore,
         component_key: ComponentKey,
         **kwargs
     ):
@@ -65,32 +64,68 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
         **kwargs
             Additional keyword arguments that can be passed to the initialization of the GasBatchReactor instance.
         """
-        # LINK: Initialize the parent BatchReactor class
-        BatchReactorCore.__init__(
-            self,
-            components=components,
-            source=source,
-            model_inputs=model_inputs,
-            reactor_inputs=reactor_inputs,
+        # NOTE: set
+        self.components = components
+        self.component_key = component_key
+
+        # SECTION: thermo source
+        self.thermo_source = thermo_source
+
+        # SECTION: batch reactor core
+        self.batch_reactor_core = batch_reactor_core
+        # >>>
+        self.heat_exchange = batch_reactor_core.heat_exchange
+        self.heat_transfer_mode = batch_reactor_core.heat_transfer_mode
+        self.operation_mode = batch_reactor_core.operation_mode
+        self.heat_transfer_coefficient_value = batch_reactor_core.heat_transfer_coefficient_value
+        self.heat_transfer_area_value = batch_reactor_core.heat_transfer_area_value
+        self.jacket_temperature_value = batch_reactor_core.jacket_temperature_value
+        self.gas_model = batch_reactor_core.gas_model
+
+        # SECTION: Reaction rates
+        self.reaction_rates = reaction_rates
+        # >> build reactions
+        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
+        # >>> build stoichiometry matrix
+        self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
+            reactions=self.reactions,
             component_key=component_key
         )
-        # LINK: Initialize the parent ThermoSource class
-        ThermoSource.__init__(
-            self,
-            components=components,
-            source=source,
-            model_inputs=model_inputs,
-            reactor_inputs=reactor_inputs,
-            reaction_rates=reaction_rates,
-            component_key=component_key
+        # >> matrix
+        self.reaction_stoichiometry_matrix = stoichiometry_mat(
+            reactions=self.reactions,
+            components=self.components,
+            component_key=component_key,
         )
 
-        # ! N: initial mole [-]
-        _, self._N0 = set_component_X(
-            components=components,
-            prop_name="mole",
+        # SECTION: component references
+        self.component_num = self.thermo_source.component_refs['component_num']
+        self.component_ids = self.thermo_source.component_refs['component_ids']
+        self.component_formula_state = self.thermo_source.component_refs[
+            'component_formula_state'
+        ]
+        self.component_mapper = self.thermo_source.component_refs['component_mapper']
+        self.component_id_to_index = self.thermo_source.component_refs['component_id_to_index']
+
+        # SECTION: Reaction rates
+        self.reaction_rates = reaction_rates
+        # >> build reactions
+        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
+        # >>> build stoichiometry matrix
+        self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
+            reactions=self.reactions,
             component_key=component_key
         )
+        # >> matrix
+        self.reaction_stoichiometry_matrix = stoichiometry_mat(
+            reactions=self.reactions,
+            components=self.components,
+            component_key=component_key,
+        )
+
+        # SECTION: Configuration Input Stream
+        # ! N: initial mole [-]
+        _, self._N0 = _, self._N0 = self.batch_reactor_core.config_mole()
 
         # ! rho: density of liquid phase [g/m3]
         # FIXME:
@@ -100,7 +135,7 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
         # ! V: initial volume [m3]
         if self.operation_mode == "constant_volume":
             # retrieve
-            self.volume = self._config_reactor_volume()
+            self.volume = self.batch_reactor_core.config_reactor_volume()
             self._V0 = self.volume.value
 
         elif self.operation_mode == "variable_volume":
@@ -116,32 +151,6 @@ class LiquidBatchReactor(BatchReactorCore, ThermoSource):
             raise ValueError(
                 f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
             )
-
-        # SECTION: Model inputs
-        self.model_inputs = model_inputs
-
-        # SECTION: GasBatchReactor-specific properties
-        self.reactor_inputs = reactor_inputs
-
-        # SECTION: Reaction rates
-        self.reaction_rates = reaction_rates
-        # >> build reactions
-        self.reactions = self.build_reactions()
-        # >>> build stoichiometry matrix
-        self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
-            reactions=self.reactions,
-            component_key=component_key
-        )
-        # >> matrix
-        self.reaction_stoichiometry_matrix = stoichiometry_mat(
-            reactions=self.reactions,
-            components=self.components,
-            component_key=component_key,
-        )
-
-        # SECTION: Thermodynamic properties
-        # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
-        # ! Ideal Gas Enthalpy of formation at 298 K
 
     # SECTION: Properties
     @property

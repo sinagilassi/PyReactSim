@@ -25,12 +25,12 @@ class ThermoSource(ThermoSourceCore):
         self,
         components: List[Component],
         source: Source,
-        model_inputs: Dict[str, Any],
+        thermo_inputs: Dict[str, Any],
         batch_reactor_options: BatchReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
-        component_key: ComponentKey,
         component_refs: Dict[str, Any],
+        component_key: ComponentKey,
     ):
         """
         Initializes the ThermoSource instance with the provided components, source, model inputs, reactor inputs, reaction rates, and component key.
@@ -60,29 +60,30 @@ class ThermoSource(ThermoSourceCore):
         ThermoModelSource_ = ThermoModelSource(
             components=components,
             source=source,
-            model_inputs=model_inputs,
+            thermo_inputs=thermo_inputs,
             batch_reactor_options=batch_reactor_options,
+            heat_transfer_options=heat_transfer_options,
             reaction_rates=reaction_rates,
+            component_refs=component_refs,
             component_key=component_key,
-            component_refs=component_refs
         )
 
         # LINK: ThermoInputs initialization
         ThermoModelInputs_ = ThermoModelInputs(
             components=components,
             source=source,
-            model_inputs=model_inputs,
+            thermo_inputs=thermo_inputs,
             batch_reactor_options=batch_reactor_options,
+            heat_transfer_options=heat_transfer_options,
+            component_refs=component_refs,
             component_key=component_key,
-            component_formula_state=self.component_formula_state,
-            model_inputs_keys=self.model_inputs_keys,
         )
 
         # LINK: ThermoReaction initialization
         ThermoReaction_ = ThermoReaction(
             components=components,
             source=source,
-            model_inputs=model_inputs,
+            thermo_inputs=thermo_inputs,
             reaction_rates=reaction_rates,
             component_key=component_key
         )
@@ -92,12 +93,13 @@ class ThermoSource(ThermoSourceCore):
             self,
             components=components,
             source=source,
-            model_inputs=model_inputs,
+            thermo_inputs=thermo_inputs,
             batch_reactor_options=batch_reactor_options,
+            heat_transfer_options=heat_transfer_options,
             reaction_rates=reaction_rates,
             component_key=component_key,
-            thermal_model_source=ThermoModelSource_,
-            thermal_model_inputs=ThermoModelInputs_,
-            thermal_reaction=ThermoReaction_,
+            thermo_model_source=ThermoModelSource_,
+            thermo_model_inputs=ThermoModelInputs_,
+            thermo_reaction=ThermoReaction_,
             component_refs=component_refs,
         )

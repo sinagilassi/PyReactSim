@@ -39,12 +39,12 @@ class ThermoModelSource:
         self,
         components: List[Component],
         source: Source,
-        model_inputs: Dict[str, Any],
+        thermo_inputs: Dict[str, Any],
         batch_reactor_options: BatchReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
-        component_key: ComponentKey,
         component_refs: Dict[str, Any],
+        component_key: ComponentKey,
     ):
         """
         Initializes the ThermoModelSource instance with the provided components, source, component key, and component mapper.
@@ -63,9 +63,11 @@ class ThermoModelSource:
         # NOTE: Set attributes
         self.components = components
         self.source = source
-        self.model_inputs = model_inputs
+        self.thermo_inputs = thermo_inputs
         self.batch_reactor_options = batch_reactor_options
+        self.heat_transfer_options = heat_transfer_options
         self.reaction_rates = reaction_rates
+        self.component_refs = component_refs
         self.component_key = component_key
 
         # ! component refs
@@ -77,7 +79,7 @@ class ThermoModelSource:
         self.phase = batch_reactor_options.phase
 
         # SECTION: Extract property equation sources
-        if self.batch_reactor_options.heat_transfer_mode == "non-isothermal":
+        if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
             # check heat capacity mode
             if self.batch_reactor_options.gas_heat_capacity_mode == "temperature-dependent":
                 # NOTE: extract heat capacity equation source for the components from the model source
@@ -127,7 +129,7 @@ class ThermoModelSource:
                 )
 
             # NOTE: heat capacity
-            if self.batch_reactor_options.heat_transfer_mode == "non-isothermal":
+            if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
                 if self.batch_reactor_options.liquid_heat_capacity_mode == "temperature-dependent":
                     # extract heat capacity equation source for the components from the model source
                     self.Cp_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(

@@ -2,7 +2,7 @@
 import logging
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
-from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty
+from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty, Volume
 from pyThermoLinkDB.thermo import Source
 # locals
 from .brc import BatchReactorCore
@@ -41,23 +41,19 @@ class GasBatchReactor:
     temperature: Temperature = (Temperature(value=0.0, unit="K"))
     _T0: float = 0.0
     # ! volume
-    volume: CustomProperty = (
-        CustomProperty(value=0.0, unit="m3", symbol="V")
-    )
+    volume: Volume = (Volume(value=0.0, unit="m3"))
     _V0: float = 0.0
     # ! pressure
-    pressure: CustomProperty = (
-        CustomProperty(value=0.0, unit="Pa", symbol="P")
-    )
+    pressure: Pressure = (Pressure(value=0.0, unit="Pa"))
     _P0: float = 0.0
 
     def __init__(
         self,
         components: List[Component],
         reaction_rates: List[ReactionRateExpression],
-        component_key: ComponentKey,
         thermo_source: ThermoSource,
         batch_reactor_core: BatchReactorCore,
+        component_key: ComponentKey,
         **kwargs
     ):
         """
@@ -91,7 +87,6 @@ class GasBatchReactor:
         # SECTION: batch reactor core
         self.batch_reactor_core = batch_reactor_core
         # >>>
-        self.reactor_inputs = batch_reactor_core.reactor_inputs
         self.heat_exchange = batch_reactor_core.heat_exchange
         self.heat_transfer_mode = batch_reactor_core.heat_transfer_mode
         self.operation_mode = batch_reactor_core.operation_mode
@@ -103,7 +98,7 @@ class GasBatchReactor:
         # SECTION: Reaction rates
         self.reaction_rates = reaction_rates
         # >> build reactions
-        self.reactions = self.thermo_source.thermal_reaction.build_reactions()
+        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
         # >>> build stoichiometry matrix
         self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
             reactions=self.reactions,
@@ -116,10 +111,8 @@ class GasBatchReactor:
             component_key=component_key,
         )
 
-        # SECTION: component
-        self.component_num = len(self.components)
-
-        # component references
+        # SECTION: component references
+        self.component_num = self.thermo_source.component_refs['component_num']
         self.component_ids = self.thermo_source.component_refs['component_ids']
         self.component_formula_state = self.thermo_source.component_refs[
             'component_formula_state'
@@ -127,10 +120,50 @@ class GasBatchReactor:
         self.component_mapper = self.thermo_source.component_refs['component_mapper']
         self.component_id_to_index = self.thermo_source.component_refs['component_id_to_index']
 
-    # SECTION: Configuration Input Stream
+        # SECTION: Configuration Input Stream
+        # ! N: initial mole [-]
+        _, self._N0 = self.batch_reactor_core.config_mole()
+
+        # ! T: initial temperature [K]
+        self.temperature = self.batch_reactor_core.config_temperature()
+        self._T0 = self.temperature.value
+
+        # ! P: initial pressure [Pa]
+        if self.operation_mode == "constant_volume":
+            # retrieve
+            self.volume = self.batch_reactor_core.config_reactor_volume()
+            self._V0 = self.volume.value
+
+            # calc
+            self._P0 = self.thermo_source.calc_tot_pressure(
+                n_total=np.sum(self._N0),
+                temperature=self._T0,
+                reactor_volume_value=self._V0,
+                R=self.R,
+                gas_model=cast(GasModel, self.gas_model)
+            )
+
+        # ! V: initial volume [m3]
+        elif self.operation_mode == "constant_pressure":
+            # retrieve
+            self.pressure = self.batch_reactor_core.config_pressure()
+            self._P0 = self.pressure.value
+
+            # calc
+            self._V0 = self.thermo_source.calc_gas_volume(
+                n_total=np.sum(self._N0),
+                temperature=self._T0,
+                pressure=self._P0,
+                R=self.R,
+                gas_model=cast(GasModel, self.gas_model)
+            )
+
+        else:
+            raise ValueError(
+                f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
+            )
 
     # SECTION: Properties
-
     @property
     def N0(self) -> np.ndarray:
         if self._N0 is None:

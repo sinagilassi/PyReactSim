@@ -22,6 +22,7 @@ from .interface import (
 from ..utils.unit_tools import to_K, to_J_per_mol, to_J_per_mol_K, to_g_per_m3, to_g_per_mol
 from ..utils.tools import find_components_property, collect_keys
 from ..models.rate_exp import ReactionRateExpression
+from ..models.heat import HeatTransferOptions
 from ..models.br import GasModel
 from ..models.br import BatchReactorOptions
 from .thermo_calc import ThermoCalc
@@ -45,14 +46,15 @@ class ThermoSourceCore(ThermoCalc):
         self,
         components: List[Component],
         source: Source,
-        model_inputs: Dict[str, Any],
+        thermo_inputs: Dict[str, Any],
         batch_reactor_options: BatchReactorOptions,
+        heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
-        component_key: ComponentKey,
-        thermal_model_source: ThermoModelSource,
-        thermal_model_inputs: ThermoModelInputs,
-        thermal_reaction: ThermoReaction,
+        thermo_model_source: ThermoModelSource,
+        thermo_model_inputs: ThermoModelInputs,
+        thermo_reaction: ThermoReaction,
         component_refs: Dict[str, Any],
+        component_key: ComponentKey,
     ):
         """
         Initializes the THermo instance with default properties and settings for thermodynamic calculations.
@@ -63,17 +65,19 @@ class ThermoSourceCore(ThermoCalc):
         # SECTION: Set attributes
         self.components = components
         self.source = source
-        self.model_inputs = model_inputs
+        self.thermo_inputs = thermo_inputs
         self.batch_reactor_options = batch_reactor_options
+        self.heat_transfer_options = heat_transfer_options
         self.reaction_rates = reaction_rates
+        self.component_refs = component_refs
         self.component_key = component_key
 
         # NOTE: set model source, model inputs, and reaction
-        self.thermal_model_source = thermal_model_source
-        self.thermal_model_inputs = thermal_model_inputs
-        self.thermal_reaction = thermal_reaction
+        self.thermo_model_source = thermo_model_source
+        self.thermo_model_inputs = thermo_model_inputs
+        self.thermo_reaction = thermo_reaction
 
-        # ! component refs
+        # NOTE: component refs
         self.component_ids = component_refs['component_ids']
         self.component_formula_state = component_refs['component_formula_state']
         self.component_mapper = component_refs['component_mapper']
@@ -84,34 +88,37 @@ class ThermoSourceCore(ThermoCalc):
         self.model_source = self.source.model_source
 
         # NOTE: reactions
-        self.reactions: List[Reaction] = self.thermal_reaction.build_reactions()
+        self.reactions: List[Reaction] = self.thermo_reaction.build_reactions()
 
         # SECTION: Process model configuration
-        # lower case keys for easier access
-        self.model_inputs_keys = collect_keys(self.model_inputs)
+        # ! model inputs keys
+        self.thermo_inputs_keys = collect_keys(self.thermo_inputs)
 
         # SECTION: Reactor configuration
+        # ! heat capacity modes
         self.gas_heat_capacity_mode = batch_reactor_options.gas_heat_capacity_mode
+        # ! liquid heat capacity mode
         self.liquid_heat_capacity_mode = batch_reactor_options.liquid_heat_capacity_mode
-
-        # phase
+        # ! phase
         self.phase = batch_reactor_options.phase
-        # density mode
+        # ! density mode
         self.liquid_density_mode = batch_reactor_options.liquid_density_mode
 
+        # SECTION: heat transfer options
+        # ! heat transfer mode
+        self.heat_transfer_mode = self.heat_transfer_options.heat_transfer_mode
+
         # SECTION: Thermodynamic properties
-        # heat transfer more
-        self.heat_transfer_mode = self.batch_reactor_options.heat_transfer_mode
 
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
         self.Cp_IG_src: Dict[
             str,
             ComponentEquationSource
-        ] = self.thermal_model_source.Cp_IG_src
+        ] = self.thermo_model_source.Cp_IG_src
         # >> constant heat capacity
         # ! to J/mol.K
-        self.gas_heat_capacity_constant_values = self.thermal_model_inputs.gas_heat_capacity_constant_values
-        self.gas_heat_capacity_constant_comp = self.thermal_model_inputs.gas_heat_capacity_constant_comp
+        self.gas_heat_capacity_constant_values = self.thermo_model_inputs.gas_heat_capacity_constant_values
+        self.gas_heat_capacity_constant_comp = self.thermo_model_inputs.gas_heat_capacity_constant_comp
 
         # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
         self.dCp_rxns = self.calc_dCp_IG()
@@ -120,10 +127,10 @@ class ThermoSourceCore(ThermoCalc):
         self.EnFo_IG_298_src: Dict[
             str,
             Dict[str, Any]
-        ] = self.thermal_model_source.EnFo_IG_298_src
+        ] = self.thermo_model_source.EnFo_IG_298_src
         # ! values in J/mol
-        self.EnFo_IG_298 = self.thermal_model_source.EnFo_IG_298
-        self.EnFo_IG_298_comp = self.thermal_model_source.EnFo_IG_298_comp
+        self.EnFo_IG_298 = self.thermo_model_source.EnFo_IG_298
+        self.EnFo_IG_298_comp = self.thermo_model_source.EnFo_IG_298_comp
 
         # dH_rxn at 298 K [J/mol]
         self.dH_rxns_298 = self.calc_dH_rxns_298()
@@ -132,28 +139,28 @@ class ThermoSourceCore(ThermoCalc):
         self.MW_src: Dict[
             str,
             Dict[str, Any]
-        ] = self.thermal_model_source.MW_src
+        ] = self.thermo_model_source.MW_src
         # ! values in g/mol
-        self.MW = self.thermal_model_source.MW
-        self.MW_comp = self.thermal_model_source.MW_comp
+        self.MW = self.thermo_model_source.MW
+        self.MW_comp = self.thermo_model_source.MW_comp
 
         # SECTION: liquid density
         self.rho_LIQ_src: Dict[
             str,
             ComponentEquationSource
-        ] = self.thermal_model_source.rho_LIQ_src
+        ] = self.thermo_model_source.rho_LIQ_src
         # ! values in g/m3
-        self.liquid_density_constant_values = self.thermal_model_inputs.liquid_density_constant_values
-        self.liquid_density_constant_comp = self.thermal_model_inputs.liquid_density_constant_comp
+        self.liquid_density_constant_values = self.thermo_model_inputs.liquid_density_constant_values
+        self.liquid_density_constant_comp = self.thermo_model_inputs.liquid_density_constant_comp
 
         # SECTION: heat capacity at liquid phase (Cp_LIQ)
         self.Cp_LIQ_src: Dict[
             str,
             ComponentEquationSource
-        ] = self.thermal_model_source.Cp_LIQ_src
+        ] = self.thermo_model_source.Cp_LIQ_src
         # ! values in J/mol.K
-        self.liquid_heat_capacity_constant_values = self.thermal_model_inputs.liquid_heat_capacity_constant_values
-        self.liquid_heat_capacity_constant_comp = self.thermal_model_inputs.liquid_heat_capacity_constant_comp
+        self.liquid_heat_capacity_constant_values = self.thermo_model_inputs.liquid_heat_capacity_constant_values
+        self.liquid_heat_capacity_constant_comp = self.thermo_model_inputs.liquid_heat_capacity_constant_comp
 
     # SECTION: Thermodynamic property calculations
     # ! Calculate heat capacity at ideal gas for the components (Cp_IG)
@@ -357,8 +364,13 @@ class ThermoSourceCore(ThermoCalc):
         dCp = []
 
         # check heat capacity constant
-        if self.gas_heat_capacity_constant_comp is None:
-            raise ValueError("Constant heat capacity values not found.")
+        if (
+            self.gas_heat_capacity_constant_comp is None or
+            self.gas_heat_capacity_constant_values is None or
+            len(self.gas_heat_capacity_constant_comp) == 0 or
+            len(self.gas_heat_capacity_constant_values) == 0
+        ):
+            return np.array(dCp, dtype=float)
 
         # iterate over reactions
         for rxn in self.reactions:
