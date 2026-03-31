@@ -25,7 +25,7 @@ class ThermoModelInputs:
         components: List[Component],
         source: Source,
         model_inputs: Dict[str, Any],
-        reactor_inputs: BatchReactorOptions,
+        batch_reactor_options: BatchReactorOptions,
         component_key: ComponentKey,
         component_formula_state: List[str],
         model_inputs_keys: List[str],
@@ -60,15 +60,15 @@ class ThermoModelInputs:
 
         # NOTE: Reactor configuration
         # ! gas heat capacity mode
-        self.gas_heat_capacity_mode = reactor_inputs.gas_heat_capacity_mode
+        self.gas_heat_capacity_mode = batch_reactor_options.gas_heat_capacity_mode
         # ! liquid heat capacity mode
-        self.liquid_heat_capacity_mode = reactor_inputs.liquid_heat_capacity_mode
+        self.liquid_heat_capacity_mode = batch_reactor_options.liquid_heat_capacity_mode
         # ! density mode
-        self.liquid_density_mode = reactor_inputs.liquid_density_mode
+        self.liquid_density_mode = batch_reactor_options.liquid_density_mode
         # ! phase
-        self.phase = reactor_inputs.phase
+        self.phase = batch_reactor_options.phase
         # ! heat transfer more
-        self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
+        self.heat_transfer_mode = batch_reactor_options.heat_transfer_mode
 
         # SECTION: Extract property sources and configure properties
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)

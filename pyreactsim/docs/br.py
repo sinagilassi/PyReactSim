@@ -7,6 +7,7 @@ from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
 
 # locals
+from ..models.streams import HeatExchanger
 from ..models.br import BatchReactorOptions, BatchReactorResult
 from ..models.rate_exp import ReactionRateExpression
 from ..core.gas_br import GasBatchReactor
@@ -23,10 +24,13 @@ class BatchReactor:
     def __init__(
         self,
         components: List[Component],
-        model_inputs: Dict[str, Any],
-        reactor_inputs: BatchReactorOptions,
-        reaction_rates: List[ReactionRateExpression],
+        input_stream: Dict[str, Any],
         model_source: ModelSource,
+        model_inputs: Dict[str, Any],
+        batch_reactor_option: BatchReactorOptions,
+        reactor_inputs: Dict[str, Any],
+        reaction_rates: List[ReactionRateExpression],
+        heat_exchanger: HeatExchanger,
         component_key: ComponentKey,
         **kwargs,
     ):
@@ -56,9 +60,11 @@ class BatchReactor:
         # NOTE: set attributes
         self.components = components
         self.model_inputs = model_inputs
+        self.batch_reactor_option = batch_reactor_option
         self.reactor_inputs = reactor_inputs
         self.reaction_rates = reaction_rates
         self.model_source = model_source
+        self.heat_exchanger = heat_exchanger
         self.component_key = component_key
 
         # NOTE: generate component references
@@ -81,11 +87,21 @@ class BatchReactor:
         }
 
         # ! phase
-        self.phase = reactor_inputs.phase
+        self.phase = self.batch_reactor_option.phase
 
         # SECTION: Create source
         source = Source(
             model_source=model_source,
+            component_key=component_key,
+        )
+
+        # SECTION: Create batch reactor core
+        self.batch_reactor_core = BatchReactorCore(
+            components=components,
+            input_stream=input_stream,
+            batch_reactor_options=batch_reactor_option,
+            reactor_inputs=reactor_inputs,
+            heat_exchanger=heat_exchanger,
             component_key=component_key,
         )
 
@@ -94,7 +110,7 @@ class BatchReactor:
             components=components,
             source=source,
             model_inputs=model_inputs,
-            reactor_inputs=reactor_inputs,
+            batch_reactor_options=batch_reactor_option,
             reaction_rates=reaction_rates,
             component_key=component_key,
             component_refs=self.component_refs
@@ -117,7 +133,7 @@ class BatchReactor:
                 reaction_rates=self.reaction_rates,
                 component_key=cast(ComponentKey, self.component_key),
                 thermo_source=thermo_source,
-                component_refs=self.component_refs
+                batch_reactor_core=self.batch_reactor_core
             )
 
             return gas_br
@@ -126,27 +142,10 @@ class BatchReactor:
                 f"Batch reactor for phase '{self.phase}' is not implemented yet.")
 
     # SECTION: Simulation method
-    def configure_reactor_inputs(
-            self,
-            model_inputs: Dict[str, Any]
-    ):
-        # NOTE: mole feed
-        if 'mole' in model_inputs:
-            self.reactor._N0 = model_inputs['mole']
-
-        # NOTE: temperature
-        if 'temperature' in model_inputs:
-            self.reactor._T0 = model_inputs['temperature']
-
-        # NOTE: pressure
-        if 'pressure' in model_inputs:
-            self.reactor._P0 = model_inputs['pressure']
-
-    # NOTE: Simulation method
-
     def simulate(
             self,
-            model_inputs: Dict[str, Any],
+
+            heat_exchanger: Optional[HeatExchanger] = None,
             solver_options: Optional[Dict[str, Any]] = None,
             **kwargs
     ) -> Optional[BatchReactorResult]:

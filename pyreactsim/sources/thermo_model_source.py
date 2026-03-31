@@ -39,7 +39,7 @@ class ThermoModelSource:
         components: List[Component],
         source: Source,
         model_inputs: Dict[str, Any],
-        reactor_inputs: BatchReactorOptions,
+        batch_reactor_options: BatchReactorOptions,
         reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
         component_refs: Dict[str, Any],
@@ -62,7 +62,7 @@ class ThermoModelSource:
         self.components = components
         self.source = source
         self.model_inputs = model_inputs
-        self.reactor_inputs = reactor_inputs
+        self.batch_reactor_options = batch_reactor_options
         self.reaction_rates = reaction_rates
         self.component_key = component_key
 
@@ -72,12 +72,12 @@ class ThermoModelSource:
         self.component_mapper = component_refs['component_mapper']
 
         # ! phase
-        self.phase = reactor_inputs.phase
+        self.phase = batch_reactor_options.phase
 
         # SECTION: Extract property equation sources
-        if self.reactor_inputs.heat_transfer_mode == "non-isothermal":
+        if self.batch_reactor_options.heat_transfer_mode == "non-isothermal":
             # check heat capacity mode
-            if self.reactor_inputs.gas_heat_capacity_mode == "temperature-dependent":
+            if self.batch_reactor_options.gas_heat_capacity_mode == "temperature-dependent":
                 # NOTE: extract heat capacity equation source for the components from the model source
                 self.Cp_IG_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                     prop_name="Cp_IG"
@@ -118,15 +118,15 @@ class ThermoModelSource:
             )
 
             # NOTE: density
-            if self.reactor_inputs.liquid_density_mode == "temperature-dependent":
+            if self.batch_reactor_options.liquid_density_mode == "temperature-dependent":
                 # NOTE: extract density equation source for the components from the model source
                 self.rho_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                     prop_name="rho_LIQ"
                 )
 
             # NOTE: heat capacity
-            if self.reactor_inputs.heat_transfer_mode == "non-isothermal":
-                if self.reactor_inputs.liquid_heat_capacity_mode == "temperature-dependent":
+            if self.batch_reactor_options.heat_transfer_mode == "non-isothermal":
+                if self.batch_reactor_options.liquid_heat_capacity_mode == "temperature-dependent":
                     # extract heat capacity equation source for the components from the model source
                     self.Cp_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                         prop_name="Cp_LIQ"

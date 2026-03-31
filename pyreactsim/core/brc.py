@@ -14,6 +14,7 @@ from ..utils.tools import collect_keys
 from ..models.br import BatchReactorOptions, BatchReactorResult, HeatTransferMode
 from ..models.rate_exp import ReactionRateExpression
 from ..models.br import GasModel
+from ..models.streams import HeatExchanger
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -23,20 +24,14 @@ class BatchReactorCore:
     """
     Batch Reactor Core (BRC) class for simulating chemical reactions in a batch reactor setup. This class encapsulates the components, source, and component key information necessary for performing simulations and analyses related to batch reactors.
     """
-    # NOTE: Properties
-    # reference temperature
-    T_ref = Temperature(value=298.15, unit="K")
-    # reference pressure
-    P_ref = Pressure(value=101325, unit="Pa")
-    # universal gas constant J/mol.K
-    R = 8.314
 
     def __init__(
         self,
         components: List[Component],
-        source: Source,
-        model_inputs: Dict[str, Any],
-        reactor_inputs: BatchReactorOptions,
+        input_stream: Dict[str, Any],
+        batch_reactor_options: BatchReactorOptions,
+        reactor_inputs: Dict[str, Any],
+        heat_exchanger: HeatExchanger,
         component_key: ComponentKey,
     ):
         """
@@ -57,26 +52,29 @@ class BatchReactorCore:
         """
         # NOTE: Set attributes
         self.components = components
-        self.source = source
-        self.model_inputs = model_inputs
+        self.input_stream = input_stream
+        self.batch_reactor_options = batch_reactor_options
         self.reactor_inputs = reactor_inputs
+        self.heat_exchanger = heat_exchanger
         self.component_key = component_key
 
         # SECTION: reactor configuration
         # >> extract
-        self.phase = reactor_inputs.phase
-        self.gas_model: GasModel = reactor_inputs.gas_model
-        self.heat_transfer_mode = reactor_inputs.heat_transfer_mode
-        self.operation_mode = reactor_inputs.operation_mode
-        self.jacket_temperature = reactor_inputs.jacket_temperature
-        self.heat_transfer_coefficient = reactor_inputs.heat_transfer_coefficient
-        self.heat_transfer_area = reactor_inputs.heat_transfer_area
-        self.gas_heat_capacity_mode = reactor_inputs.gas_heat_capacity_mode
-        self.liquid_heat_capacity_mode = reactor_inputs.liquid_heat_capacity_mode
+        self.phase = batch_reactor_options.phase
+        self.gas_model = batch_reactor_options.gas_model
+        self.heat_transfer_mode = batch_reactor_options.heat_transfer_mode
+        self.operation_mode = batch_reactor_options.operation_mode
+        self.gas_heat_capacity_mode = batch_reactor_options.gas_heat_capacity_mode
+        self.liquid_heat_capacity_mode = batch_reactor_options.liquid_heat_capacity_mode
+
+        # SECTION: Heat exchange configuration
+        self.jacket_temperature = heat_exchanger.jacket_temperature
+        self.heat_transfer_coefficient = heat_exchanger.heat_transfer_coefficient
+        self.heat_transfer_area = heat_exchanger.heat_transfer_area
 
         # SECTION: Process model configuration
         # lower case keys for easier access
-        self.model_inputs_keys = collect_keys(self.model_inputs)
+        self.input_stream_keys = collect_keys(self.input_stream)
         # >> temperature
         # ! to Kelvin
         self.temperature: Temperature = self._config_temperature()
@@ -139,8 +137,8 @@ class BatchReactorCore:
     def _config_temperature(
             self,
     ):
-        if "temperature" in self.model_inputs_keys:
-            temperature_: Temperature = self.model_inputs["temperature"]
+        if "temperature" in self.input_stream_keys:
+            temperature_: Temperature = self.input_stream["temperature"]
             temperature_value = to_K(
                 temperature_.value,
                 temperature_.unit
@@ -160,8 +158,8 @@ class BatchReactorCore:
             self,
     ):
         """Configure the pressure for the batch reactor based on the model inputs."""
-        if "pressure" in self.model_inputs_keys:
-            pressure_: Pressure = self.model_inputs["pressure"]
+        if "pressure" in self.input_stream_keys:
+            pressure_: Pressure = self.input_stream["pressure"]
             pressure_value = to_Pa(
                 pressure_.value,
                 pressure_.unit
@@ -181,13 +179,13 @@ class BatchReactorCore:
             self,
     ):
         """Configure the reactor volume for the batch reactor based on the model inputs."""
-        if self.reactor_inputs.reactor_volume is None:
+        if self.reactor_inputs['reactor_volume'] is None:
             raise ValueError(
                 "reactor_volume must be provided for constant volume mode."
             )
 
         # set reactor volume from model inputs
-        reactor_volume = self.reactor_inputs.reactor_volume
+        reactor_volume = self.reactor_inputs['reactor_volume']
 
         if reactor_volume is not None:
             reactor_volume_value = to_m3(

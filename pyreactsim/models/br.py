@@ -46,22 +46,6 @@ class BatchReactorOptions(BaseModel):
         default='ideal',
         description="Gas model to use (required if phase is gas)."
     )
-    reactor_volume: Optional[Volume] = Field(
-        default=None,
-        description="Volume of the reactor (required if volume mode is constant)."
-    )
-    jacket_temperature: Optional[Temperature] = Field(
-        default=None,
-        description="Temperature of the jacket (required if heat transfer mode is non-isothermal)."
-    )
-    heat_transfer_coefficient: Optional[CustomProp] = Field(
-        default=None,
-        description="Heat transfer coefficient (required if heat transfer mode is non-isothermal)."
-    )
-    heat_transfer_area: Optional[CustomProp] = Field(
-        default=None,
-        description="Heat transfer area (required if heat transfer mode is non-isothermal)."
-    )
     gas_heat_capacity_mode: Optional[Literal['constant', 'temperature-dependent', 'differential']] = Field(
         default='temperature-dependent',
         description="Heat capacity mode as constant, temperature-dependant, and differential."

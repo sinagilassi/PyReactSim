@@ -18,7 +18,7 @@ from ..models.br import GasModel
 logger = logging.getLogger(__name__)
 
 
-class GasBatchReactor(BatchReactorCore):
+class GasBatchReactor:
     """
     GasBatchReactor class for simulating chemical reactions in a gas-phase batch reactor setup. This class inherits from the BatchReactor class and is specifically designed to handle gas-phase reactions, incorporating properties and methods relevant to gas-phase systems.
 
@@ -26,7 +26,15 @@ class GasBatchReactor(BatchReactorCore):
     -----------
     - Constant heat capacity (Cp) for energy balance calculations.
     """
-    # NOTE: Attributes
+    # NOTE: Properties
+    # reference temperature
+    T_ref = Temperature(value=298.15, unit="K")
+    # reference pressure
+    P_ref = Pressure(value=101325, unit="Pa")
+    # universal gas constant J/mol.K
+    R = 8.314
+
+    # NOTE: Properties
     # ! moles
     _N0: np.ndarray = np.array([])
     # ! temperature
@@ -46,12 +54,10 @@ class GasBatchReactor(BatchReactorCore):
     def __init__(
         self,
         components: List[Component],
-        source: Source,
-        model_inputs: Dict[str, Any],
-        reactor_inputs: BatchReactorOptions,
         reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
         thermo_source: ThermoSource,
+        batch_reactor_core: BatchReactorCore,
         **kwargs
     ):
         """
@@ -77,21 +83,22 @@ class GasBatchReactor(BatchReactorCore):
         """
         # NOTE: set
         self.components = components
-        self.source = source
         self.component_key = component_key
-
-        # LINK: BatchReactor initialization
-        BatchReactorCore.__init__(
-            self,
-            components=components,
-            model_inputs=model_inputs,
-            reactor_inputs=reactor_inputs,
-            component_key=component_key,
-            **kwargs
-        )
 
         # SECTION: thermo source
         self.thermo_source = thermo_source
+
+        # SECTION: batch reactor core
+        self.batch_reactor_core = batch_reactor_core
+        # >>>
+        self.reactor_inputs = batch_reactor_core.reactor_inputs
+        self.heat_exchange = batch_reactor_core.heat_exchange
+        self.heat_transfer_mode = batch_reactor_core.heat_transfer_mode
+        self.operation_mode = batch_reactor_core.operation_mode
+        self.heat_transfer_coefficient_value = batch_reactor_core.heat_transfer_coefficient_value
+        self.heat_transfer_area_value = batch_reactor_core.heat_transfer_area_value
+        self.jacket_temperature_value = batch_reactor_core.jacket_temperature_value
+        self.gas_model = batch_reactor_core.gas_model
 
         # SECTION: Reaction rates
         self.reaction_rates = reaction_rates
@@ -109,7 +116,7 @@ class GasBatchReactor(BatchReactorCore):
             component_key=component_key,
         )
 
-        # NOTE: component
+        # SECTION: component
         self.component_num = len(self.components)
 
         # component references
@@ -121,11 +128,6 @@ class GasBatchReactor(BatchReactorCore):
         self.component_id_to_index = self.thermo_source.component_refs['component_id_to_index']
 
     # SECTION: Configuration Input Stream
-
-    def config_input_stream(
-            self
-    ):
-        pass
 
     # SECTION: Properties
 
@@ -158,7 +160,7 @@ class GasBatchReactor(BatchReactorCore):
         T0 = self._T0
 
         # NOTE: build initial value vector
-        if self.reactor_inputs.heat_transfer_mode == "isothermal":
+        if self.heat_transfer_mode == "isothermal":
             # state vector: [n1, n2, ..., nNc]
             y0 = n0
         else:
@@ -189,7 +191,7 @@ class GasBatchReactor(BatchReactorCore):
         """
         ns = self.component_num
 
-        if self.reactor_inputs.heat_transfer_mode == "isothermal":
+        if self.heat_transfer_mode == "isothermal":
             if self._T0 is None:
                 raise ValueError(
                     "initial temperature must be provided for isothermal simulation.")
@@ -247,7 +249,7 @@ class GasBatchReactor(BatchReactorCore):
         )
 
         # >>> calculate dn/dt for isothermal case
-        if self.reactor_inputs.heat_transfer_mode == "isothermal":
+        if self.heat_transfer_mode == "isothermal":
             return dn_dt
 
         # NOTE: Energy balance:
@@ -500,7 +502,7 @@ class GasBatchReactor(BatchReactorCore):
                 temperature=T,
                 reactor_volume_value=reactor_volume,
                 R=self.R,
-                gas_model=self.gas_model
+                gas_model=cast(GasModel, self.gas_model)
             )
         elif self.operation_mode == "constant_pressure":
             # ??? Constant pressure assumption: P = P0
@@ -513,7 +515,7 @@ class GasBatchReactor(BatchReactorCore):
                 temperature=T,
                 pressure=p_total,
                 R=self.R,
-                gas_model=self.gas_model
+                gas_model=cast(GasModel, self.gas_model)
             )
         else:
             raise ValueError(
