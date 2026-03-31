@@ -12,6 +12,7 @@ from ..sources.interface import (
     exec_component_eq
 )
 from ..models.br import BatchReactorOptions
+from ..models.heat import HeatTransferOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.tools import config_components_property
 from ..utils.unit_tools import to_J_per_mol, to_g_per_mol
@@ -40,6 +41,7 @@ class ThermoModelSource:
         source: Source,
         model_inputs: Dict[str, Any],
         batch_reactor_options: BatchReactorOptions,
+        heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
         component_refs: Dict[str, Any],

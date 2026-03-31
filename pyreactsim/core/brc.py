@@ -11,10 +11,10 @@ from scipy.integrate import solve_ivp
 # ! locals
 from ..utils.unit_tools import to_m3, to_Pa, to_K, to_W_per_m2_K, to_m2
 from ..utils.tools import collect_keys
-from ..models.br import BatchReactorOptions, BatchReactorResult, HeatTransferMode
+from ..models.br import BatchReactorOptions, BatchReactorResult
 from ..models.rate_exp import ReactionRateExpression
 from ..models.br import GasModel
-from ..models.streams import HeatExchanger
+from ..models.heat import HeatTransferOptions
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class BatchReactorCore:
         input_stream: Dict[str, Any],
         batch_reactor_options: BatchReactorOptions,
         reactor_inputs: Dict[str, Any],
-        heat_exchanger: HeatExchanger,
+        heat_transfer_options: HeatTransferOptions,
         component_key: ComponentKey,
     ):
         """
@@ -55,22 +55,23 @@ class BatchReactorCore:
         self.input_stream = input_stream
         self.batch_reactor_options = batch_reactor_options
         self.reactor_inputs = reactor_inputs
-        self.heat_exchanger = heat_exchanger
+        self.heat_transfer_options = heat_transfer_options
         self.component_key = component_key
 
         # SECTION: reactor configuration
         # >> extract
         self.phase = batch_reactor_options.phase
         self.gas_model = batch_reactor_options.gas_model
-        self.heat_transfer_mode = batch_reactor_options.heat_transfer_mode
         self.operation_mode = batch_reactor_options.operation_mode
         self.gas_heat_capacity_mode = batch_reactor_options.gas_heat_capacity_mode
         self.liquid_heat_capacity_mode = batch_reactor_options.liquid_heat_capacity_mode
+        self.liquid_density_mode = batch_reactor_options.liquid_density_mode
 
         # SECTION: Heat exchange configuration
-        self.jacket_temperature = heat_exchanger.jacket_temperature
-        self.heat_transfer_coefficient = heat_exchanger.heat_transfer_coefficient
-        self.heat_transfer_area = heat_exchanger.heat_transfer_area
+        self.heat_transfer_mode = heat_transfer_options.heat_transfer_mode
+        self.jacket_temperature = heat_transfer_options.jacket_temperature
+        self.heat_transfer_coefficient = heat_transfer_options.heat_transfer_coefficient
+        self.heat_transfer_area = heat_transfer_options.heat_transfer_area
 
         # SECTION: Process model configuration
         # lower case keys for easier access

@@ -2,15 +2,20 @@
 from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union, TypeAlias
 from pythermodb_settings.models import Component, CustomProp, Volume, Temperature
+# locals
+from .ref import HeatTransferMode
 
 # SECTION: Heat exchange models
 
 
-class HeatExchanger(BaseModel):
-    """Model for heat exchanger in the reactor.
+class HeatTransferOptions(BaseModel):
+    """
+    Options for configuring the heat transfer model.
 
     Attributes
     ----------
+    heat_transfer_mode : HeatTransferMode
+        Heat transfer mode (isothermal or non-isothermal).
     heat_transfer_coefficient : CustomProp
         Heat transfer coefficient (required if mode is non-isothermal).
     heat_transfer_area : CustomProp
@@ -18,6 +23,10 @@ class HeatExchanger(BaseModel):
     jacket_temperature : Temperature
         Temperature of the jacket (required if mode is non-isothermal).
     """
+    heat_transfer_mode: HeatTransferMode = Field(
+        ...,
+        description="Heat transfer mode (isothermal or non-isothermal)."
+    )
     heat_transfer_coefficient: Optional[CustomProp] = Field(
         default=None,
         description="Heat transfer coefficient (required if mode is non-isothermal)."
@@ -29,4 +38,8 @@ class HeatExchanger(BaseModel):
     jacket_temperature: Optional[CustomProp] = Field(
         default=None,
         description="Temperature of the jacket (required if mode is non-isothermal)."
+    )
+    heat_flux: Optional[CustomProp] = Field(
+        default=None,
+        description="Constant heat flux (required if mode is non-isothermal and heat transfer coefficient and area are not provided)."
     )

@@ -7,7 +7,7 @@ from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
 
 # locals
-from ..models.streams import HeatExchanger
+from ..models.heat import HeatTransferOptions
 from ..models.br import BatchReactorOptions, BatchReactorResult
 from ..models.rate_exp import ReactionRateExpression
 from ..core.gas_br import GasBatchReactor
@@ -25,12 +25,12 @@ class BatchReactor:
         self,
         components: List[Component],
         input_stream: Dict[str, Any],
+        reactor_inputs: Dict[str, Any],
         model_source: ModelSource,
         model_inputs: Dict[str, Any],
         batch_reactor_option: BatchReactorOptions,
-        reactor_inputs: Dict[str, Any],
+        heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
-        heat_exchanger: HeatExchanger,
         component_key: ComponentKey,
         **kwargs,
     ):
@@ -59,12 +59,13 @@ class BatchReactor:
         """
         # NOTE: set attributes
         self.components = components
+        self.input_stream = input_stream
+        self.reactor_inputs = reactor_inputs
         self.model_inputs = model_inputs
         self.batch_reactor_option = batch_reactor_option
-        self.reactor_inputs = reactor_inputs
         self.reaction_rates = reaction_rates
         self.model_source = model_source
-        self.heat_exchanger = heat_exchanger
+        self.heat_transfer_options = heat_transfer_options
         self.component_key = component_key
 
         # NOTE: generate component references
@@ -101,7 +102,7 @@ class BatchReactor:
             input_stream=input_stream,
             batch_reactor_options=batch_reactor_option,
             reactor_inputs=reactor_inputs,
-            heat_exchanger=heat_exchanger,
+            heat_transfer_options=heat_transfer_options,
             component_key=component_key,
         )
 
@@ -144,8 +145,6 @@ class BatchReactor:
     # SECTION: Simulation method
     def simulate(
             self,
-
-            heat_exchanger: Optional[HeatExchanger] = None,
             solver_options: Optional[Dict[str, Any]] = None,
             **kwargs
     ) -> Optional[BatchReactorResult]:
