@@ -221,11 +221,11 @@ class ThermoModelInputs:
                 "Density mode must be specified in reactor_inputs for liquid phase.")
 
         # density constant
-        if "density" in self.thermo_inputs_keys:
+        if "liquid_density" in self.thermo_inputs_keys:
             density_: dict[
                 str,
                 CustomProp
-            ] = self.thermo_inputs["density"]
+            ] = self.thermo_inputs["liquid_density"]
 
             # iterate through components and extract density values
             density_values = []
