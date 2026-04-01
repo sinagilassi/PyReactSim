@@ -823,15 +823,15 @@ class ThermoSourceCore(ThermoCalc):
 
     def calc_dH_rxns_IG_ref(
             self,
-            En_LIQ_comp: Dict[str, float],
+            temperature: Temperature,
     ):
         """
         Calculate the reaction enthalpy (ΔH) for all reaction using the ideal gas reference state.
 
         Parameters
         ----------
-        En_LIQ_comp : Dict[str, float]
-            A dictionary where the keys are component IDs and the values are the liquid phase enthalpy values for the components in J/mol.
+        temperature : Temperature
+            The temperature at which to calculate the reaction enthalpy (ΔH) for the reactions in the batch reactor.
 
         Returns
         -------
@@ -841,6 +841,12 @@ class ThermoSourceCore(ThermoCalc):
         # NOTE: calculate reaction enthalpy using ideal gas reference state
         res = []
 
+        # NOTE: calculate liquid phase enthalpy for the components at reference temperature (e.g., 298 K)
+        En_LIQ_comp: Dict[
+            str, float
+        ] = self.calc_En_LIQ(temperature=temperature)
+
+        # NOTE: calculate reaction enthalpy for each reaction using the ideal gas reference state
         # iterate over reactions
         for rxn in self.reactions:
             # >> calculate reaction enthalpy for the reaction using ideal gas reference state
