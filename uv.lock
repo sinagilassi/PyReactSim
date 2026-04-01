@@ -893,7 +893,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "pyreactlab-core", specifier = ">=0.1.6" },
-    { name = "pythermocalcdb", specifier = ">=0.7.10" },
+    { name = "pythermocalcdb", specifier = ">=0.8.0" },
     { name = "pythermodb", specifier = ">=1.12.2" },
     { name = "pythermodb-settings", specifier = ">=0.2.10" },
     { name = "pythermolinkdb", specifier = ">=1.4.14" },

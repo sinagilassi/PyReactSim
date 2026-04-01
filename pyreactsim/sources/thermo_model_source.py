@@ -1,7 +1,7 @@
 # import libs
 import logging
 import numpy as np
-from typing import List, Dict, Any, cast
+from typing import List, Dict, Any, cast, Optional
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, ComponentKey
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
@@ -189,3 +189,71 @@ class ThermoModelSource:
             return {}
 
         return dt_src
+
+    # SECTION: Model source configurations
+    def _get_args_units(
+            self,
+            eq_src: ComponentEquationSource
+    ):
+        # res
+        res = {}
+
+        # iterate over inputs
+        for name, details in eq_src.arg_mappings.items():
+            # get unit
+            unit = details.get('unit', '')
+            # symbol
+            symbol = details.get('symbol', '')
+
+            res[symbol] = unit
+
+        return res
+
+    def _get_return_unit(
+            self,
+            eq_src: ComponentEquationSource,
+            symbol: str
+    ) -> str:
+        # res
+        res = {}
+
+        # iterate over returns
+        for name, details in eq_src.returns.items():
+            # get unit
+            unit = details.get('unit', '')
+            # symbol
+            symbol = details.get('symbol', '')
+
+            res[symbol] = unit
+
+        # check
+        if symbol not in res:
+            logger.warning(
+                f"Symbol {symbol} not found in equation source returns. Returning empty string for unit.")
+            return ""
+
+        return res[symbol]
+
+    def _get_inputs(
+            self,
+            eq_src: ComponentEquationSource,
+            except_args: Optional[List[str]] = None
+    ):
+        # res
+        res = {}
+
+        # iterate over inputs
+        for name, details in eq_src.inputs.items():
+
+            # get symbol
+            symbol = details.get('symbol', '')
+
+            if except_args is not None and symbol in except_args:
+                continue
+
+            # get value from component source
+            value = details.get('value', None)
+
+            res[symbol] = value
+
+        return res
