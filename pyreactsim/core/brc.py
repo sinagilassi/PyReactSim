@@ -79,9 +79,8 @@ class BatchReactorCore:
         self._T0 = self.temperature_value
 
         # SECTION: component IDs and related properties
-        self.component_num = len(components)
-
         # ! component refs
+        self.component_num = component_refs['component_num']
         self.component_ids = component_refs['component_ids']
         self.component_formula_state = component_refs['component_formula_state']
         self.component_mapper = component_refs['component_mapper']
