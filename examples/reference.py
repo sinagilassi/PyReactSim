@@ -129,7 +129,7 @@ REFERENCES:
           EQUATIONS:
             EQ-1:
               BODY:
-                - res['liquid-heat-capacity | Cp_IG | J/mol.K'] = (parms['a0 | a0 | 1'] + parms['a1 | a1 | 1E3']*args['temperature | T | K'] + parms['a2 | a2 | 1E5']*(args['temperature | T | K']**2) + parms['a3 | a3 | 1E8']*(args['temperature | T | K']**3) + parms['a4 | a4 | 1E11']*(args['temperature | T | K']**4))*parms['Universal-Gas-Constant | R | J/mol.K']
+                - res['liquid-heat-capacity | Cp_LIQ | J/mol.K'] = (parms['a0 | a0 | 1'] + parms['a1 | a1 | 1E3']*args['temperature | T | K'] + parms['a2 | a2 | 1E5']*(args['temperature | T | K']**2) + parms['a3 | a3 | 1E8']*(args['temperature | T | K']**3) + parms['a4 | a4 | 1E11']*(args['temperature | T | K']**4))*parms['Universal-Gas-Constant | R | J/mol.K']
               BODY-INTEGRAL:
                   - A1 = parms['a0 | a0 | 1']*args['temperature | T1 | K']
                   - B1 = (parms['a1 | a1 | 1E3']/2)*(args['temperature | T1 | K']**2)
@@ -160,18 +160,18 @@ REFERENCES:
         enthalpy-of-vaporization:
           TABLE-ID: 5
           DESCRIPTION:
-            This table provides the enthalpy of vaporization (En_VAP) in J/mol as a function of temperature (T) in K.
+            This table provides the enthalpy of vaporization (EnVap) in J/mol as a function of temperature (T) in K.
           EQUATIONS:
             EQ-1:
               BODY:
-                - parms['t | t | 1'] = 1 - args['temperature | T | K']/parms['critical-temperature | Tc | K']
-                - parms['A | A | 1'] = parms['A | A | 1'] * math.pow(parms['t | t | 1'], 1/3)
-                - parms['B | B | 1'] = parms['B | B | 1'] * math.pow(parms['t | t | 1'], 2/3)
-                - parms['C | C | 1'] = parms['C | C | 1'] * math.pow(parms['t | t | 1'], 1)
-                - parms['D | D | 1'] = parms['D | D | 1'] * math.pow(parms['t | t | 1'], 2)
-                - parms['E | E | 1'] = parms['E | E | 1'] * math.pow(parms['t | t | 1'], 6)
-                - parms['F | F | 1'] = parms['universal-gas-constant | R | J/mol.K'] * args['critical-temperature | Tc | K']
-                - res['enthalpy-of-vaporization | En_VAP | J/mol'] = parms['F | F | 1'] * (parms['A | A | 1'] + parms['B | B | 1'] + parms['C | C | 1'] + parms['D | D | 1'] + parms['E | E | 1'])
+                - t = 1 - args['temperature | T | K']/parms['critical-temperature | Tc | K']
+                - parms['A | A | 1'] = parms['A | A | 1'] * math.pow(t, 1/3)
+                - parms['B | B | 1'] = parms['B | B | 1'] * math.pow(t, 2/3)
+                - parms['C | C | 1'] = parms['C | C | 1'] * math.pow(t, 1)
+                - parms['D | D | 1'] = parms['D | D | 1'] * math.pow(t, 2)
+                - parms['E | E | 1'] = parms['E | E | 1'] * math.pow(t, 6)
+                - parms['F | F | 1'] = parms['universal-gas-constant | R | J/mol.K'] * parms['critical-temperature | Tc | K']
+                - res['enthalpy-of-vaporization | EnVap | J/mol'] = parms['F | F | 1'] * (parms['A | A | 1'] + parms['B | B | 1'] + parms['C | C | 1'] + parms['D | D | 1'] + parms['E | E | 1'])
               BODY-INTEGRAL:
                   None
               BODY-FIRST-DERIVATIVE:
@@ -180,7 +180,7 @@ REFERENCES:
                   None
           STRUCTURE:
             COLUMNS: [No.,Name,Formula,State,A,B,C,D,E,critical-temperature,universal-gas-constant,Eq]
-            SYMBOL: [None,None,None,None,A,B,C,D,E,Tc,R,En_VAP]
+            SYMBOL: [None,None,None,None,A,B,C,D,E,Tc,R,EnVap]
             UNIT: [None,None,None,None,1,1,1,1,1,K,J/mol.K,J/mol]
           VALUES:
             - [1,'water', 'H2O', 'g', 6.853064, 7.437940, -2.937398, -3.282184, 8.396833, 647.096, 8.314, 1]
