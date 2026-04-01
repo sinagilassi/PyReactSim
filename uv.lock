@@ -694,15 +694,15 @@ wheels = [
 
 [[package]]
 name = "pycuc"
-version = "2.6.0"
+version = "2.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pandas" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/59/e8/4edc209c16d117579fe9f7e161cf6b8d929358dc36bb66a22d1a982e2936/pycuc-2.6.0.tar.gz", hash = "sha256:bdff57493d6aaff82277d5d818422c936ebf3f1840361c4089d2aab083bb7b80", size = 20212, upload-time = "2026-03-29T01:01:25.592Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/c9/301bec977cb3d107c1bfbb731aa6e4d77ccac89016156d71503a88823874/pycuc-2.7.0.tar.gz", hash = "sha256:ee44750b31ed5393d961a3e72111e00e1a45f8960f2e3adfc868bfc7388eba31", size = 20510, upload-time = "2026-03-31T22:52:54.22Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/c1/52c8329607fd01f0ca5a844f6d04f5a4cc11f891e2d3a86851f5ffacff34/pycuc-2.6.0-py3-none-any.whl", hash = "sha256:4129ae731758855cdabb4bdb63b94724b8ef913f25618ff1080623c4305584c8", size = 26930, upload-time = "2026-03-29T01:01:24.607Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/1d/465c66f73b1b8dbd2ec9f5be32c2eecd447cf7711459a2b4806c1c12ca96/pycuc-2.7.0-py3-none-any.whl", hash = "sha256:1df741bf01bbc21f7441527a39f779552f1e198e02a80b00f3b4f6013618b973", size = 27725, upload-time = "2026-03-31T22:52:53.367Z" },
 ]
 
 [[package]]
@@ -889,7 +889,7 @@ dependencies = [
 requires-dist = [
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.3" },
-    { name = "pycuc", specifier = ">=2.6.0" },
+    { name = "pycuc", specifier = ">=2.7.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "pyreactlab-core", specifier = ">=0.1.6" },
