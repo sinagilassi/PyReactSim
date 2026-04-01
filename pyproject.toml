@@ -38,7 +38,7 @@ dependencies = [
     "pythermolinkdb>=1.4.14",
     "pythermodb-settings>=0.2.10",
     "pyreactlab-core>=0.1.6",
-    "pythermocalcdb>=0.7.10",
+    "pythermocalcdb>=0.8.0",
     "matplotlib>=3.10.8",
 ]
 
