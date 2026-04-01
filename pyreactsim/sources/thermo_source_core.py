@@ -5,9 +5,12 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, CustomProperty, Temperature, Pressure
 from pythermodb_settings.utils import set_component_id, build_components_mapper
 from pyThermoLinkDB.thermo import Source
+from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pyreactlab_core.models.reaction import Reaction
 from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
+from pyThermoCalcDB.docs.thermo import calc_En_IG_ref
+from pyThermoCalcDB.reactions.source import dH_rxn_STD as dH_rxn_reactions
 
 # locals
 from .thermo_model_inputs import ThermoModelInputs
@@ -85,7 +88,12 @@ class ThermoSourceCore(ThermoCalc):
         # SECTION: Process model configuration
 
         # NOTE: model source
-        self.model_source = self.source.model_source
+        model_source: ModelSource | None = self.source.model_source
+        if model_source is None:
+            raise ValueError(
+                "Model source is required for thermodynamic calculations."
+            )
+        self.model_source = model_source
 
         # NOTE: reactions
         self.reactions: List[Reaction] = self.thermo_reaction.build_reactions()
@@ -767,3 +775,95 @@ class ThermoSourceCore(ThermoCalc):
         rho_LIQ_values = np.array(rho_LIQ_values, dtype=float)
 
         return rho_LIQ_values
+
+    # SECTION: Liquid Enthalpy
+    def calc_En_LIQ(
+            self,
+            temperature: Temperature,
+    ):
+        """
+        Calculate the liquid phase enthalpy (En_LIQ) for the components in the batch reactor at the specified temperature.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the liquid phase enthalpy (En_LIQ) for the components in the batch reactor.
+
+        Returns
+        -------
+        np.ndarray
+            An array of liquid phase enthalpy (En_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
+        """
+        # NOTE: calculate liquid phase enthalpy for the components based on the heat capacity mode
+        res = {}
+
+        # iterate over components
+        for comp in self.component_ids:
+            # >> calculate liquid phase enthalpy for the component at the specified temperature
+            En_LIQ_value = calc_En_IG_ref(
+                component=comp,
+                temperature=temperature,
+                model_source=self.model_source,
+            )
+
+            # >> check
+            if En_LIQ_value is None:
+                raise ValueError(
+                    f"Failed to calculate liquid phase enthalpy for component: {comp}")
+
+            res[comp] = En_LIQ_value.value
+
+        # >> check enthalpy values
+        if res is None:
+            raise ValueError(
+                "Enthalpy values could not be calculated or retrieved."
+            )
+
+        return res
+
+    def calc_dH_rxns_IG_ref(
+            self,
+            En_LIQ_comp: Dict[str, float],
+    ):
+        """
+        Calculate the reaction enthalpy (ΔH) for all reaction using the ideal gas reference state.
+
+        Parameters
+        ----------
+        En_LIQ_comp : Dict[str, float]
+            A dictionary where the keys are component IDs and the values are the liquid phase enthalpy values for the components in J/mol.
+
+        Returns
+        -------
+        float
+            The reaction enthalpy (ΔH) for the specified reaction at the specified temperature, calculated using the ideal gas reference state.
+        """
+        # NOTE: calculate reaction enthalpy using ideal gas reference state
+        res = []
+
+        # iterate over reactions
+        for rxn in self.reactions:
+            # >> calculate reaction enthalpy for the reaction using ideal gas reference state
+            dH_rxn = dH_rxn_reactions(
+                reaction=rxn,
+                H_i_IG=En_LIQ_comp,
+            )
+
+            # >> check
+            if dH_rxn is None:
+                raise ValueError(
+                    f"Failed to calculate reaction enthalpy for reaction: {rxn.name}"
+                )
+            # store
+            res.append(dH_rxn.value)
+
+        # >> check enthalpy values
+        if res is None:
+            raise ValueError(
+                "Reaction enthalpy values could not be calculated or retrieved."
+            )
+
+        # NOTE: convert to numpy array
+        res = np.array(res, dtype=float)
+
+        return res
