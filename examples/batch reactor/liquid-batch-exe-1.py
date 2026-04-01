@@ -87,17 +87,24 @@ initial_pressure = Pressure(
     unit="atm",
 )
 
+# NOTE: initial mole feed for the system in mol
+initial_mole = {}
+
 # NOTE: constant heat capacity (Cp) for the system in J/mol.K
-constant_gas_heat_capacity = {
-    "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
-    "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
-    "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
-    "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
+constant_gas_heat_capacity = {}
+
+# NOTE: constant liquid density (rho_LIQ) for the system in kg/m3
+constant_liquid_density = {
+    "CH3OH-l": 786.6,  # methanol
+    "H2O-l": 997.0,   # water
+    "CH3COOH-l": 1049.0,  # acetic acid
+    "C3H6O2-l": 932.0,  # methyl acetate
 }
 
 # ! thermo inputs
 thermo_inputs = {
-    "heat_capacity": constant_gas_heat_capacity,
+    # "heat_capacity": constant_gas_heat_capacity,
+    "liquid_density": constant_liquid_density,
 }
 
 # ! model inputs
