@@ -105,6 +105,7 @@ class ThermoCalc:
             An array of densities for each component in the liquid phase [g/m3].
         """
         # calculate volume for each component
+        # n [mol], MW [g/mol], density [g/m3] => volume [m3]
         volumes = n * molecular_weights / density
 
         # total volume is the sum of the volumes of each component
