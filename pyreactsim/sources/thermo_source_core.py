@@ -692,10 +692,11 @@ class ThermoSourceCore(ThermoCalc):
 
         return res, res_comp
 
+    # ! Calculate liquid density (rho_LIQ) for the components at temperature T
     def calc_rho_LIQ(
             self,
             temperature: Temperature,
-    ):
+    ) -> np.ndarray:
         """
         Calculate the density of the liquid either using a constant value from model inputs or using a temperature-dependent equation of state.
 
@@ -733,10 +734,14 @@ class ThermoSourceCore(ThermoCalc):
 
         return rho_LIQ_values
 
+    # ! Calculate liquid density (rho_LIQ)
     def calc_rho_LIQ_real(
             self,
             inputs: Dict[str, Any],
     ) -> np.ndarray:
+        """
+        Calculate the density of the liquid phase for the components in the batch reactor at the specified temperature using temperature-dependent equations of state.
+        """
         # NOTE: extract density at reference temperature (e.g., 298 K)
         rho_LIQ_ref: Dict[str, CustomProperty] = {}
         for comp in self.component_ids:
