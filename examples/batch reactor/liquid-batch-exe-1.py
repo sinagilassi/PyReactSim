@@ -9,9 +9,10 @@ from pythermodb_settings.models import Pressure, Temperature, CustomProp, Volume
 from pyreactsim.models import BatchReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 from pyreactsim import create_batch_reactor, BatchReactor
-# NOTE: for example
-# ! model sources
-from model_source_exp_1 import model_source
+
+# NOTE: Batch reactor settings
+# ! model sources for liquid phase batch reactor
+from liquid_model_source_exp_1 import model_source
 # ! rate expressions & components
 from rate_exp_6 import reaction_rates, components
 # ! plot function
