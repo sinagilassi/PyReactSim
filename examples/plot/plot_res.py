@@ -6,6 +6,7 @@ from typing import Any, Iterable
 import matplotlib.pyplot as plt
 import numpy as np
 from pyreactsim.models.br import BatchReactorResult
+from pyreactsim.models.cstr import CSTRReactorResult
 
 
 def _component_label(component: Any, fallback_index: int) -> str:
@@ -40,11 +41,12 @@ def _detect_temperature_state(num_states: int, components: Iterable[Any] | None)
     return False
 
 
-def plot_batch_reactor_result(
-    result: BatchReactorResult,
+def _plot_reactor_result(
+    result: Any,
     components: Iterable[Any] | None = None,
     save_path: Path | None = None,
     show: bool = True,
+    title_prefix: str = "Reactor",
 ) -> None:
     if not result:
         raise ValueError("simulation_result is empty.")
@@ -81,21 +83,21 @@ def plot_batch_reactor_result(
         fig, ax_mole = plt.subplots(figsize=(10, 6), constrained_layout=True)
         ax_temp = None
 
-    # ── moles subplot ──
+    # species subplot
     for idx, label in enumerate(mole_labels):
         ax_mole.plot(time, mole_state[idx], linewidth=2, label=label)
     ax_mole.set_ylabel("Moles (mol)")
-    ax_mole.set_title("Batch Reactor — Species")
+    ax_mole.set_title(f"{title_prefix} - Species")
     ax_mole.grid(True, alpha=0.3)
     ax_mole.legend(loc="best")
 
     if ax_temp is not None and temp_state is not None:
-        # ── temperature subplot ──
+        # temperature subplot
         ax_temp.plot(time, temp_state, linewidth=2,
                      color="tab:red", label="Temperature")
         ax_temp.set_xlabel("Time (s)")
         ax_temp.set_ylabel("Temperature (K)")
-        ax_temp.set_title("Batch Reactor — Temperature")
+        ax_temp.set_title(f"{title_prefix} - Temperature")
         ax_temp.grid(True, alpha=0.3)
         ax_temp.legend(loc="best")
     else:
@@ -110,3 +112,33 @@ def plot_batch_reactor_result(
         plt.show()
     else:
         plt.close(fig)
+
+
+def plot_batch_reactor_result(
+    result: BatchReactorResult,
+    components: Iterable[Any] | None = None,
+    save_path: Path | None = None,
+    show: bool = True,
+) -> None:
+    _plot_reactor_result(
+        result=result,
+        components=components,
+        save_path=save_path,
+        show=show,
+        title_prefix="Batch Reactor",
+    )
+
+
+def plot_cstr_reactor_result(
+    result: CSTRReactorResult,
+    components: Iterable[Any] | None = None,
+    save_path: Path | None = None,
+    show: bool = True,
+) -> None:
+    _plot_reactor_result(
+        result=result,
+        components=components,
+        save_path=save_path,
+        show=show,
+        title_prefix="CSTR Reactor",
+    )
