@@ -94,7 +94,7 @@ class ThermoModelSource:
                 prop_name="EnFo_IG"
             )
 
-            # values in J/mol
+            # ! values in J/mol
             (
                 self.EnFo_IG_298,
                 self.EnFo_IG_298_comp
