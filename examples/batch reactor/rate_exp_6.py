@@ -25,7 +25,7 @@ components = [CH3COOH, CH3OH, C3H6O2, H2O]
 # NOTE: Reaction
 reaction = Reaction(
     name="reaction 1",
-    reaction="CH3COOH(l) + CH3OH(l) <=> CH3COOCH3(l) + H2O(l)",
+    reaction="CH3COOH(l) + CH3OH(l) <=> C3H6O2(l) + H2O(l)",
     components=components
 )
 

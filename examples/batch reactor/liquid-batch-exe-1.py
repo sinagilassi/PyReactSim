@@ -13,7 +13,7 @@ from pyreactsim import create_batch_reactor, BatchReactor
 # ! model sources
 from model_source_exp_1 import model_source
 # ! rate expressions & components
-from rate_exp_1 import reaction_rates, components
+from rate_exp_6 import reaction_rates, components
 # ! plot function
 from examples.plot.plot_res import plot_batch_reactor_result
 
@@ -34,7 +34,7 @@ for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactsi
 
 # NOTE: Jacket temperature
 jacket_temperature = Temperature(
-    value=340,
+    value=350,
     unit="K",
 )
 
@@ -54,6 +54,7 @@ heat_transfer_area = CustomProp(
 batch_reactor_options = BatchReactorOptions(
     phase='liquid',
     operation_mode='constant_volume',
+    gas_model='ideal',
     gas_heat_capacity_mode='temperature-dependent',
     liquid_heat_capacity_mode='temperature-dependent',
     liquid_density_mode='constant',
@@ -62,9 +63,9 @@ batch_reactor_options = BatchReactorOptions(
 # ! heat transfer options
 heat_transfer_options = HeatTransferOptions(
     heat_transfer_mode='non-isothermal',
-    heat_transfer_coefficient=heat_transfer_coefficient,
-    heat_transfer_area=heat_transfer_area,
-    jacket_temperature=jacket_temperature,
+    heat_transfer_coefficient=None,
+    heat_transfer_area=None,
+    jacket_temperature=None,
 )
 
 # ====================================================
@@ -84,12 +85,17 @@ initial_temperature = Temperature(
 
 # NOTE: initial pressure
 initial_pressure = Pressure(
-    value=5,
-    unit="atm",
+    value=1,
+    unit="bar",
 )
 
 # NOTE: initial mole feed for the system in mol
-initial_mole = {}
+initial_mole = {
+    "CH3COOH-l": 100.0,  # acetic acid
+    "CH3OH-l": 100.0,   # methanol
+    "C3H6O2-l": 0.0,   # methyl acetate
+    "H2O-l": 0.0,      # water
+}
 
 # NOTE: constant heat capacity (Cp) for the system in J/mol.K
 constant_gas_heat_capacity = {}
@@ -113,7 +119,6 @@ model_inputs = {
     "temperature": initial_temperature,
     "pressure": initial_pressure,
     'reactor_volume': reactor_volume,
-
 }
 
 # ====================================================
