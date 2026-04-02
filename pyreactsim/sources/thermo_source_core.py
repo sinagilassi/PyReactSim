@@ -11,6 +11,7 @@ from pyreactlab_core.models.reaction import Reaction
 from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
 from pyThermoCalcDB.docs.thermo import calc_En_IG_ref
 from pyThermoCalcDB.reactions.source import dH_rxn_STD as dH_rxn_reactions
+from pyThermoCalcDB.models import ComponentEnthalpy
 
 # locals
 from .thermo_model_inputs import ThermoModelInputs
@@ -129,6 +130,7 @@ class ThermoSourceCore(ThermoCalc):
         self.gas_heat_capacity_constant_comp = self.thermo_model_inputs.gas_heat_capacity_constant_comp
 
         # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
+        # ! to J/K
         self.dCp_rxns = self.calc_dCp_IG()
 
         # SECTION: Ideal Gas Enthalpy of formation at 298 K
@@ -140,7 +142,8 @@ class ThermoSourceCore(ThermoCalc):
         self.EnFo_IG_298 = self.thermo_model_source.EnFo_IG_298
         self.EnFo_IG_298_comp = self.thermo_model_source.EnFo_IG_298_comp
 
-        # dH_rxn at 298 K [J/mol]
+        # dH_rxn at 298 K
+        # ! values in J/mol
         self.dH_rxns_298 = self.calc_dH_rxns_298()
 
         # SECTION: molecular weight (MW)
@@ -178,7 +181,7 @@ class ThermoSourceCore(ThermoCalc):
             temperature: Temperature,
     ):
         """
-        Calculate the ideal gas heat capacity (Cp_IG) for the components in the batch reactor at the specified temperature.
+        Calculate the ideal gas heat capacity (Cp_IG) in J/mol.K for the components in the batch reactor at the specified temperature.
 
         Parameters
         ----------
@@ -225,6 +228,9 @@ class ThermoSourceCore(ThermoCalc):
             self,
             inputs: Dict[str, Any],
     ) -> np.ndarray:
+        """
+        Calculate the ideal gas heat capacity (Cp_IG) in J/mol.K for the components in the batch reactor at the specified temperature using temperature-dependent heat capacity values.
+        """
         # NOTE: extract Cp_IG at reference temperature (e.g., 298 K)
         Cp_IG_ref: Dict[str, CustomProperty] = {}
         for comp in self.component_ids:
@@ -270,7 +276,7 @@ class ThermoSourceCore(ThermoCalc):
             temperature: Temperature,
     ):
         """
-        Calculate the liquid phase heat capacity (Cp_LIQ) for the components in the batch reactor at the specified temperature.
+        Calculate the liquid phase heat capacity (Cp_LIQ) in J/mol.K for the components in the batch reactor at the specified temperature.
 
         Parameters
         ----------
@@ -315,6 +321,9 @@ class ThermoSourceCore(ThermoCalc):
             self,
             inputs: Dict[str, Any],
     ) -> np.ndarray:
+        """
+        Calculate the liquid phase heat capacity (Cp_LIQ) in J/mol.K for the components in the batch reactor at the specified temperature using temperature-dependent heat capacity values.
+        """
         # NOTE: extract Cp_LIQ at reference temperature (e.g., 298 K)
         Cp_LIQ_ref: Dict[str, CustomProperty] = {}
         for comp in self.component_ids:
@@ -360,7 +369,7 @@ class ThermoSourceCore(ThermoCalc):
             self,
     ):
         """
-        Calculate the change in heat capacity at ideal gas (ΔCp_IG) for the reactions as:
+        Calculate the change in heat capacity at ideal gas (ΔCp_IG) in J/K for the reactions as:
             ΔCp_rxn = sum(nu_i * Cp_IG_i) for all components i
 
         Returns
@@ -395,6 +404,7 @@ class ThermoSourceCore(ThermoCalc):
                     f"No components found for reaction: {rxn.name}")
 
             # heat capacity at ideal gas at reference temperature (e.g., 298 K) for the components
+            # ! J/mol.K
             Cp_IG_values, _ = find_components_property(
                 components=components,
                 prop_values=self.gas_heat_capacity_constant_comp,
@@ -423,12 +433,12 @@ class ThermoSourceCore(ThermoCalc):
             self,
     ):
         """
-        Calculate the reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor at 298 K using the provided reaction rates and components.
+        Calculate the reaction enthalpies (ΔH) in J for the reactions in the reactor at 298 K using the provided reaction rates and components.
 
         Returns
         -------
         np.ndarray
-            An array of reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor, calculated at 298 K.
+            An array of reaction enthalpies (ΔH) for the reactions in the reactor, calculated at 298 K.
         """
         # res
         dH_rxns = []
@@ -510,7 +520,7 @@ class ThermoSourceCore(ThermoCalc):
             temperature: Temperature,
     ) -> np.ndarray:
         """
-        Calculate the reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
+        Calculate the reaction enthalpies (ΔH) in J/mol for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
 
         Parameters
         ----------
@@ -543,6 +553,19 @@ class ThermoSourceCore(ThermoCalc):
             if dH_rxn is None:
                 raise ValueError(
                     f"Failed to calculate reaction enthalpy for reaction: {rxn.name}")
+
+            # ! set unit to J/mol
+            if dH_rxn.unit != "J/mol":
+                # convert
+                dH_rxn_converted = to_J_per_mol(
+                    value=dH_rxn.value,
+                    unit=dH_rxn.unit
+                )
+                # set
+                dH_rxn = CustomProp(
+                    value=dH_rxn_converted,
+                    unit="J/mol"
+                )
 
             dH_rxns.append(dH_rxn)
 
@@ -605,7 +628,7 @@ class ThermoSourceCore(ThermoCalc):
             self,
     ) -> Dict[str, float]:
         """
-        Configure the unit for the enthalpy of formation at ideal gas at 298 K (EnFo_IG_298) for the components in the batch reactor based on the model source and reactor configuration.
+        Configure the unit for the enthalpy of formation at ideal gas at 298 K (EnFo_IG_298) in J/mol for the components in the batch reactor based on the model source and reactor configuration.
 
         Returns
         -------
@@ -627,17 +650,23 @@ class ThermoSourceCore(ThermoCalc):
             dt_unit = dt_src.get("unit")
 
             # >> check
-            if dt_value is None or dt_unit is None:
+            if (
+                dt_value is None or
+                dt_unit is None
+            ):
                 raise ValueError(
-                    f"Failed to extract EnFo_IG_298 value or unit for component: {comp}")
+                    f"Failed to extract EnFo_IG_298 value or unit for component: {comp}"
+                )
 
-            # >> convert to output unit
-            dt_value_converted = to_J_per_mol(
-                value=dt_value,
-                unit=dt_unit
-            )
+            # ! to J/mol
+            if dt_unit != "J/mol":
+                # >> convert to output unit
+                dt_value = to_J_per_mol(
+                    value=dt_value,
+                    unit=dt_unit
+                )
 
-            res[comp] = dt_value_converted
+            res[comp] = dt_value
 
         return res
 
@@ -782,12 +811,13 @@ class ThermoSourceCore(ThermoCalc):
         return rho_LIQ_values
 
     # SECTION: Liquid Enthalpy
+    # ! Calculate liquid phase enthalpy (En_LIQ)
     def calc_En_LIQ(
             self,
             temperature: Temperature,
     ):
         """
-        Calculate the liquid phase enthalpy (En_LIQ) for the components in the batch reactor at the specified temperature.
+        Calculate the liquid phase enthalpy (En_LIQ) in J/mol for the components in the batch reactor at the specified temperature.
 
         Parameters
         ----------
@@ -814,7 +844,21 @@ class ThermoSourceCore(ThermoCalc):
             # >> check
             if En_LIQ_value is None:
                 raise ValueError(
-                    f"Failed to calculate liquid phase enthalpy for component: {comp}")
+                    f"Failed to calculate liquid phase enthalpy for component: {comp}"
+                )
+
+            # ! set unit to J/mol
+            if En_LIQ_value.unit != "J/mol":
+                # convert
+                En_LIQ_value_converted = to_J_per_mol(
+                    value=En_LIQ_value.value,
+                    unit=En_LIQ_value.unit
+                )
+                # set
+                En_LIQ_value = CustomProp(
+                    value=En_LIQ_value_converted,
+                    unit="J/mol"
+                )
 
             res[comp] = En_LIQ_value.value
 
@@ -826,12 +870,13 @@ class ThermoSourceCore(ThermoCalc):
 
         return res
 
+    # ! Calculate reaction enthalpies (ΔH) for reactions at temperature T using ideal gas reference state
     def calc_dH_rxns_IG_ref(
             self,
             temperature: Temperature,
     ):
         """
-        Calculate the reaction enthalpy (ΔH) for all reaction using the ideal gas reference state.
+        Calculate the reaction enthalpy (ΔH) in J/mol for all reaction using the ideal gas reference state.
 
         Parameters
         ----------
@@ -847,6 +892,7 @@ class ThermoSourceCore(ThermoCalc):
         res = []
 
         # NOTE: calculate liquid phase enthalpy for the components at reference temperature (e.g., 298 K)
+        # ! in J/mol
         En_LIQ_comp: Dict[
             str, float
         ] = self.calc_En_LIQ(temperature=temperature)
@@ -865,6 +911,20 @@ class ThermoSourceCore(ThermoCalc):
                 raise ValueError(
                     f"Failed to calculate reaction enthalpy for reaction: {rxn.name}"
                 )
+
+            # ! set unit to J/mol
+            if dH_rxn.unit != "J/mol":
+                # convert
+                dH_rxn_converted = to_J_per_mol(
+                    value=dH_rxn.value,
+                    unit=dH_rxn.unit
+                )
+                # set
+                dH_rxn = CustomProp(
+                    value=dH_rxn_converted,
+                    unit="J/mol"
+                )
+
             # store
             res.append(dH_rxn.value)
 
