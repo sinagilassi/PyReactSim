@@ -3,7 +3,6 @@ import logging
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, CustomProperty, Temperature, Pressure
-from pythermodb_settings.utils import set_component_id, build_components_mapper
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
@@ -11,15 +10,12 @@ from pyreactlab_core.models.reaction import Reaction
 from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
 from pyThermoCalcDB.docs.thermo import calc_En_IG_ref
 from pyThermoCalcDB.reactions.source import dH_rxn_STD as dH_rxn_reactions
-from pyThermoCalcDB.models import ComponentEnthalpy
 
 # locals
 from .thermo_model_inputs import ThermoModelInputs
 from .thermo_model_source import ThermoModelSource
 from .thermo_reaction import ThermoReaction
 from .interface import (
-    ext_components_dt,
-    ext_components_eq,
     exec_component_eq
 )
 
@@ -289,15 +285,15 @@ class ThermoSourceCore(ThermoCalc):
         np.ndarray
             An array of liquid phase heat capacity (Cp_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
         """
-        # NOTE: temperature in K
-        temp = to_K(temperature.value, temperature.unit)
-
         # NOTE: calculate heat capacity at liquid phase for the components based on the heat capacity mode
         if self.liquid_heat_capacity_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent heat capacity
             Cp_LIQ_values = self.calc_Cp_LIQ_real(
                 inputs={
-                    "T": temp
+                    "T": {
+                        "value": temperature.value,
+                        "unit": temperature.unit
+                    }
                 },
             )
         elif self.liquid_heat_capacity_mode == "constant":
@@ -751,7 +747,10 @@ class ThermoSourceCore(ThermoCalc):
             # ! to g/m3
             rho_LIQ_values = self.calc_rho_LIQ_real(
                 inputs={
-                    "T": temperature
+                    "T": {
+                        "value": temperature.value,
+                        "unit": temperature.unit
+                    }
                 },
             )
         elif self.liquid_density_mode == "constant":
