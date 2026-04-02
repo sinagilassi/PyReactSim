@@ -10,7 +10,7 @@ from ..sources.thermo_source import ThermoSource
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.reaction_tools import stoichiometry_mat_key, stoichiometry_mat
 from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
-from ..utils.opt_tools import calc_heat_exchange, set_component_X
+from ..utils.opt_tools import calc_heat_exchange
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)

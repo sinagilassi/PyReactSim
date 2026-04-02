@@ -10,6 +10,7 @@ from pyreactlab_core.models.reaction import Reaction
 from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
 from pyThermoCalcDB.docs.thermo import calc_En_IG_ref
 from pyThermoCalcDB.reactions.source import dH_rxn_STD as dH_rxn_reactions
+from pyThermoCalcDB.models import ComponentEnthalpy
 
 # locals
 from .thermo_model_inputs import ThermoModelInputs
@@ -823,7 +824,7 @@ class ThermoSourceCore(ThermoCalc):
     def calc_En_LIQ(
             self,
             temperature: Temperature,
-    ):
+    ) -> Dict[str, CustomProp]:
         """
         Calculate the liquid phase enthalpy (En_LIQ) in J/mol for the components in the batch reactor at the specified temperature.
 
@@ -834,8 +835,8 @@ class ThermoSourceCore(ThermoCalc):
 
         Returns
         -------
-        np.ndarray
-            An array of liquid phase enthalpy (En_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
+        Dict[str, CustomProp]
+            A dictionary where the keys are component IDs and the values are the liquid phase enthalpy values for the components in J/mol, calculated at the specified temperature.
         """
         # NOTE: calculate liquid phase enthalpy for the components based on the heat capacity mode
         res = {}
@@ -847,32 +848,37 @@ class ThermoSourceCore(ThermoCalc):
             component_ = self.components[component_index_]
 
             # >> calculate liquid phase enthalpy for the component at the specified temperature
-            En_LIQ_value = calc_En_IG_ref(
+            En_LIQ_res: ComponentEnthalpy | None = calc_En_IG_ref(
                 component=component_,
                 temperature=temperature,
                 model_source=self.model_source,
             )
 
             # >> check
-            if En_LIQ_value is None:
+            if En_LIQ_res is None:
                 raise ValueError(
                     f"Failed to calculate liquid phase enthalpy for component: {comp}"
                 )
 
             # ! set unit to J/mol
-            if En_LIQ_value.unit != "J/mol":
+            if En_LIQ_res.unit != "J/mol":
                 # convert
                 En_LIQ_value_converted = to_J_per_mol(
-                    value=En_LIQ_value.value,
-                    unit=En_LIQ_value.unit
+                    value=En_LIQ_res.value,
+                    unit=En_LIQ_res.unit
                 )
                 # set
-                En_LIQ_value = CustomProp(
+                En_LIQ = CustomProp(
                     value=En_LIQ_value_converted,
                     unit="J/mol"
                 )
+            else:
+                En_LIQ = CustomProp(
+                    value=En_LIQ_res.value,
+                    unit=En_LIQ_res.unit
+                )
 
-            res[comp] = En_LIQ_value.value
+            res[comp] = En_LIQ
 
         # >> check enthalpy values
         if res is None:
@@ -906,7 +912,7 @@ class ThermoSourceCore(ThermoCalc):
         # NOTE: calculate liquid phase enthalpy for the components at reference temperature (e.g., 298 K)
         # ! in J/mol
         En_LIQ_comp: Dict[
-            str, float
+            str, CustomProp
         ] = self.calc_En_LIQ(temperature=temperature)
 
         # NOTE: calculate reaction enthalpy for each reaction using the ideal gas reference state
