@@ -117,6 +117,7 @@ thermo_inputs = {
 
 # ! model inputs
 model_inputs = {
+    "mole": initial_mole,
     "temperature": initial_temperature,
     "pressure": initial_pressure,
     'reactor_volume': reactor_volume,
