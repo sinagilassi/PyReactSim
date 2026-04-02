@@ -52,10 +52,11 @@ heat_transfer_area = CustomProp(
 
 # ! batch reactor options
 batch_reactor_options = BatchReactorOptions(
-    phase='gas',
-    operation_mode='constant_pressure',
-    gas_model='ideal',
+    phase='liquid',
+    operation_mode='constant_volume',
     gas_heat_capacity_mode='temperature-dependent',
+    liquid_heat_capacity_mode='temperature-dependent',
+    liquid_density_mode='constant',
 )
 
 # ! heat transfer options
