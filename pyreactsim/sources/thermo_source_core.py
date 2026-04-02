@@ -842,16 +842,18 @@ class ThermoSourceCore(ThermoCalc):
         res = {}
 
         # iterate over components
-        for comp in self.component_ids:
+        for i, comp in enumerate(self.component_ids):
             # >> component
-            component_index_: int = self.component_id_to_index[comp]
-            component_ = self.components[component_index_]
+            component_ = self.components[i]
+            # >> component id [Name-Formula]
+            component_id_ = self.component_formula_state[i]
 
             # >> calculate liquid phase enthalpy for the component at the specified temperature
             En_LIQ_res: ComponentEnthalpy | None = calc_En_IG_ref(
                 component=component_,
                 temperature=temperature,
                 model_source=self.model_source,
+                component_key="Name-Formula"
             )
 
             # >> check
@@ -878,7 +880,7 @@ class ThermoSourceCore(ThermoCalc):
                     unit=En_LIQ_res.unit
                 )
 
-            res[comp] = En_LIQ
+            res[component_id_] = En_LIQ
 
         # >> check enthalpy values
         if res is None:
