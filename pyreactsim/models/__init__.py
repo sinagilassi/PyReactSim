@@ -5,6 +5,8 @@ from .ref import HeatTransferMode, ReactorPhase, OperationMode, GasModel
 
 # NOTE: batch reactor
 from .br import BatchReactorOptions, BatchReactorResult
+# NOTE: cstr reactor
+from .cstr import CSTRReactorOptions, CSTRReactorResult
 
 # NOTE: heat transfer options
 from .heat import HeatTransferOptions
@@ -25,6 +27,9 @@ __all__ = [
     # batch reactor
     'BatchReactorOptions',
     'BatchReactorResult',
+    # cstr reactor
+    'CSTRReactorOptions',
+    'CSTRReactorResult',
     # heat transfer options
     'HeatTransferOptions',
 ]
