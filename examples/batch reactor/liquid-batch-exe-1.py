@@ -111,7 +111,6 @@ constant_liquid_density = {
 
 # ! thermo inputs
 thermo_inputs = {
-    # "heat_capacity": constant_gas_heat_capacity,
     "liquid_density": constant_liquid_density,
 }
 

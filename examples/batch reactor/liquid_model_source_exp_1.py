@@ -66,7 +66,7 @@ C3H6O2 = Component(
 components = [CH3OH, H2O, CH3COOH, C3H6O2]
 
 # NOTE: ignore state properties
-ignore_state_props = ['MW', 'VaPr', 'Cp_IG', 'Cp_LIQ', 'rho_LIQ']
+ignore_state_props = ['MW', 'VaPr', 'Cp_IG', 'Cp_LIQ', 'rho_LIQ', 'EnVap']
 
 # ====================================================
 # SECTION: build components thermodb
