@@ -46,7 +46,7 @@ reaction = Reaction(
 states: rXs = {
     'CH3COOH-l': X(component=CH3COOH, order=1, unit="mol/m3"),
     'CH3OH-l': X(component=CH3OH, order=1, unit="mol/m3"),
-    'CH3COOCH3-l': X(component=C3H6O2, order=1, unit="mol/m3"),
+    'C3H6O2-l': X(component=C3H6O2, order=1, unit="mol/m3"),
     'H2O-l': X(component=H2O, order=1, unit="mol/m3"),
 }
 
@@ -68,14 +68,14 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
 
     c_acid = X['CH3COOH-l'].value
     c_meoh = X['CH3OH-l'].value
-    c_meac = X['CH3COOCH3-l'].value
+    c_meac = X['C3H6O2-l'].value
     c_h2o = X['H2O-l'].value
 
     # Reversible liquid-phase rate:
     # r = kf*C_acid*C_meoh - kr*C_meac*C_h2o
     rExp = (
         kf * (c_acid ** X['CH3COOH-l'].order) * (c_meoh ** X['CH3OH-l'].order)
-        - kr * (c_meac ** X['CH3COOCH3-l'].order) * (c_h2o ** X['H2O-l'].order)
+        - kr * (c_meac ** X['C3H6O2-l'].order) * (c_h2o ** X['H2O-l'].order)
     )
 
     return CustomProperty(
