@@ -114,13 +114,11 @@ class ThermoModelInputs:
                     self.liquid_density_constant_comp
                 ) = self._config_constant_liquid_density()
 
-    # NOTE: heat capacity configuration
-    # ! gas phase
-
+    # ! gas phase heat capacity configuration
     def _config_constant_gas_heat_capacity(
             self,
     ) -> Tuple[np.ndarray, Dict[str, float]]:
-        """Configure the heat capacity for the batch reactor based on the model inputs and reactor configuration."""
+        """Configure the heat capacity in [J/mol.K] for the batch reactor based on the model inputs and reactor configuration."""
         # check heat capacity mode
         if self.gas_heat_capacity_mode is None:
             raise ValueError(
@@ -166,7 +164,7 @@ class ThermoModelInputs:
             self,
     ) -> Tuple[np.ndarray, Dict[str, float]]:
         """
-        Configure the heat capacity for the batch reactor based on the model inputs and reactor configuration.
+        Configure the heat capacity in [J/mol.K] for the batch reactor based on the model inputs and reactor configuration.
         """
         # check heat capacity mode
         if self.liquid_heat_capacity_mode is None:
@@ -213,7 +211,7 @@ class ThermoModelInputs:
             self
     ) -> Tuple[np.ndarray, Dict[str, float]]:
         """
-        Configure the density for the batch reactor based on the model inputs and reactor configuration.
+        Configure the density in [g/m3] for the batch reactor based on the model inputs and reactor configuration.
         """
         # check density mode
         if self.liquid_density_mode is None:
