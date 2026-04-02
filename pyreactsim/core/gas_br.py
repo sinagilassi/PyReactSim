@@ -231,7 +231,8 @@ class GasBatchReactor:
         if self.heat_transfer_mode == "isothermal":
             if self._T0 is None:
                 raise ValueError(
-                    "initial temperature must be provided for isothermal simulation.")
+                    "initial temperature must be provided for isothermal simulation."
+                )
             n = y[:ns]
             temp = float(self._T0)
         else:
