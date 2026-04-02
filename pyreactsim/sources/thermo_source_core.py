@@ -19,7 +19,7 @@ from .interface import (
     exec_component_eq
 )
 
-from ..utils.unit_tools import to_K, to_J_per_mol, to_J_per_mol_K, to_g_per_m3, to_g_per_mol
+from ..utils.unit_tools import to_K, to_J_per_mol, to_g_per_mol
 from ..utils.tools import find_components_property, collect_keys
 from ..models.rate_exp import ReactionRateExpression
 from ..models.heat import HeatTransferOptions
@@ -81,6 +81,7 @@ class ThermoSourceCore(ThermoCalc):
         self.component_ids = component_refs['component_ids']
         self.component_formula_state = component_refs['component_formula_state']
         self.component_mapper = component_refs['component_mapper']
+        self.component_id_to_index = component_refs['component_id_to_index']
 
         # SECTION: Process model configuration
 
@@ -841,9 +842,13 @@ class ThermoSourceCore(ThermoCalc):
 
         # iterate over components
         for comp in self.component_ids:
+            # >> component
+            component_index_: int = self.component_id_to_index[comp]
+            component_ = self.components[component_index_]
+
             # >> calculate liquid phase enthalpy for the component at the specified temperature
             En_LIQ_value = calc_En_IG_ref(
-                component=comp,
+                component=component_,
                 temperature=temperature,
                 model_source=self.model_source,
             )
