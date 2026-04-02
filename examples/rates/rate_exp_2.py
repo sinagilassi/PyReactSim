@@ -9,7 +9,7 @@ from pyreactlab_core.models.reaction import Reaction
 from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 
 # ! model source
-from model_source_exp_1 import components, CO2, H2, CH3OH, H2O
+from examples.source.gas_model_source_exp_1 import components, CO2, H2, CH3OH, H2O
 
 
 # ====================================================

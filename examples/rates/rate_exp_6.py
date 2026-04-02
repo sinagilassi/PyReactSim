@@ -12,7 +12,7 @@ from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpressi
 # NOTE:
 # Replace these imports with the exact component objects from your liquid reference module.
 # Example names are illustrative and should match your actual exported variables.
-from liquid_model_source_exp_1 import CH3COOH, CH3OH, C3H6O2, H2O
+from examples.source.liquid_model_source_exp_1 import CH3COOH, CH3OH, C3H6O2, H2O
 
 
 # ====================================================

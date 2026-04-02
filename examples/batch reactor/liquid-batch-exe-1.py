@@ -12,9 +12,9 @@ from pyreactsim import create_batch_reactor, BatchReactor
 
 # NOTE: Batch reactor settings
 # ! model sources for liquid phase batch reactor
-from liquid_model_source_exp_1 import model_source
+from examples.source.liquid_model_source_exp_1 import model_source
 # ! rate expressions & components
-from rate_exp_6 import reaction_rates, components
+from examples.rates.rate_exp_6 import reaction_rates, components
 # ! plot function
 from examples.plot.plot_res import plot_batch_reactor_result
 

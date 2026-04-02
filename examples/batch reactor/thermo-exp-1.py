@@ -17,7 +17,7 @@ from pyreactlab_core.models.reaction import Reaction
 
 # NOTE: Batch reactor settings
 # ! model sources for liquid phase batch reactor
-from liquid_model_source_exp_1 import model_source, components
+from examples.source.liquid_model_source_exp_1 import model_source, components
 
 # SECTION: Calculate liquid phase enthalpy for the components at reference temperature (e.g., 298 K)
 # ! specify temperature for enthalpy calculation
