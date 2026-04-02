@@ -198,6 +198,7 @@ class ThermoSourceCore(ThermoCalc):
         # NOTE: calculate heat capacity at ideal gas for the components based on the heat capacity mode
         if self.gas_heat_capacity_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent heat capacity
+            # ! to J/mol.K
             Cp_IG_values = self.calc_Cp_IG_real(
                 inputs={
                     "T": {
@@ -334,6 +335,7 @@ class ThermoSourceCore(ThermoCalc):
                 )
 
             # >> execute equation to get Cp_LIQ at reference conditions
+            # ! to J/mol.K
             cp_value = exec_component_eq(
                 component_eq_src=eq_src,
                 inputs=inputs,
@@ -455,9 +457,11 @@ class ThermoSourceCore(ThermoCalc):
             # >> check
             if components is None:
                 raise ValueError(
-                    f"No components found for reaction: {rxn.name}")
+                    f"No components found for reaction: {rxn.name}"
+                )
 
             # Enthalpy of formation at 298 K for the components
+            # ! in J/mol
             EnFo_IG_298_values, _ = find_components_property(
                 components=components,
                 prop_values=self.EnFo_IG_298_comp,
@@ -465,12 +469,14 @@ class ThermoSourceCore(ThermoCalc):
             )
 
             # calc
+            # ! in J
             dH_rxn = EnFo_IG_298_values @ nu
 
             # >> check
             if dH_rxn is None:
                 raise ValueError(
-                    f"Failed to calculate reaction enthalpy for reaction: {rxn.name}")
+                    f"Failed to calculate reaction enthalpy for reaction: {rxn.name}"
+                )
 
             dH_rxns.append(dH_rxn)
 
@@ -742,6 +748,7 @@ class ThermoSourceCore(ThermoCalc):
         # NOTE: calculate density based on the density mode
         if self.liquid_density_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent density
+            # ! to g/m3
             rho_LIQ_values = self.calc_rho_LIQ_real(
                 inputs={
                     "T": temperature
@@ -749,6 +756,7 @@ class ThermoSourceCore(ThermoCalc):
             )
         elif self.liquid_density_mode == "constant":
             # NOTE: use constant density from model inputs
+            # ! in g/m3
             rho_LIQ_values = self.liquid_density_constant_values
         else:
             raise ValueError(
@@ -769,7 +777,7 @@ class ThermoSourceCore(ThermoCalc):
             inputs: Dict[str, Any],
     ) -> np.ndarray:
         """
-        Calculate the density of the liquid phase for the components in the batch reactor at the specified temperature using temperature-dependent equations of state.
+        Calculate the density of the liquid phase in g/m3 for the components in the batch reactor at the specified temperature using temperature-dependent equations of state.
         """
         # NOTE: extract density at reference temperature (e.g., 298 K)
         rho_LIQ_ref: Dict[str, CustomProperty] = {}
