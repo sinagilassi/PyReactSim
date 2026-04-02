@@ -92,10 +92,10 @@ initial_pressure = Pressure(
 
 # NOTE: initial mole feed for the system in mol
 initial_mole = {
-    "CH3COOH-l": 100.0,  # acetic acid
-    "CH3OH-l": 100.0,   # methanol
-    "C3H6O2-l": 0.0,   # methyl acetate
-    "H2O-l": 0.0,      # water
+    "CH3COOH-l": CustomProp(value=100.0, unit="mol"),  # acetic acid
+    "CH3OH-l": CustomProp(value=100.0, unit="mol"),  # methanol
+    "C3H6O2-l": CustomProp(value=0.0, unit="mol"),  # methyl acetate
+    "H2O-l": CustomProp(value=0.0, unit="mol"),  # water
 }
 
 # NOTE: constant heat capacity (Cp) for the system in J/mol.K
@@ -103,10 +103,10 @@ constant_gas_heat_capacity = {}
 
 # NOTE: constant liquid density (rho_LIQ) for the system in kg/m3
 constant_liquid_density = {
-    "CH3OH-l": 786.6,  # methanol
-    "H2O-l": 997.0,   # water
-    "CH3COOH-l": 1049.0,  # acetic acid
-    "C3H6O2-l": 932.0,  # methyl acetate
+    "CH3OH-l": CustomProp(value=786.6, unit="kg/m3"),  # methanol
+    "H2O-l": CustomProp(value=997.0, unit="kg/m3"),   # water
+    "CH3COOH-l": CustomProp(value=1049.0, unit="kg/m3"),  # acetic acid
+    "C3H6O2-l": CustomProp(value=932.0, unit="kg/m3"),  # methyl acetate
 }
 
 # ! thermo inputs
