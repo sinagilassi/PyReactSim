@@ -144,7 +144,7 @@ model_inputs = {
     "reactor_volume": reactor_volume,
     "initial_temperature": initial_temperature,
     "inlet_temperature": feed_temperature,
-    "outlet_flow": outlet_mole_flow_total,
+    # "outlet_flow": outlet_mole_flow_total,
 }
 
 # ====================================================

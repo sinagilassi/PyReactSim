@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import pycuc
+from collections.abc import Mapping
 from typing import Any, Dict, List, Optional, Tuple
 from pythermodb_settings.models import Component, ComponentKey, Pressure, Temperature, Volume
 # locals
@@ -114,11 +115,33 @@ class CSTRReactorCore(ReactorCore):
 
         initial_temperature = self.model_inputs["initial_temperature"]
 
-        value = to_K(
-            value=float(initial_temperature.value),
-            unit=initial_temperature.unit
-        )
+        # >> interpret input
+        if isinstance(initial_temperature, Temperature):
+            value = float(initial_temperature.value)
+            unit = initial_temperature.unit
+        elif isinstance(initial_temperature, Mapping):
+            if "value" not in initial_temperature or "unit" not in initial_temperature:
+                raise ValueError(
+                    "initial_temperature mapping must contain 'value' and 'unit'."
+                )
+            value = float(initial_temperature["value"])
+            unit = str(initial_temperature["unit"])
+        else:
+            # numeric input is interpreted as Kelvin
+            value = float(initial_temperature)
+            unit = "K"
 
+        unit = str(unit).strip()
+        if not unit:
+            raise ValueError(
+                "initial_temperature unit must be a non-empty string."
+            )
+
+        # >> check need for conversion
+        if unit.upper() != "K":
+            value = to_K(value=value, unit=unit)
+
+        # res
         return Temperature(value=value, unit="K")
 
     # NOTE: inlet temperature configuration
@@ -131,10 +154,31 @@ class CSTRReactorCore(ReactorCore):
 
         inlet_temperature = self.model_inputs["inlet_temperature"]
 
-        value = to_K(
-            value=float(inlet_temperature.value),
-            unit=inlet_temperature.unit
-        )
+        if isinstance(inlet_temperature, Temperature):
+            value = float(inlet_temperature.value)
+            unit = inlet_temperature.unit
+        elif isinstance(inlet_temperature, Mapping):
+            if "value" not in inlet_temperature or "unit" not in inlet_temperature:
+                raise ValueError(
+                    "inlet_temperature mapping must contain 'value' and 'unit'."
+                )
+            value = float(inlet_temperature["value"])
+            unit = str(inlet_temperature["unit"])
+        else:
+            # NOTE: numeric input is interpreted as Kelvin
+            value = float(inlet_temperature)
+            unit = "K"
+
+        unit = str(unit).strip()
+        if not unit:
+            raise ValueError(
+                "inlet_temperature unit must be a non-empty string.")
+
+        if unit.upper() != "K":
+            value = to_K(
+                value=value,
+                unit=unit
+            )
 
         return Temperature(value=value, unit="K")
 
@@ -152,7 +196,7 @@ class CSTRReactorCore(ReactorCore):
         res = []
         res_comp = {}
 
-        for comp_id in self.component_ids:
+        for comp_id in self.component_formula_state:
             if comp_id not in initial_mole:
                 raise ValueError(
                     f"Missing initial mole entry for component '{comp_id}'."
