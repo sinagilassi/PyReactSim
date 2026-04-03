@@ -175,8 +175,8 @@ class GasCSTRReactor:
         self._F_out_total = self.cstr_reactor_core.config_outlet_mole_flow_total()
 
         # ! T_in: initial temperature [K]
-        self.temperature_initial = self.cstr_reactor_core.config_initial_temperature()
-        self._T_in = self.temperature_initial.value
+        self.temperature_initial = self.cstr_reactor_core.temperature_initial
+        self._T_0 = self.cstr_reactor_core._T0
 
         # ! T: inlet temperature [K]
         self.temperature_inlet = self.cstr_reactor_core.config_inlet_temperature()

@@ -69,9 +69,9 @@ class CSTRReactorCore(ReactorCore):
         # SECTION: Process model configuration
         # >> temperature
         # ! to Kelvin
-        self.temperature: Temperature = self.config_temperature()
-        self.temperature_value = self.temperature.value
-        self._T0 = self.temperature_value
+        self.temperature_initial: Temperature = self.config_initial_temperature()
+        self.temperature_initial_value = self.temperature_initial.value
+        self._T0 = self.temperature_initial_value
 
         # SECTION: heat transfer configuration
         # NOTE: heat transfer mode
@@ -79,7 +79,7 @@ class CSTRReactorCore(ReactorCore):
             self.temperature_fixed,
             self._T0,
         ) = self.config_heat_transfer_mode(
-            temperature_value=self.temperature_value
+            temperature_value=self.temperature_initial_value
         )
 
         # NOTE: feed temperature [K]
