@@ -549,9 +549,13 @@ class ThermoSourceCore(ThermoCalc):
         # >> check
         if model_source is None:
             raise ValueError(
-                "Model source is required to calculate reaction enthalpies.")
-        #
+                "Model source is required to calculate reaction enthalpies."
+            )
+
+        # res
         dH_rxns = []
+
+        # iterate over reactions
         for rxn in self.reactions:
             # >> calculate reaction enthalpy for the reaction at the specified temperature
             dH_rxn = dH_rxn_STD(

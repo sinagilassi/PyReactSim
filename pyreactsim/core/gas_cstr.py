@@ -715,6 +715,7 @@ class GasCSTRReactor:
         )
 
         # ??? outlet enthalpy flow
+        # Fi[mol/s] * En_IG(Ti)[J/mol] => [J/s] or [W]
         En_out = calc_enthalpy_flow_rate(
             flow_rates=F_out,
             En=En_IG_values_out

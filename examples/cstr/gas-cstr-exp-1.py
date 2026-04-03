@@ -70,7 +70,7 @@ cstr_reactor_options = CSTRReactorOptions(
 
 # NOTE: heat transfer options
 heat_transfer_options = HeatTransferOptions(
-    heat_transfer_mode="isothermal",
+    heat_transfer_mode="non-isothermal",
     heat_transfer_coefficient=heat_transfer_coefficient,
     heat_transfer_area=heat_transfer_area,
     jacket_temperature=jacket_temperature,
