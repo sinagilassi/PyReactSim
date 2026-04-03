@@ -14,6 +14,7 @@ from pythermodb_settings.models import CustomProp, Temperature, Volume
 from pyreactsim import CSTRReactor, create_cstr_reactor
 from pyreactsim.models import BatchReactorOptions, CSTRReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
+
 # NOTE: example source and kinetics
 # ! add project root and examples root to import path for standalone script execution
 PROJECT_DIR = Path(__file__).resolve().parents[2]

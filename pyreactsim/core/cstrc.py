@@ -179,7 +179,6 @@ class CSTRReactorCore(ReactorCore):
 
     # NOTE: outlet mole flow configuration
     # ! [mol/s]
-
     def config_outlet_mole_flow_total(self) -> float:
         # res0
         res = 0
