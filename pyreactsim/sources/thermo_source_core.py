@@ -8,7 +8,7 @@ from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pyreactlab_core.models.reaction import Reaction
 from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
-from pyThermoCalcDB.docs.thermo import calc_En_IG_ref
+from pyThermoCalcDB.docs.thermo import calc_En_IG_ref, calc_En
 from pyThermoCalcDB.reactions.source import dH_rxn_STD as dH_rxn_reactions
 from pyThermoCalcDB.models import ComponentEnthalpy
 
@@ -27,6 +27,7 @@ from ..models.heat import HeatTransferOptions
 from ..models.br import GasModel
 from ..models.br import BatchReactorOptions
 from .thermo_calc import ThermoCalc
+from ..models.cstr import CSTRReactorOptions
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ class ThermoSourceCore(ThermoCalc):
         components: List[Component],
         source: Source,
         thermo_inputs: Dict[str, Any],
-        batch_reactor_options: BatchReactorOptions,
+        reactor_options: BatchReactorOptions | CSTRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
         thermo_model_source: ThermoModelSource,
@@ -67,7 +68,7 @@ class ThermoSourceCore(ThermoCalc):
         self.components = components
         self.source = source
         self.thermo_inputs = thermo_inputs
-        self.batch_reactor_options = batch_reactor_options
+        self.reactor_options = reactor_options
         self.heat_transfer_options = heat_transfer_options
         self.reaction_rates = reaction_rates
         self.component_refs = component_refs
@@ -103,13 +104,13 @@ class ThermoSourceCore(ThermoCalc):
 
         # SECTION: Reactor configuration
         # ! heat capacity modes
-        self.gas_heat_capacity_mode = batch_reactor_options.gas_heat_capacity_mode
+        self.gas_heat_capacity_mode = reactor_options.gas_heat_capacity_mode
         # ! liquid heat capacity mode
-        self.liquid_heat_capacity_mode = batch_reactor_options.liquid_heat_capacity_mode
+        self.liquid_heat_capacity_mode = reactor_options.liquid_heat_capacity_mode
         # ! phase
-        self.phase = batch_reactor_options.phase
+        self.phase = reactor_options.phase
         # ! density mode
-        self.liquid_density_mode = batch_reactor_options.liquid_density_mode
+        self.liquid_density_mode = reactor_options.liquid_density_mode
 
         # SECTION: heat transfer options
         # ! heat transfer mode
@@ -958,3 +959,81 @@ class ThermoSourceCore(ThermoCalc):
         res = np.array(res, dtype=float)
 
         return res
+
+    # SECTION: Calculate Enthalpy Stream
+    def calc_En_IG(
+            self,
+            temperature: Temperature,
+    ) -> Tuple[Dict[str, CustomProp], np.ndarray]:
+        """
+        Calculate the ideal gas enthalpy (En_IG) in J/mol for the components in the reactor at the specified temperature.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the ideal gas enthalpy (En_IG) for the components in the reactor.
+
+        Returns
+        -------
+        Tuple[Dict[str, CustomProp], np.ndarray]
+            A tuple containing:
+            - A dictionary where the keys are component IDs and the values are the ideal gas enthalpy values for the components in J/mol, calculated at the specified temperature.
+            - An array of ideal gas enthalpy (En_IG) values for the components in the batch reactor, calculated at the specified temperature.
+        """
+        # NOTE: calculate ideal gas enthalpy for the components based on the heat capacity mode
+        res = []
+        res_comp = {}
+
+        # iterate over components
+        for i, comp in enumerate(self.component_ids):
+            # >> component
+            component_ = self.components[i]
+            # >> component id [Name-Formula]
+            component_id_ = self.component_formula_state[i]
+
+            # >> calculate ideal gas enthalpy for the component at the specified temperature
+            En_IG_res: ComponentEnthalpy | None = calc_En(
+                component=component_,
+                temperature=temperature,
+                model_source=self.model_source,
+                component_key="Name-Formula"
+            )
+
+            # >> check
+            if En_IG_res is None:
+                raise ValueError(
+                    f"Failed to calculate ideal gas enthalpy for component: {comp}"
+                )
+
+            # ! set unit to J/mol
+            if En_IG_res.unit != "J/mol":
+                # convert
+                En_IG_value_converted = to_J_per_mol(
+                    value=En_IG_res.value,
+                    unit=En_IG_res.unit
+                )
+                # set
+                En_IG = CustomProp(
+                    value=En_IG_value_converted,
+                    unit="J/mol"
+                )
+            else:
+                En_IG = CustomProp(
+                    value=En_IG_res.value,
+                    unit=En_IG_res.unit
+                )
+
+            # add
+            res_comp[component_id_] = En_IG
+            res.append(En_IG.value)
+
+        # >> check enthalpy values
+        if res_comp is None:
+            raise ValueError(
+                "Enthalpy values could not be calculated or retrieved."
+            )
+
+        # convert to numpy array
+        res = np.array(res, dtype=float)
+
+        return res_comp, res

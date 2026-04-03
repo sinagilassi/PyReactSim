@@ -294,3 +294,12 @@ def to_W(
     except Exception as e:
         logging.error(f"Error converting {value} from {unit} to W: {e}")
         raise ValueError(f"Unsupported unit for conversion: {unit}")
+
+
+def to_mol_per_s(value: float, unit: str) -> float:
+    try:
+        return pycuc.convert_from_to(value=value, from_unit=unit, to_unit="mol/s")
+    except Exception:
+        # fallback to raw value for unit systems that are already mol/s but not
+        # explicitly recognized by converter
+        return float(value)

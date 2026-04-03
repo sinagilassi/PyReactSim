@@ -6,6 +6,7 @@ from pythermodb_settings.models import Component, Temperature, Pressure, CustomP
 from pyThermoLinkDB.thermo import Source
 # locals
 from ..models.br import BatchReactorOptions
+from ..models.cstr import CSTRReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..models.heat import HeatTransferOptions
 from ..models import GasModel
@@ -26,7 +27,7 @@ class ThermoModelInputs:
         components: List[Component],
         source: Source,
         thermo_inputs: Dict[str, Any],
-        batch_reactor_options: BatchReactorOptions,
+        reactor_options: BatchReactorOptions | CSTRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         component_refs: Dict[str, Any],
         component_key: ComponentKey,
@@ -40,12 +41,14 @@ class ThermoModelInputs:
             A list of Component objects representing the chemical components involved in the model source.
         source : Source
             A Source object containing information about the source of the data or equations used in the model source.
-        model_inputs : Dict[str, Any]
+        thermo_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
-        reactor_inputs : BatchReactorOptions
-            A BatchReactorOptions object containing the inputs for the batch reactor simulation, such as volume, heat transfer properties, etc.
-        reaction_rates : List[ReactionRateExpression]
-            A list of reaction rate expressions, where each expression is represented as a ReactionRateExpression object containing information about the reaction and its rate expression.
+        reactor_inputs : BatchReactorOptions | CSTRReactorOptions
+            A BatchReactorOptions or CSTRReactorOptions object containing the inputs for the batch or CSTR reactor simulation, such as volume, heat transfer properties, etc.
+        heat_transfer_options : HeatTransferOptions
+            A HeatTransferOptions object containing the inputs for heat transfer in the batch reactor simulation.
+        component_refs : Dict[str, Any]
+            A dictionary of component references, where the keys are the names of the references and the values are the reference values or objects.
         component_key : ComponentKey
             A ComponentKey object that serves as a key for identifying and categorizing the components in the model source.
         """
@@ -53,7 +56,7 @@ class ThermoModelInputs:
         self.components = components
         self.source = source
         self.thermo_inputs = thermo_inputs
-        self.batch_reactor_options = batch_reactor_options
+        self.reactor_options = reactor_options
         self.heat_transfer_options = heat_transfer_options
         self.component_refs = component_refs
         self.component_key = component_key
@@ -67,13 +70,13 @@ class ThermoModelInputs:
 
         # SECTION: Reactor configuration
         # ! gas heat capacity mode
-        self.gas_heat_capacity_mode = batch_reactor_options.gas_heat_capacity_mode
+        self.gas_heat_capacity_mode = reactor_options.gas_heat_capacity_mode
         # ! liquid heat capacity mode
-        self.liquid_heat_capacity_mode = batch_reactor_options.liquid_heat_capacity_mode
+        self.liquid_heat_capacity_mode = reactor_options.liquid_heat_capacity_mode
         # ! density mode
-        self.liquid_density_mode = batch_reactor_options.liquid_density_mode
+        self.liquid_density_mode = reactor_options.liquid_density_mode
         # ! phase
-        self.phase = batch_reactor_options.phase
+        self.phase = reactor_options.phase
 
         # SECTION: heat transfer options
         # ! heat transfer mode

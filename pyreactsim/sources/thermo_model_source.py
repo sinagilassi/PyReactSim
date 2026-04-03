@@ -16,6 +16,7 @@ from ..models.heat import HeatTransferOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..utils.tools import config_components_property
 from ..utils.unit_tools import to_J_per_mol, to_g_per_mol
+from ..models.cstr import CSTRReactorOptions
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class ThermoModelSource:
         components: List[Component],
         source: Source,
         thermo_inputs: Dict[str, Any],
-        batch_reactor_options: BatchReactorOptions,
+        reactor_options: BatchReactorOptions | CSTRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
         component_refs: Dict[str, Any],
@@ -55,16 +56,24 @@ class ThermoModelSource:
             A list of Component objects representing the chemical components involved in the model source.
         source : Source
             A Source object containing information about the source of the data or equations used in the model source.
+        thermo_inputs : Dict[str, Any]
+            A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
+        reactor_options : BatchReactorOptions | CSTRReactorOptions
+            A BatchReactorOptions or CSTRReactorOptions object containing the inputs for the batch or CSTR reactor simulation, such as volume, heat transfer properties, etc.
+        heat_transfer_options : HeatTransferOptions
+            A HeatTransferOptions object containing the inputs for heat transfer in the batch reactor simulation.
+        reaction_rates : List[ReactionRateExpression]
+            A list of reaction rate expressions, where each expression is represented as a ReactionRateExpression object containing information about the reaction and its rate expression.
+        component_refs : Dict[str, Any]
+            A dictionary containing references for the components, which can include mappings of component IDs, formulas, and other relevant information for the components in the model source.
         component_key : ComponentKey
             A ComponentKey object that serves as a key for identifying and categorizing the components in the model source.
-        component_mapper : Dict[str, Dict[ComponentKey, str]]
-            A dictionary that maps component IDs to their corresponding component keys for different properties. The keys of the outer dictionary are property names, and the values are dictionaries where the keys are ComponentKey objects and the values are the corresponding component IDs in the model source.
         """
         # NOTE: Set attributes
         self.components = components
         self.source = source
         self.thermo_inputs = thermo_inputs
-        self.batch_reactor_options = batch_reactor_options
+        self.reactor_options = reactor_options
         self.heat_transfer_options = heat_transfer_options
         self.reaction_rates = reaction_rates
         self.component_refs = component_refs
@@ -76,12 +85,12 @@ class ThermoModelSource:
         self.component_mapper = component_refs['component_mapper']
 
         # ! phase
-        self.phase = batch_reactor_options.phase
+        self.phase = reactor_options.phase
 
         # SECTION: Extract property equation sources
         if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
             # check heat capacity mode
-            if self.batch_reactor_options.gas_heat_capacity_mode == "temperature-dependent":
+            if self.reactor_options.gas_heat_capacity_mode == "temperature-dependent":
                 # NOTE: extract heat capacity equation source for the components from the model source
                 self.Cp_IG_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                     prop_name="Cp_IG"
@@ -122,7 +131,7 @@ class ThermoModelSource:
             )
 
             # NOTE: density
-            if self.batch_reactor_options.liquid_density_mode == "temperature-dependent":
+            if self.reactor_options.liquid_density_mode == "temperature-dependent":
                 # NOTE: extract density equation source for the components from the model source
                 self.rho_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                     prop_name="rho_LIQ"
@@ -130,7 +139,7 @@ class ThermoModelSource:
 
             # NOTE: heat capacity
             if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
-                if self.batch_reactor_options.liquid_heat_capacity_mode == "temperature-dependent":
+                if self.reactor_options.liquid_heat_capacity_mode == "temperature-dependent":
                     # extract heat capacity equation source for the components from the model source
                     self.Cp_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                         prop_name="Cp_LIQ"

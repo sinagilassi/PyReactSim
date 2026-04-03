@@ -1,4 +1,7 @@
 # import packages/modules
+from examples.plot.plot_res import plot_cstr_reactor_result
+from examples.rates.rate_exp_1 import components, reaction_rates
+from examples.source.gas_model_source_exp_1 import model_source
 import logging
 import sys
 import warnings
@@ -19,10 +22,7 @@ for path in (PROJECT_DIR, EXAMPLES_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from examples.source.gas_model_source_exp_1 import model_source
-from examples.rates.rate_exp_1 import components, reaction_rates
 # NOTE: CSTR plotting helper
-from examples.plot.plot_res import plot_cstr_reactor_result
 
 
 # check version
@@ -69,7 +69,9 @@ batch_reactor_options = BatchReactorOptions(
 # NOTE: explicit CSTR case options
 cstr_reactor_options = CSTRReactorOptions(
     phase="gas",
-    case=6,
+    operation_mode="constant_volume",
+    holdup_volume_mode="fixed",
+    outlet_flow_mode="calculated",
     gas_model="ideal",
     gas_heat_capacity_mode="temperature-dependent",
 )
@@ -81,6 +83,22 @@ heat_transfer_options = HeatTransferOptions(
     heat_transfer_area=heat_transfer_area,
     jacket_temperature=jacket_temperature,
 )
+
+# ====================================================
+# SECTION: thermo inputs
+# ====================================================
+# NOTE: optional constant gas heat capacities [J/mol.K]
+constant_gas_heat_capacity = {
+    "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
+    "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
+    "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
+    "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
+}
+
+# ! thermo inputs
+thermo_inputs = {
+    "gas_heat_capacity": constant_gas_heat_capacity,
+}
 
 # ====================================================
 # SECTION: model inputs
@@ -125,70 +143,59 @@ outlet_mole_flow_total = CustomProp(
     unit="mol/s",
 )
 
-# NOTE: optional constant gas heat capacities [J/mol.K]
-constant_gas_heat_capacity = {
-    "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
-    "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
-    "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
-    "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
-}
 
-# ! thermo inputs
-thermo_inputs = {
-    "gas_heat_capacity": constant_gas_heat_capacity,
-}
-
-# ! model inputs for CSTR
+# NOTE: model inputs for CSTR
+# ! constant volume
 model_inputs = {
     "initial_mole": initial_mole,
-    "initial_temperature": initial_temperature,
-    "feed_mole_flow": feed_mole_flow,
-    "feed_temperature": feed_temperature,
-    "outlet_mole_flow_total": outlet_mole_flow_total,
+    "inlet_flows": feed_mole_flow,
     "reactor_volume": reactor_volume,
+    "initial_temperature": initial_temperature,
+    "inlet_temperature": feed_temperature,
+    "outlet_flow": outlet_mole_flow_total,
 }
 
-# ====================================================
-# SECTION: build thermo source
-# ====================================================
-thermo_source = build_thermo_source(
-    components=components,
-    model_source=model_source,
-    thermo_inputs=thermo_inputs,
-    batch_reactor_options=batch_reactor_options,
-    heat_transfer_options=heat_transfer_options,
-    reaction_rates=reaction_rates,
-    component_key="Name-Formula",
-)
-print("[bold green]Thermo source successfully built![/bold green]")
-print(thermo_source)
+# # ====================================================
+# # SECTION: build thermo source
+# # ====================================================
+# thermo_source = build_thermo_source(
+#     components=components,
+#     model_source=model_source,
+#     thermo_inputs=thermo_inputs,
+#     batch_reactor_options=batch_reactor_options,
+#     heat_transfer_options=heat_transfer_options,
+#     reaction_rates=reaction_rates,
+#     component_key="Name-Formula",
+# )
+# print("[bold green]Thermo source successfully built![/bold green]")
+# print(thermo_source)
 
-# ====================================================
-# SECTION: create cstr reactor
-# ====================================================
-cstr_reactor: CSTRReactor = create_cstr_reactor(
-    model_inputs=model_inputs,
-    thermo_source=thermo_source,
-    cstr_reactor_options=cstr_reactor_options,
-)
-print("[bold green]CSTR reactor successfully created![/bold green]")
-print(cstr_reactor)
+# # ====================================================
+# # SECTION: create cstr reactor
+# # ====================================================
+# cstr_reactor: CSTRReactor = create_cstr_reactor(
+#     model_inputs=model_inputs,
+#     thermo_source=thermo_source,
+#     cstr_reactor_options=cstr_reactor_options,
+# )
+# print("[bold green]CSTR reactor successfully created![/bold green]")
+# print(cstr_reactor)
 
-# NOTE: simulate CSTR
-simulation_results = cstr_reactor.simulate(
-    solver_options={
-        "method": "BDF",
-        "time_span": (0, 200.0),
-        "rtol": 1e-6,
-        "atol": 1e-9,
-    }
-)
-print("[bold green]CSTR simulation completed![/bold green]")
-print(simulation_results)
+# # NOTE: simulate CSTR
+# simulation_results = cstr_reactor.simulate(
+#     solver_options={
+#         "method": "BDF",
+#         "time_span": (0, 200.0),
+#         "rtol": 1e-6,
+#         "atol": 1e-9,
+#     }
+# )
+# print("[bold green]CSTR simulation completed![/bold green]")
+# print(simulation_results)
 
-# NOTE: plot CSTR results
-if simulation_results is not None:
-    plot_cstr_reactor_result(
-        result=simulation_results,
-        components=components,
-    )
+# # NOTE: plot CSTR results
+# if simulation_results is not None:
+#     plot_cstr_reactor_result(
+#         result=simulation_results,
+#         components=components,
+#     )

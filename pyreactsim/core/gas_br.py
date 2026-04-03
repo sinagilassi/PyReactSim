@@ -95,7 +95,7 @@ class GasBatchReactor:
         self.heat_transfer_coefficient_value = batch_reactor_core.heat_transfer_coefficient_value
         self.heat_transfer_area_value = batch_reactor_core.heat_transfer_area_value
         self.jacket_temperature_value = batch_reactor_core.jacket_temperature_value
-        # ! heat flux [W]
+        # ! heat rate [W]
         self.heat_rate = batch_reactor_core.heat_rate
         self.heat_rate_value = batch_reactor_core.heat_rate_value
 

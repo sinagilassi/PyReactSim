@@ -12,9 +12,19 @@ class CSTRReactorOptions(BaseModel):
         ...,
         description="Phase of the CSTR reactor (gas or liquid)."
     )
-    case: Literal[1, 2, 3, 4, 5, 6, 7] = Field(
+    operation_mode: Literal[
+        'constant_pressure', 'constant_volume'
+    ] = Field(
         ...,
-        description="Gas-phase CSTR case number based on predefined mass/heat-balance closures."
+        description="Operating condition of the reactor (constant volume or constant pressure)."
+    )
+    holdup_volume_mode: Literal["fixed", "dynamic"] = Field(
+        ...,
+        description="Holdup volume mode as fixed or dynamic (required if operation_mode is constant pressure)."
+    )
+    outlet_flow_mode: Literal["calculated", "fixed"] = Field(
+        ...,
+        description="Outlet flow mode as calculated or fixed (optional, default is calculated)."
     )
     gas_model: GasModel = Field(
         default="ideal",
@@ -32,34 +42,6 @@ class CSTRReactorOptions(BaseModel):
         default=None,
         description="Density mode as constant or temperature-dependent."
     )
-
-    @property
-    def is_isothermal(self) -> bool:
-        return self.case in (1, 2, 3, 4)
-
-    @property
-    def is_non_isothermal(self) -> bool:
-        return not self.is_isothermal
-
-    @property
-    def is_constant_pressure(self) -> bool:
-        return self.case in (1, 3, 4, 5, 7)
-
-    @property
-    def is_variable_pressure(self) -> bool:
-        return not self.is_constant_pressure
-
-    @property
-    def is_constant_volume(self) -> bool:
-        return self.case in (2, 6)
-
-    @property
-    def is_variable_volume(self) -> bool:
-        return self.case in (4, 7)
-
-    @property
-    def uses_energy_balance(self) -> bool:
-        return self.is_non_isothermal
 
 
 class CSTRReactorResult(BaseModel):

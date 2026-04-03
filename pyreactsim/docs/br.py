@@ -52,7 +52,10 @@ class BatchReactor:
 
         # NOTE: batch reactor options
         # ! batch reactor options
-        self.batch_reactor_options = thermo_source.batch_reactor_options
+        self.batch_reactor_options = cast(
+            BatchReactorOptions,
+            thermo_source.reactor_options
+        )
         # ! heat transfer options
         self.heat_transfer_options = thermo_source.heat_transfer_options
         # ! phase

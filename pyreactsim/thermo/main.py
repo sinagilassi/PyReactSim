@@ -6,6 +6,7 @@ from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
 # locals
 from ..models.br import BatchReactorOptions
+from ..models.cstr import CSTRReactorOptions
 from ..models.heat import HeatTransferOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..sources.thermo_model_source import ThermoModelSource
@@ -21,7 +22,7 @@ def build_thermo_source(
     components: List[Component],
     model_source: ModelSource,
     thermo_inputs: Dict[str, Any],
-    batch_reactor_options: BatchReactorOptions,
+    reactor_options: BatchReactorOptions | CSTRReactorOptions,
     heat_transfer_options: HeatTransferOptions,
     reaction_rates: List[ReactionRateExpression],
     component_key: ComponentKey,
@@ -37,8 +38,8 @@ def build_thermo_source(
         A ModelSource object containing the source of the model to be used in the simulation.
     thermo_inputs : Dict[str, Any]
         A dictionary of model inputs, where the keys are the names of the inputs and the values
-    batch_reactor_options : BatchReactorOptions
-        A BatchReactorOptions object containing the inputs for the batch reactor simulation, such as volume, heat transfer properties, etc.
+    reactor_options : BatchReactorOptions | CSTRReactorOptions
+        A BatchReactorOptions or CSTRReactorOptions object containing the inputs for the batch or CSTR reactor simulation, such as volume, heat transfer properties, etc.
     heat_transfer_options : HeatTransferOptions
         A HeatTransferOptions object containing the inputs for heat transfer in the batch reactor simulation.
     reaction_rates : List[ReactionRateExpression]
@@ -72,7 +73,7 @@ def build_thermo_source(
         components=components,
         source=source,
         thermo_inputs=thermo_inputs,
-        batch_reactor_options=batch_reactor_options,
+        reactor_options=reactor_options,
         heat_transfer_options=heat_transfer_options,
         reaction_rates=reaction_rates,
         component_refs=component_refs,
