@@ -59,14 +59,6 @@ heat_transfer_area = CustomProp(
 )
 
 # NOTE: reactor options for thermo/source compatibility
-batch_reactor_options = BatchReactorOptions(
-    phase="gas",
-    operation_mode="constant_volume",
-    gas_model="ideal",
-    gas_heat_capacity_mode="temperature-dependent",
-)
-
-# NOTE: explicit CSTR case options
 cstr_reactor_options = CSTRReactorOptions(
     phase="gas",
     operation_mode="constant_volume",
@@ -155,47 +147,47 @@ model_inputs = {
     "outlet_flow": outlet_mole_flow_total,
 }
 
-# # ====================================================
-# # SECTION: build thermo source
-# # ====================================================
-# thermo_source = build_thermo_source(
-#     components=components,
-#     model_source=model_source,
-#     thermo_inputs=thermo_inputs,
-#     batch_reactor_options=batch_reactor_options,
-#     heat_transfer_options=heat_transfer_options,
-#     reaction_rates=reaction_rates,
-#     component_key="Name-Formula",
-# )
-# print("[bold green]Thermo source successfully built![/bold green]")
-# print(thermo_source)
+# ====================================================
+# SECTION: build thermo source
+# ====================================================
+thermo_source = build_thermo_source(
+    components=components,
+    model_source=model_source,
+    thermo_inputs=thermo_inputs,
+    reactor_options=cstr_reactor_options,
+    heat_transfer_options=heat_transfer_options,
+    reaction_rates=reaction_rates,
+    component_key="Name-Formula",
+)
+print("[bold green]Thermo source successfully built![/bold green]")
+print(thermo_source)
 
-# # ====================================================
-# # SECTION: create cstr reactor
-# # ====================================================
-# cstr_reactor: CSTRReactor = create_cstr_reactor(
-#     model_inputs=model_inputs,
-#     thermo_source=thermo_source,
-#     cstr_reactor_options=cstr_reactor_options,
-# )
-# print("[bold green]CSTR reactor successfully created![/bold green]")
-# print(cstr_reactor)
+# ====================================================
+# SECTION: create cstr reactor
+# ====================================================
+cstr_reactor: CSTRReactor = create_cstr_reactor(
+    model_inputs=model_inputs,
+    thermo_source=thermo_source,
+    cstr_reactor_options=cstr_reactor_options,
+)
+print("[bold green]CSTR reactor successfully created![/bold green]")
+print(cstr_reactor)
 
-# # NOTE: simulate CSTR
-# simulation_results = cstr_reactor.simulate(
-#     solver_options={
-#         "method": "BDF",
-#         "time_span": (0, 200.0),
-#         "rtol": 1e-6,
-#         "atol": 1e-9,
-#     }
-# )
-# print("[bold green]CSTR simulation completed![/bold green]")
-# print(simulation_results)
+# NOTE: simulate CSTR
+simulation_results = cstr_reactor.simulate(
+    solver_options={
+        "method": "BDF",
+        "time_span": (0, 200.0),
+        "rtol": 1e-6,
+        "atol": 1e-9,
+    }
+)
+print("[bold green]CSTR simulation completed![/bold green]")
+print(simulation_results)
 
-# # NOTE: plot CSTR results
-# if simulation_results is not None:
-#     plot_cstr_reactor_result(
-#         result=simulation_results,
-#         components=components,
-#     )
+# NOTE: plot CSTR results
+if simulation_results is not None:
+    plot_cstr_reactor_result(
+        result=simulation_results,
+        components=components,
+    )
