@@ -745,34 +745,33 @@ class GasCSTRReactor:
         """
         Compute total outlet molar flow rate [mol/s] based on outlet mode and reactor closure.
         """
+        is_fixed_p_fixed_v = (
+            self.operation_mode == "constant_pressure" and
+            self.cstr_reactor_core.holdup_volume_mode == "fixed"
+        )
+
         # NOTE: fixed mode
         if self.cstr_reactor_core.outlet_flow_mode == "fixed":
+            if is_fixed_p_fixed_v:
+                raise ValueError(
+                    "Fixed outlet flow is not allowed when pressure and holdup volume are both fixed. "
+                    "Use outlet_flow_mode='calculated' so outlet flow is computed from the total mole balance."
+                )
             if self._F_out_total is None:
                 raise ValueError(
                     "Fixed outlet flow mode selected but no outlet flow was provided.")
             return float(self._F_out_total)
 
         # NOTE: calculated mode
-        if (
-            self.operation_mode == "constant_pressure" and
-            self.cstr_reactor_core.holdup_volume_mode == "fixed"
-        ):
-            # ! fixed P and fixed V -> outlet must enforce total mole constraint
-            # ! rigid vessel with inlet/outlet flow
-            dTdt_est = 0.0
-            dn_total_dt = -(
-                p_total * reactor_volume / (self.R * temp**2)
-            ) * dTdt_est
-
-            # sum_i nu_i,j for each reaction j
-            nu_sum = np.sum(
-                self.reaction_stoichiometry_matrix, axis=0
+        if is_fixed_p_fixed_v:
+            # ! fixed P + fixed V: outlet must satisfy total mole closure
+            # ! total balance: dn_total/dt = F_in,total - F_out,total + V * sum_i(g_i)
+            # ! this closure enforces dn_total/dt ~= 0 by solving for F_out,total
+            generation_total = reactor_volume * float(
+                np.sum(self._calc_generation_term(rates=rates))
             )
-
-            generation_total = reactor_volume * float(np.dot(nu_sum, rates))
             F_in_total = float(np.sum(self.F_in))
-
-            F_out_total = F_in_total + generation_total - dn_total_dt
+            F_out_total = F_in_total + generation_total
             return max(F_out_total, 0.0)
 
         elif (
