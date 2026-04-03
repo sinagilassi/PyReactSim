@@ -149,6 +149,8 @@ class GasCSTRReactor:
             components=self.components,
             component_key=component_key,
         )
+        # stoichiometry matrix dimensions: rows = reactions, columns = components, values = ν_i,j
+        self.stoichiometry_matrix = self.thermo_source.thermo_reaction.stoichiometry_matrix
 
         # SECTION: Component references
         self.component_num = self.thermo_source.component_refs["component_num"]
@@ -352,6 +354,8 @@ class GasCSTRReactor:
 
         # NOTE: species balance
         # ! dn_i/dt = F_in,i - F_out,i + V * Σ_j(ν_i,j r_j)
+        # >> dn/dt
+        # >> g: reaction generation term for each component (with volume factor)
         dn_dt = self._build_dn_dt(
             ns=ns,
             rates=rates,
@@ -539,6 +543,31 @@ class GasCSTRReactor:
             rates.append(float(r_k.value))
         return np.array(rates, dtype=float)
 
+    # NOTE: calculate generation term for each component (without volume factor)
+    def _calc_generation_term(
+        self,
+        rates: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Calculate reaction generation term for each component (without volume factor).
+
+        Formula
+        -------
+        g_i = Σ_j(ν_i,j r_j)
+        """
+        ns = self.component_num
+        g = np.zeros(ns, dtype=float)
+
+        # sum over reactions to calculate generation term for each component
+        for k, _ in enumerate(self.reactions):
+            r_k = rates[k]
+            stoich_k = self.reaction_stoichiometry[k].items()
+            for sp_name, nu_ik in stoich_k:
+                i = self.component_id_to_index[sp_name]
+                g[i] += nu_ik * r_k
+
+        return g
+
     # SECTION: Building dn/dt
     def _build_dn_dt(
         self,
@@ -580,7 +609,7 @@ class GasCSTRReactor:
         # add flow terms to dn/dt
         dn_dt += f_term
 
-        # ! reaction source terms: V * Σ_j(ν_i,j r_j)
+        # ! source terms: V * Σ_j(ν_i,j r_j)
         # volume [m3], stoichiometry [mol/mol], rates [mol/m3.s] => source term [mol/s]
         for k, _ in enumerate(self.reactions):
             # > calculate reaction rate for reaction k
@@ -595,6 +624,8 @@ class GasCSTRReactor:
             # >> calculate dn/dt for each component i based on reaction k
             for sp_name, nu_ik in stoich_k:
                 i = name_to_idx[sp_name]
+
+                # total source
                 dn_dt[i] += reactor_volume * nu_ik * r_k
 
         return dn_dt

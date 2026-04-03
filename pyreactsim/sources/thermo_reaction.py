@@ -1,10 +1,12 @@
 # import libs
 import logging
+import numpy as np
 from typing import List, Dict, Any, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, CustomProp, ComponentKey
 
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
+from pyreactlab_core import build_rxns_stoichiometry
 # locals
 from ..utils.reaction_tools import stoichiometry_mat
 from ..models.rate_exp import ReactionRateExpression
@@ -51,6 +53,12 @@ class ThermoReaction:
         self.reaction_rates = reaction_rates
         self.component_key = component_key
 
+        # NOTE: Build reactions and stoichiometry matrix
+        self.reactions = self.build_reactions()
+
+        # NOTE: Build stoichiometry matrix
+        self.stoichiometry_matrix = self.build_stoichiometry_matrix()
+
     # SECTION: Reaction and stoichiometry related methods
     # ! Extract all reactions
 
@@ -84,6 +92,35 @@ class ThermoReaction:
         )
 
         return mat
+
+    def build_stoichiometry_matrix(self):
+        """
+        Build the stoichiometry matrix for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
+        """
+        # >> extract reactions from reaction rates
+        res = build_rxns_stoichiometry(
+            reactions=self.build_reactions(),
+            components=self.components,
+            component_key=cast(ComponentKey, self.component_key)
+        )
+
+        # >> check
+        if res is None:
+            raise ValueError(
+                "Failed to build stoichiometry matrix. No valid reactions or components found."
+            )
+
+        # check matrix
+        if 'matrix' not in res:
+            raise ValueError(
+                "Failed to build stoichiometry matrix. No matrix found in the result."
+            )
+
+        # to numpy array
+        mat = res['matrix']
+
+        # res
+        return np.array(mat, dtype=float)
 
     def get_reaction_names(self) -> List[str]:
         """
