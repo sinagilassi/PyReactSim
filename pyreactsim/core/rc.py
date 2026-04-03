@@ -105,6 +105,8 @@ class ReactorCore:
         """Configure the pressure for the batch reactor based on the model inputs."""
         if "pressure" in self.model_inputs_keys:
             pressure_: Pressure = self.model_inputs["pressure"]
+
+            # convert to Pa
             pressure_value = to_Pa(
                 pressure_.value,
                 pressure_.unit

@@ -61,7 +61,7 @@ heat_transfer_area = CustomProp(
 # NOTE: reactor options for thermo/source compatibility
 cstr_reactor_options = CSTRReactorOptions(
     phase="gas",
-    operation_mode="constant_volume",
+    operation_mode="constant_pressure",
     holdup_volume_mode="fixed",
     outlet_flow_mode="calculated",
     gas_model="ideal",
@@ -99,6 +99,12 @@ thermo_inputs = {
 reactor_volume = Volume(
     value=3.0,
     unit="m3",
+)
+
+# NOTE: pressure
+pressure = CustomProp(
+    value=50,
+    unit="bar",
 )
 
 # NOTE: initial reactor temperature [K]
@@ -143,6 +149,7 @@ model_inputs = {
     "reactor_volume": reactor_volume,
     "initial_temperature": initial_temperature,
     "inlet_temperature": inlet_temperature,
+    "pressure": pressure,
     # "outlet_flow": outlet_mole_flow_total,
 }
 
