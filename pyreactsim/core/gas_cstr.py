@@ -307,7 +307,7 @@ class GasCSTRReactor:
         y_mole = n / n_total
 
         # NOTE: closure calculation
-        # ! total pressure and reactor volume
+        # ! total pressure [Pa] and reactor volume [m3]
         p_total, reactor_volume = self._calc_pressure_volume(
             n_total=n_total,
             temperature=temp
@@ -398,11 +398,11 @@ class GasCSTRReactor:
             Total pressure [Pa], reactor volume [m3].
         """
         if self.cstr_reactor_core.is_constant_pressure:
-            # NOTE: Case group: P = constant
+            # ! P = constant, volume varies or fixed
             p_total = self._P0
 
             if self.cstr_reactor_core.holdup_volume_mode == "dynamic":
-                # ! V = n_total * R * T / P
+                # ? V = n_total * R * T / P
                 reactor_volume = self.thermo_source.calc_gas_volume(
                     n_total=n_total,
                     temperature=temperature,
@@ -411,10 +411,10 @@ class GasCSTRReactor:
                     gas_model=cast(GasModel, self.gas_model)
                 )
             else:
-                # fixed holdup volume
+                # ? fixed holdup volume
                 reactor_volume = self._V0
         else:
-            # NOTE: Case group: V = constant, pressure varies
+            # ! V = constant, pressure varies
             reactor_volume = self._V0
 
             # ! P = n_total * R * T / V
@@ -440,6 +440,7 @@ class GasCSTRReactor:
 
         return p_total, reactor_volume
 
+    # NOTE: partial pressure and concentration calculations for rate evaluation
     def _calc_partial_pressure(
         self,
         y_mole: np.ndarray,
