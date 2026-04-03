@@ -176,31 +176,19 @@ class GasCSTRReactor:
 
         # ! T_in: initial temperature [K]
         self.temperature_initial = self.cstr_reactor_core.temperature_initial
-        self._T_0 = self.cstr_reactor_core._T0
+        self._T0 = self.cstr_reactor_core._T0
 
         # ! T: inlet temperature [K]
         self.temperature_inlet = self.cstr_reactor_core.temperature_inlet
         self._T_in = self.temperature_inlet.value
 
-        # ! Cp: initial heat capacity configuration
-        self.Cp_IG_values_in = self.thermo_source.calc_Cp_IG(
-            temperature=self.temperature_initial
-        )
-
-        # ! En_IG: ideal gas enthalpy for inlet stream components [J/mol]
-        _, self.En_IG_values_in = self.thermo_source.calc_En_IG(
-            temperature=self.temperature_inlet
-        )
-
-        # ! inlet enthalpy flow [W]
-        self.En_in = calc_enthalpy_flow_rate(
-            flow_rates=self._F_in,
-            En=self.En_IG_values_in
-        )
-
         # SECTION: Case-based pressure/volume initialization
         self._configure_pressure_volume_initial()
 
+        # SECTION: heat balance configuration
+        self._configure_heat_balance()
+
+    # NOTE: pressure and volume configuration
     def _configure_pressure_volume_initial(self):
         """
         Configure initial pressure and/or volume based on selected CSTR case closure.
@@ -246,6 +234,26 @@ class GasCSTRReactor:
         else:
             raise ValueError(
                 f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
+            )
+
+    # NOTE: heat balance configuration
+    def _configure_heat_balance(self):
+        # check heat transfer mode
+        if self.heat_transfer_mode == "non-isothermal":
+            # ! Cp: initial heat capacity configuration
+            self.Cp_IG_values_in = self.thermo_source.calc_Cp_IG(
+                temperature=self.temperature_initial
+            )
+
+            # ! En_IG: ideal gas enthalpy for inlet stream components [J/mol]
+            _, self.En_IG_values_in = self.thermo_source.calc_En_IG(
+                temperature=self.temperature_inlet
+            )
+
+            # ! inlet enthalpy flow [W]
+            self.En_in = calc_enthalpy_flow_rate(
+                flow_rates=self._F_in,
+                En=self.En_IG_values_in
             )
 
     @property

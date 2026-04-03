@@ -381,7 +381,7 @@ class ThermoSourceCore(ThermoCalc):
         # res
         dCp = []
 
-        # check heat capacity constant
+        # NOTE: check heat capacity constant
         if (
             self.gas_heat_capacity_constant_comp is None or
             self.gas_heat_capacity_constant_values is None or
@@ -390,6 +390,7 @@ class ThermoSourceCore(ThermoCalc):
         ):
             return np.array(dCp, dtype=float)
 
+        # NOTE: calculate for non-isothermal case
         # iterate over reactions
         for rxn in self.reactions:
             # >> calculate reaction enthalpy for the reaction at 298 K
@@ -444,6 +445,11 @@ class ThermoSourceCore(ThermoCalc):
         # res
         dH_rxns = []
 
+        # NOTE: isothermal case
+        if self.heat_transfer_mode == "isothermal":
+            return np.array(dH_rxns, dtype=float)
+
+        # NOTE: non-isothermal case
         # iterate over reactions
         for rxn in self.reactions:
             # >> calculate reaction enthalpy for the reaction at 298 K
