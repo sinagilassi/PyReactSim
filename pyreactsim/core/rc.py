@@ -265,7 +265,7 @@ class ReactorCore:
     # ! [mol/s]
     def config_inlet_mole_flows(
             self,
-    ) -> Tuple[Dict[str, float], np.ndarray]:
+    ) -> Tuple[Dict[str, float], np.ndarray, float]:
         """
         Configure the inlet mole flows for each component in the reactor
         """
@@ -294,7 +294,10 @@ class ReactorCore:
             res_comp[comp_id] = value_
             res.append(value_)
 
-        return res_comp, np.array(res, dtype=float)
+        # total inlet mole flow
+        inlet_flow_total = sum(res)
+
+        return res_comp, np.array(res, dtype=float), inlet_flow_total
 
     # NOTE: inlet mole flow total configuration
     # ! [mol/s]

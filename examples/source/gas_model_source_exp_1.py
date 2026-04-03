@@ -15,7 +15,7 @@ from pyThermoDB import ComponentThermoDB
 from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
 # locals
-from examples.reference import REFERENCE_CONTENT
+from examples.reference_2 import REFERENCE_CONTENT
 
 # check version
 print(ptdb.__version__)
@@ -84,7 +84,7 @@ C2H6 = Component(
 )
 
 # components
-components = [CO2, H2, CH3OH, H2O, CO, C2H4, C2H6]
+components = [CO2, H2, CH3OH, H2O]
 
 # NOTE: ignore state properties
 ignore_state_props = ['MW', 'VaPr', 'Cp_IG']

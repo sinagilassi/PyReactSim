@@ -107,3 +107,25 @@ def calc_dH_rxn_298(
         An array of reaction enthalpies at 298 K (ΔH_rxn_298) for each reaction in J/mol.
     """
     return EnFo_IG_298 @ nu
+
+
+def calc_enthalpy_flow_rate(
+        flow_rates: np.ndarray,
+        En: np.ndarray
+):
+    """
+    Calculate the inlet energy flow (En_in) based on the inlet flow rates and energy content of each component.
+
+    Parameters
+    ----------
+    flow_rates : np.ndarray
+        An array of inlet flow rates for each component in mol/s.
+    En : np.ndarray
+        An array of energy content (En) values for each component in J/mol.
+
+    Returns
+    -------
+    float
+        The total inlet energy flow (En_in) in J/s.
+    """
+    return np.sum(flow_rates * En)

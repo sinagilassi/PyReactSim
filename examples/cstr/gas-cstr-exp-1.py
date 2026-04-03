@@ -9,12 +9,12 @@ import pyThermoLinkDB as ptdblink
 from pythermodb_settings.models import CustomProp, Temperature, Volume
 # locals
 from pyreactsim import CSTRReactor, create_cstr_reactor
-from pyreactsim.models import BatchReactorOptions, CSTRReactorOptions, HeatTransferOptions
+from pyreactsim.models import CSTRReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 # NOTE: example-specific imports
-from examples.plot.plot_res import plot_cstr_reactor_result
-from examples.rates.rate_exp_1 import components, reaction_rates
 from examples.source.gas_model_source_exp_1 import model_source
+from examples.rates.rate_exp_1 import components, reaction_rates
+from examples.plot.plot_res import plot_cstr_reactor_result
 
 # NOTE: example source and kinetics
 # ! add project root and examples root to import path for standalone script execution
@@ -25,8 +25,6 @@ for path in (PROJECT_DIR, EXAMPLES_DIR):
         sys.path.insert(0, str(path))
 
 # NOTE: CSTR plotting helper
-
-
 # check version
 print(ptdb.__version__)
 print(ptdblink.__version__)
