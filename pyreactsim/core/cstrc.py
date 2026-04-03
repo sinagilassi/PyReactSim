@@ -73,18 +73,12 @@ class CSTRReactorCore(ReactorCore):
         self.temperature_initial_value = self.temperature_initial.value
         self._T0 = self.temperature_initial_value
 
+        # >> inlet temperature
+        self.temperature_inlet: Temperature = self.config_inlet_temperature()
+        self.temperature_inlet_value = self.temperature_inlet.value
+        self._T_in = self.temperature_inlet_value
+
         # SECTION: heat transfer configuration
-        # NOTE: heat transfer mode
-        (
-            self.temperature_fixed,
-            self._T0,
-        ) = self.config_heat_transfer_mode(
-            temperature_value=self.temperature_initial_value
-        )
-
-        # NOTE: feed temperature [K]
-        self.feed_temperature = self._T0
-
         # NOTE: heat exchange configuration
         (
             self.heat_exchange,

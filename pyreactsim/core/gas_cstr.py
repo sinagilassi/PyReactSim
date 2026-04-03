@@ -179,7 +179,7 @@ class GasCSTRReactor:
         self._T_0 = self.cstr_reactor_core._T0
 
         # ! T: inlet temperature [K]
-        self.temperature_inlet = self.cstr_reactor_core.config_inlet_temperature()
+        self.temperature_inlet = self.cstr_reactor_core.temperature_inlet
         self._T_in = self.temperature_inlet.value
 
         # ! Cp: initial heat capacity configuration
