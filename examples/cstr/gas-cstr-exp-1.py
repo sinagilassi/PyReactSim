@@ -89,7 +89,7 @@ constant_gas_heat_capacity = {
 
 # ! thermo inputs
 thermo_inputs = {
-    "gas_heat_capacity": constant_gas_heat_capacity,
+    # "gas_heat_capacity": constant_gas_heat_capacity,
 }
 
 # ====================================================
@@ -108,7 +108,7 @@ initial_temperature = Temperature(
 )
 
 # NOTE: feed stream temperature [K]
-feed_temperature = Temperature(
+inlet_temperature = Temperature(
     value=330,
     unit="K",
 )
@@ -135,7 +135,6 @@ outlet_mole_flow_total = CustomProp(
     unit="mol/s",
 )
 
-
 # NOTE: model inputs for CSTR
 # ! constant volume
 model_inputs = {
@@ -143,7 +142,7 @@ model_inputs = {
     "inlet_flows": feed_mole_flow,
     "reactor_volume": reactor_volume,
     "initial_temperature": initial_temperature,
-    "inlet_temperature": feed_temperature,
+    "inlet_temperature": inlet_temperature,
     # "outlet_flow": outlet_mole_flow_total,
 }
 
@@ -176,7 +175,7 @@ print(cstr_reactor)
 simulation_results = cstr_reactor.simulate(
     solver_options={
         "method": "BDF",
-        "time_span": (0, 200.0),
+        "time_span": (0, 150.0),
         "rtol": 1e-6,
         "atol": 1e-9,
     }
