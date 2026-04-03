@@ -5,7 +5,6 @@ from pythermodb_settings.models import ComponentKey
 # locals
 from ..core.cstrc import CSTRReactorCore
 from ..core.gas_cstr import GasCSTRReactor
-from ..models.br import BatchReactorOptions
 from ..models.cstr import CSTRReactorOptions
 from ..models.cstr import CSTRReactorResult
 from ..sources.thermo_source import ThermoSource
@@ -87,18 +86,26 @@ class CSTRReactor:
         solver_options: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> Optional[CSTRReactorResult]:
+        # NOTE: set default solver options
         method = solver_options.get(
-            "method", "BDF") if solver_options else "BDF"
+            "method",
+            "BDF"
+        ) if solver_options else "BDF"
         time_span = solver_options.get(
-            "time_span", (0, 100)) if solver_options else (0, 100)
+            "time_span",
+            (0, 100)
+        ) if solver_options else (0, 100)
         rtol = solver_options.get("rtol", 1e-6) if solver_options else 1e-6
         atol = solver_options.get("atol", 1e-9) if solver_options else 1e-9
 
+        # NOTE: define ODE function
         def fun(t, y):
             return self.reactor.rhs(t, y)
 
+        # NOTE: build initial state vector
         y0 = self.reactor.build_y0()
 
+        # NOTE: solve ODEs
         sol = solve_ivp(
             fun,
             time_span,

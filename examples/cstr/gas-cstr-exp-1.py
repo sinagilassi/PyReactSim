@@ -1,7 +1,4 @@
 # import packages/modules
-from examples.plot.plot_res import plot_cstr_reactor_result
-from examples.rates.rate_exp_1 import components, reaction_rates
-from examples.source.gas_model_source_exp_1 import model_source
 import logging
 import sys
 import warnings
@@ -14,6 +11,10 @@ from pythermodb_settings.models import CustomProp, Temperature, Volume
 from pyreactsim import CSTRReactor, create_cstr_reactor
 from pyreactsim.models import BatchReactorOptions, CSTRReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
+# NOTE: example-specific imports
+from examples.plot.plot_res import plot_cstr_reactor_result
+from examples.rates.rate_exp_1 import components, reaction_rates
+from examples.source.gas_model_source_exp_1 import model_source
 
 # NOTE: example source and kinetics
 # ! add project root and examples root to import path for standalone script execution
@@ -169,7 +170,6 @@ print(thermo_source)
 cstr_reactor: CSTRReactor = create_cstr_reactor(
     model_inputs=model_inputs,
     thermo_source=thermo_source,
-    cstr_reactor_options=cstr_reactor_options,
 )
 print("[bold green]CSTR reactor successfully created![/bold green]")
 print(cstr_reactor)

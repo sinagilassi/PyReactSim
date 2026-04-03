@@ -1,13 +1,9 @@
 # import libs
 import logging
-from typing import Dict, List, Optional, Any
-from pythermodb_settings.models import Component
-from pyThermoLinkDB.models import ModelSource
+from typing import Dict, Any
 # locals
 from .docs.br import BatchReactor
 from .docs.cstr import CSTRReactor
-from .models import BatchReactorOptions, HeatTransferOptions
-from .models.rate_exp import ReactionRateExpression
 from .sources.thermo_source import ThermoSource
 
 
