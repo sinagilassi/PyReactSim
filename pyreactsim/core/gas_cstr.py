@@ -78,6 +78,8 @@ class GasCSTRReactor:
     # NOTE: Constants
     # ! universal gas constant [J/mol.K]
     R = R_J_per_mol_K
+    # ! reference temperature for reaction enthalpy calculations [K]
+    T_ref = Temperature(value=298.15, unit="K")
 
     # NOTE: Primary state/configuration values
     # ! initial component moles in reactor [mol]
