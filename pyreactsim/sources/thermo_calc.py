@@ -112,3 +112,62 @@ class ThermoCalc:
         total_volume = np.sum(volumes)
 
         return total_volume
+
+    def calc_molar_flow_rate_from_volumetric_flow_rate(
+        self,
+        volumetric_flow_rate: float,
+        temperature: float,
+        pressure: float,
+        R: float,
+        gas_model: GasModel
+    ) -> float:
+        """
+        Calculate the molar flow rate from the volumetric flow rate using the ideal gas law.
+            F = V_dot * P / (R * T)
+
+        Parameters
+        ----------
+        volumetric_flow_rate : float
+            Volumetric flow rate of the gas [m3/s].
+        temperature : float
+            Temperature of the gas in the reactor [K].
+        pressure : float
+            Pressure of the gas in the reactor [Pa].
+        R : float
+            Ideal gas constant [J/mol.K].
+        gas_model : GasModel
+            The gas model to use for the calculation (e.g., "ideal", "real").
+
+        Returns
+        -------
+        float
+            Molar flow rate of the gas [mol/s].
+        """
+        if gas_model == "real":
+            return 0
+
+        # ideal gas model
+        return volumetric_flow_rate * pressure / (R * temperature)
+
+    def calc_molar_flow_rate_from_total_concentration(
+        self,
+        total_concentration: float,
+        volumetric_flow_rate: float,
+    ) -> float:
+        """
+        Calculate the molar flow rate from the total concentration.
+            F = C_total * V_dot
+
+        Parameters
+        ----------
+        total_concentration : float
+            Total concentration in the reactor [mol/m3].
+        volumetric_flow_rate : float
+            Volumetric flow rate of the gas [m3/s].
+
+        Returns
+        -------
+        float
+            Molar flow rate of the gas [mol/s].
+        """
+        return total_concentration * volumetric_flow_rate

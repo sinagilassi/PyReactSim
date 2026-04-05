@@ -196,6 +196,9 @@ class GasCSTRReactor:
             reactor_volume=self._V0,
         )
 
+        # ! v_in: volumetric flow rate for inlet stream [m3/s]
+        self.v_in = self._F_in_total / self.C_in_total
+
     # NOTE: pressure and volume configuration
     def _configure_pressure_volume_initial(self):
         """
@@ -780,46 +783,35 @@ class GasCSTRReactor:
         -----
         - Holdup volume mode is only relevant for constant-pressure cases, where it determines whether the reactor volume can adjust to maintain pressure or if the outlet flow must adjust to maintain both pressure and volume.
         """
-        is_fixed_p_fixed_v = (
-            self.operation_mode == "constant_pressure" and
-            self.cstr_reactor_core.holdup_volume_mode == "fixed"
-        )
-
-        # NOTE: fixed mode
-        if self.cstr_reactor_core.outlet_flow_mode == "fixed":
-            if is_fixed_p_fixed_v:
-                raise ValueError(
-                    "Fixed outlet flow is not allowed when pressure and holdup volume are both fixed. "
-                    "Use outlet_flow_mode='calculated' so outlet flow is computed from the total mole balance."
-                )
-            if self._F_out_total is None:
-                raise ValueError(
-                    "Fixed outlet flow mode selected but no outlet flow was provided.")
-            return float(self._F_out_total)
-
         # NOTE: calculated mode
-        if is_fixed_p_fixed_v:
-            # ! fixed P + fixed V: outlet must satisfy total mole closure
-            # ! total balance: dn_total/dt = F_in,total - F_out,total + V * sum_i(g_i)
-            # ! this closure enforces dn_total/dt ~= 0 by solving for F_out,total
-            generation_total = reactor_volume * float(
-                np.sum(self._calc_generation_term(rates=rates))
-            )
-            F_in_total = float(np.sum(self.F_in))
-            F_out_total = F_in_total + generation_total
-            return max(F_out_total, 0.0)
+        if (
+            self.operation_mode == "constant_pressure" and
+            self.cstr_reactor_core.holdup_volume_mode == "dynamic" and
+            self.cstr_reactor_core.outlet_flow_mode == "calculated"
+        ):
+            # ! pressure fixed by variable V
+            # * valve/controller law
+            return float(np.sum(self.F_in))
 
         elif (
             self.operation_mode == "constant_pressure" and
-            self.cstr_reactor_core.holdup_volume_mode == "dynamic"
+            self.cstr_reactor_core.holdup_volume_mode == "dynamic" and
+            self.cstr_reactor_core.outlet_flow_mode == "fixed"
         ):
-            # ! pressure fixed by variable V, so outlet need not enforce pressure
-            # ! expandable reactor
-            return float(np.sum(self.F_in))
+            # ! pressure fixed by variable V
+            # * specified outlet flow
+            return float(self._F_out_total)
 
         elif self.operation_mode == "constant_volume":
             # ! volume fixed, pressure may vary, so use operating policy
-            return float(np.sum(self.F_in))
+            # * v[in] = v[out]
+            return self.thermo_source.calc_molar_flow_rate_from_volumetric_flow_rate(
+                volumetric_flow_rate=self.v_in,
+                temperature=temp,
+                pressure=p_total,
+                R=self.R,
+                gas_model=cast(GasModel, self.gas_model)
+            )
 
         else:
             raise ValueError("Unsupported outlet-flow calculation mode.")
