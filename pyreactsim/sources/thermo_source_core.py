@@ -835,7 +835,7 @@ class ThermoSourceCore(ThermoCalc):
     def calc_En_LIQ(
             self,
             temperature: Temperature,
-    ) -> Dict[str, CustomProp]:
+    ) -> Tuple[Dict[str, CustomProp], np.ndarray]:
         """
         Calculate the liquid phase enthalpy (En_LIQ) in J/mol for the components in the batch reactor at the specified temperature.
 
@@ -846,11 +846,18 @@ class ThermoSourceCore(ThermoCalc):
 
         Returns
         -------
-        Dict[str, CustomProp]
-            A dictionary where the keys are component IDs and the values are the liquid phase enthalpy values for the components in J/mol, calculated at the specified temperature.
+        Tuple[Dict[str, CustomProp], np.ndarray]
+            A tuple containing:
+            - A dictionary where the keys are component IDs and the values are the liquid phase enthalpy values for the components in J/mol, calculated at the specified temperature.
+            - An array of liquid phase enthalpy (En_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
         """
+        # NOTE: check heat transfer mode
+        if self.heat_transfer_mode == "isothermal":
+            return {}, np.array([])
+
         # NOTE: calculate liquid phase enthalpy for the components based on the heat capacity mode
         res = {}
+        res_array = []
 
         # iterate over components
         for i, comp in enumerate(self.component_ids):
@@ -892,6 +899,8 @@ class ThermoSourceCore(ThermoCalc):
                 )
 
             res[component_id_] = En_LIQ
+            # add to array
+            res_array.append(En_LIQ.value)
 
         # >> check enthalpy values
         if res is None:
@@ -899,7 +908,10 @@ class ThermoSourceCore(ThermoCalc):
                 "Enthalpy values could not be calculated or retrieved."
             )
 
-        return res
+        # to numpy array
+        res_array = np.array(res_array, dtype=float)
+
+        return res, res_array
 
     # ! Calculate reaction enthalpies (ΔH) for reactions at temperature T using ideal gas reference state
     def calc_dH_rxns_IG_ref(
@@ -924,9 +936,7 @@ class ThermoSourceCore(ThermoCalc):
 
         # NOTE: calculate liquid phase enthalpy for the components at reference temperature (e.g., 298 K)
         # ! in J/mol
-        En_LIQ_comp: Dict[
-            str, CustomProp
-        ] = self.calc_En_LIQ(temperature=temperature)
+        En_LIQ_comp, _ = self.calc_En_LIQ(temperature=temperature)
 
         # NOTE: calculate reaction enthalpy for each reaction using the ideal gas reference state
         # iterate over reactions

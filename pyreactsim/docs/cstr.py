@@ -5,6 +5,7 @@ from pythermodb_settings.models import ComponentKey
 # locals
 from ..core.cstrc import CSTRReactorCore
 from ..core.gas_cstr import GasCSTRReactor
+from ..core.liquid_cstr import LiquidCSTRReactor
 from ..models.cstr import CSTRReactorOptions
 from ..models.cstr import CSTRReactorResult
 from ..sources.thermo_source import ThermoSource
@@ -63,12 +64,20 @@ class CSTRReactor:
         )
 
         # SECTION: Create reactor
-        self.reactor: GasCSTRReactor = self._create_reactor()
+        self.reactor: GasCSTRReactor | LiquidCSTRReactor = self._create_reactor()
 
     # SECTION: Reactor creation method
-    def _create_reactor(self) -> GasCSTRReactor:
+    def _create_reactor(self) -> GasCSTRReactor | LiquidCSTRReactor:
         if self.phase == "gas":
             return GasCSTRReactor(
+                components=self.components,
+                reaction_rates=self.reaction_rates,
+                thermo_source=self.thermo_source,
+                cstr_reactor_core=self.cstr_reactor_core,
+                component_key=cast(ComponentKey, self.component_key),
+            )
+        elif self.phase == "liquid":
+            return LiquidCSTRReactor(
                 components=self.components,
                 reaction_rates=self.reaction_rates,
                 thermo_source=self.thermo_source,
