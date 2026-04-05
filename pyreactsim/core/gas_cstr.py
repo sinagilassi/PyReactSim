@@ -190,6 +190,12 @@ class GasCSTRReactor:
         # SECTION: heat balance configuration
         self._configure_heat_balance()
 
+        # ! C_in, C_total: initial concentration configuration for rate evaluation [mol/m3]
+        self._C_in, _, self.C_in_total = self._calc_concentration(
+            n=self._N0,
+            reactor_volume=self._V0,
+        )
+
     # NOTE: pressure and volume configuration
     def _configure_pressure_volume_initial(self):
         """
@@ -217,6 +223,7 @@ class GasCSTRReactor:
                 R=self.R,
                 gas_model=cast(GasModel, self.gas_model)
             )
+
         # ! V: initial volume [m3]
         elif self.operation_mode == "constant_pressure":
             # retrieve
@@ -768,6 +775,10 @@ class GasCSTRReactor:
     ) -> float:
         """
         Compute total outlet molar flow rate [mol/s] based on outlet mode and reactor closure.
+
+        Notes
+        -----
+        - Holdup volume mode is only relevant for constant-pressure cases, where it determines whether the reactor volume can adjust to maintain pressure or if the outlet flow must adjust to maintain both pressure and volume.
         """
         is_fixed_p_fixed_v = (
             self.operation_mode == "constant_pressure" and
