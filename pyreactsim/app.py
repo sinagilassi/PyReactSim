@@ -4,6 +4,7 @@ from typing import Dict, Any
 # locals
 from .docs.br import BatchReactor
 from .docs.cstr import CSTRReactor
+from .docs.pfr import PFRReactor
 from .sources.thermo_source import ThermoSource
 
 
@@ -77,3 +78,34 @@ def create_cstr_reactor(
     )
 
     return cstr_reactor
+
+
+def create_pfr_reactor(
+    model_inputs: Dict[str, Any],
+    thermo_source: ThermoSource,
+    **kwargs,
+) -> PFRReactor:
+    """
+    Factory function to create a PFRReactor instance.
+
+    Parameters
+    ----------
+    model_inputs : Dict[str, Any]
+        A dictionary of model inputs for PFR simulation.
+    thermo_source : ThermoSource
+        Thermodynamic source for PFR simulation.
+    **kwargs
+        Additional keyword arguments for future extensions.
+
+    Returns
+    -------
+    PFRReactor
+        An instance of the PFRReactor class.
+    """
+    pfr_reactor = PFRReactor(
+        model_inputs=model_inputs,
+        thermo_source=thermo_source,
+        **kwargs,
+    )
+
+    return pfr_reactor

@@ -7,6 +7,7 @@ from pyThermoLinkDB.thermo import Source
 # locals
 from ..models.br import BatchReactorOptions
 from ..models.cstr import CSTRReactorOptions
+from ..models.pfr import PFRReactorOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..models.heat import HeatTransferOptions
 from ..models import GasModel
@@ -27,7 +28,7 @@ class ThermoModelInputs:
         components: List[Component],
         source: Source,
         thermo_inputs: Dict[str, Any],
-        reactor_options: BatchReactorOptions | CSTRReactorOptions,
+        reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         component_refs: Dict[str, Any],
         component_key: ComponentKey,
@@ -43,8 +44,8 @@ class ThermoModelInputs:
             A Source object containing information about the source of the data or equations used in the model source.
         thermo_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
-        reactor_inputs : BatchReactorOptions | CSTRReactorOptions
-            A BatchReactorOptions or CSTRReactorOptions object containing the inputs for the batch or CSTR reactor simulation, such as volume, heat transfer properties, etc.
+        reactor_inputs : BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions
+            A reactor options object containing phase and thermodynamic configuration.
         heat_transfer_options : HeatTransferOptions
             A HeatTransferOptions object containing the inputs for heat transfer in the batch reactor simulation.
         component_refs : Dict[str, Any]

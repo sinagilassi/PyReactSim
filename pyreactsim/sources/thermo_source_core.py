@@ -28,6 +28,7 @@ from ..models.br import GasModel
 from ..models.br import BatchReactorOptions
 from .thermo_calc import ThermoCalc
 from ..models.cstr import CSTRReactorOptions
+from ..models.pfr import PFRReactorOptions
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ class ThermoSourceCore(ThermoCalc):
         components: List[Component],
         source: Source,
         thermo_inputs: Dict[str, Any],
-        reactor_options: BatchReactorOptions | CSTRReactorOptions,
+        reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
         thermo_model_source: ThermoModelSource,

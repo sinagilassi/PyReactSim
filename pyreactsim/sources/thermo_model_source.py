@@ -17,6 +17,7 @@ from ..models.rate_exp import ReactionRateExpression
 from ..utils.tools import config_components_property
 from ..utils.unit_tools import to_J_per_mol, to_g_per_mol
 from ..models.cstr import CSTRReactorOptions
+from ..models.pfr import PFRReactorOptions
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ class ThermoModelSource:
         components: List[Component],
         source: Source,
         thermo_inputs: Dict[str, Any],
-        reactor_options: BatchReactorOptions | CSTRReactorOptions,
+        reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
         component_refs: Dict[str, Any],
@@ -58,8 +59,8 @@ class ThermoModelSource:
             A Source object containing information about the source of the data or equations used in the model source.
         thermo_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
-        reactor_options : BatchReactorOptions | CSTRReactorOptions
-            A BatchReactorOptions or CSTRReactorOptions object containing the inputs for the batch or CSTR reactor simulation, such as volume, heat transfer properties, etc.
+        reactor_options : BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions
+            A reactor options object containing phase and thermodynamic configuration.
         heat_transfer_options : HeatTransferOptions
             A HeatTransferOptions object containing the inputs for heat transfer in the batch reactor simulation.
         reaction_rates : List[ReactionRateExpression]

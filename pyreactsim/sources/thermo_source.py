@@ -15,6 +15,7 @@ from ..models.heat import HeatTransferOptions
 from ..models.rate_exp import ReactionRateExpression
 from .thermo_source_core import ThermoSourceCore
 from ..models.cstr import CSTRReactorOptions
+from ..models.pfr import PFRReactorOptions
 
 
 # NOTE: logger setup
@@ -27,7 +28,7 @@ class ThermoSource(ThermoSourceCore):
         components: List[Component],
         source: Source,
         thermo_inputs: Dict[str, Any],
-        reactor_options: BatchReactorOptions | CSTRReactorOptions,
+        reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
         component_refs: Dict[str, Any],
