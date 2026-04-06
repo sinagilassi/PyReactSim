@@ -97,14 +97,12 @@ class PFRReactorCore(ReactorCore):
         self.is_non_isothermal = self.heat_transfer_mode == "non-isothermal"
         self.is_pressure_state_variable = self.pressure_mode == "state_variable"
 
-        # SECTION: final configuration checks
-        self.config_model()
-
     # SECTION: model configuration
     def config_model(
             self
     ):
         if (
+            self.phase == "gas" and
             self.pressure_mode == "constant" and
             self.operation_mode == "constant_volume"
         ):

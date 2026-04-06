@@ -92,6 +92,9 @@ class GasPFRReactor:
         # ! V_R: total reactor volume [m3]
         self._V_R = pfr_reactor_core.reactor_volume_value
 
+        # SECTION: final configuration checks
+        self.pfr_reactor_core.config_model()
+
     @property
     def F_in(self) -> np.ndarray:
         """Inlet component molar-flow vector [mol/s]."""
