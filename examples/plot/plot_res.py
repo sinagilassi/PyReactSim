@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pyreactsim.models.br import BatchReactorResult
 from pyreactsim.models.cstr import CSTRReactorResult
+from pyreactsim.models.pfr import PFRReactorResult
 
 
 def _component_label(component: Any, fallback_index: int) -> str:
@@ -55,12 +56,22 @@ def _plot_reactor_result(
         raise RuntimeError(
             f"Simulation failed: {result.message or 'unknown error'}")
 
-    time = np.asarray(result.time, dtype=float)
+    # NOTE: support both time-based (Batch/CSTR) and volume-based (PFR) coordinates
+    if hasattr(result, "time"):
+        x = np.asarray(result.time, dtype=float)
+        x_label = "Time (s)"
+    elif hasattr(result, "volume"):
+        x = np.asarray(result.volume, dtype=float)
+        x_label = "Reactor volume coordinate (m3)"
+    else:
+        raise ValueError(
+            "Unsupported result coordinate. Expected 'time' or 'volume'.")
+
     state = np.asarray(result.state, dtype=float)
 
     if state.ndim != 2:
         raise ValueError(
-            "Expected result.state to be a 2D array with shape (n_states, n_time).")
+            "Expected result.state to be a 2D array with shape (n_states, n_points).")
 
     has_temperature = _detect_temperature_state(state.shape[0], components)
 
@@ -85,7 +96,7 @@ def _plot_reactor_result(
 
     # species subplot
     for idx, label in enumerate(mole_labels):
-        ax_mole.plot(time, mole_state[idx], linewidth=2, label=label)
+        ax_mole.plot(x, mole_state[idx], linewidth=2, label=label)
     ax_mole.set_ylabel("Moles (mol)")
     ax_mole.set_title(f"{title_prefix} - Species")
     ax_mole.grid(True, alpha=0.3)
@@ -93,15 +104,15 @@ def _plot_reactor_result(
 
     if ax_temp is not None and temp_state is not None:
         # temperature subplot
-        ax_temp.plot(time, temp_state, linewidth=2,
+        ax_temp.plot(x, temp_state, linewidth=2,
                      color="tab:red", label="Temperature")
-        ax_temp.set_xlabel("Time (s)")
+        ax_temp.set_xlabel(x_label)
         ax_temp.set_ylabel("Temperature (K)")
         ax_temp.set_title(f"{title_prefix} - Temperature")
         ax_temp.grid(True, alpha=0.3)
         ax_temp.legend(loc="best")
     else:
-        ax_mole.set_xlabel("Time (s)")
+        ax_mole.set_xlabel(x_label)
 
     if save_path is not None:
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -141,4 +152,19 @@ def plot_cstr_reactor_result(
         save_path=save_path,
         show=show,
         title_prefix="CSTR Reactor",
+    )
+
+
+def plot_pfr_reactor_result(
+    result: PFRReactorResult,
+    components: Iterable[Any] | None = None,
+    save_path: Path | None = None,
+    show: bool = True,
+) -> None:
+    _plot_reactor_result(
+        result=result,
+        components=components,
+        save_path=save_path,
+        show=show,
+        title_prefix="PFR Reactor",
     )
