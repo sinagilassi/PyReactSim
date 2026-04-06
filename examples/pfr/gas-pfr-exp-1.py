@@ -65,14 +65,14 @@ heat_transfer_area = CustomProp(
 pfr_reactor_options = PFRReactorOptions(
     phase="gas",
     operation_mode="constant_pressure",
-    pressure_mode="constant",
+    pressure_mode="calculated",
     gas_model="ideal",
     gas_heat_capacity_mode="temperature-dependent",
 )
 
 # NOTE: heat transfer options
 heat_transfer_options = HeatTransferOptions(
-    heat_transfer_mode="non-isothermal",
+    heat_transfer_mode="isothermal",
     heat_transfer_coefficient=heat_transfer_coefficient,
     heat_transfer_area=heat_transfer_area,
     jacket_temperature=jacket_temperature,

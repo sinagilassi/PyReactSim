@@ -76,7 +76,8 @@ class GasPFRReactor:
 
         # SECTION: Component references
         self.component_num = self.thermo_source.component_refs["component_num"]
-        self.component_formula_state = self.thermo_source.component_refs["component_formula_state"]
+        self.component_formula_state = self.thermo_source.component_refs[
+            "component_formula_state"]
         self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: Inlet and reactor geometry
@@ -172,16 +173,19 @@ class GasPFRReactor:
         # ! ideal-gas volumetric flow: Q = F_total * R * T / P [m3/s]
         q_vol = F_total * self.R * temp / p_total
         q_vol = max(q_vol, 1e-30)
+
         # ! concentration from flow form: C_i = F_i / Q [mol/m3]
         concentration = F / q_vol
 
         # NOTE: standardized properties for rate expression interface
         partial_pressures_std = {
-            sp: CustomProperty(value=y_mole[i] * p_total, unit="Pa", symbol="P")
+            sp: CustomProperty(
+                value=y_mole[i] * p_total, unit="Pa", symbol="P")
             for i, sp in enumerate(self.component_formula_state)
         }
         concentration_std = {
-            sp: CustomProperty(value=concentration[i], unit="mol/m3", symbol="C")
+            sp: CustomProperty(
+                value=concentration[i], unit="mol/m3", symbol="C")
             for i, sp in enumerate(self.component_formula_state)
         }
 
@@ -288,7 +292,8 @@ class GasPFRReactor:
         cp_g_values = self.thermo_source.calc_Cp_IG(temperature=temperature)
         cp_flow = calc_total_heat_capacity(x=F, cp=cp_g_values)
         if cp_flow <= 1e-16:
-            raise ValueError("Total flowing gas heat capacity is too small or zero.")
+            raise ValueError(
+                "Total flowing gas heat capacity is too small or zero.")
 
         # NOTE: reaction heat source term [W/m3]
         delta_h = self.thermo_source.calc_dH_rxns(temperature=temperature)
