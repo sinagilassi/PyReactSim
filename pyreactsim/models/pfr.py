@@ -18,9 +18,9 @@ class PFRReactorOptions(BaseModel):
         ...,
         description="Operating condition of the reactor (constant volume or constant pressure)."
     )
-    pressure_mode: Optional[Literal["constant", "calculated"]] = Field(
+    pressure_mode: Optional[Literal["constant", "shortcut", "state_variable"]] = Field(
         default="constant",
-        description="Pressure mode as constant or calculated (required if operation_mode is constant pressure). The calculated mode computes the pressure drop along the reactor."
+        description="Pressure mode as constant, shortcut, and state_variable. The shortcut uses ideal-gas formulation and state_variable considers pressure as a variable computes the pressure drop along the reactor."
     )
     gas_model: GasModel = Field(
         default="ideal",

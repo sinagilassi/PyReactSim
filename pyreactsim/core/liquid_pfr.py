@@ -71,7 +71,8 @@ class LiquidPFRReactor:
 
         # SECTION: Component references
         self.component_num = self.thermo_source.component_refs["component_num"]
-        self.component_formula_state = self.thermo_source.component_refs["component_formula_state"]
+        self.component_formula_state = self.thermo_source.component_refs[
+            "component_formula_state"]
         self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: Inlet and reactor geometry
@@ -79,15 +80,22 @@ class LiquidPFRReactor:
         self._F_in = pfr_reactor_core._F_in
         self._F_in_total = pfr_reactor_core._F_in_total
         # ! T_in: inlet temperature [K]
+        self.temperature_in = pfr_reactor_core.temperature_inlet
         self._T_in = pfr_reactor_core._T_in
         # ! V_R: total reactor volume [m3]
-        self._V_R = pfr_reactor_core.reactor_volume_value
+        self._Vr = pfr_reactor_core.reactor_volume_value
+
+        # ! rho_LIQ: liquid density [g/m3]
+        self._rho_LIQ_in = self.thermo_source.calc_rho_LIQ(
+            temperature=self.temperature_in
+        )
 
         # ! q_in: inlet volumetric flow rate [m3/s]
         # constant-volume liquid closure uses this fixed value.
-        self._q_in = self._calc_q_liquid(
-            flow=self._F_in,
-            temperature=self._T_in
+        self._q_in = self.thermo_source.calc_liquid_volumetric_flow_rate(
+            molar_flow_rates=self._F_in,
+            molecular_weights=self.thermo_source.MW,
+            density=self._rho_LIQ_in
         )
 
     @property
@@ -110,7 +118,11 @@ class LiquidPFRReactor:
             return f0
         return np.concatenate([f0, np.array([float(self._T_in)], dtype=float)])
 
-    def rhs(self, V: float, y: np.ndarray) -> np.ndarray:
+    def rhs(
+            self,
+            V: float,
+            y: np.ndarray
+    ) -> np.ndarray:
         """
         Right-hand side for liquid PFR ODE system in reactor-volume coordinate.
 
@@ -131,23 +143,38 @@ class LiquidPFRReactor:
         else:
             temp = float(self._T_in)
 
-        # SECTION: closure relations
+        # NOTE: temperature
+        temperature = Temperature(value=temp, unit="K")
+
+        # NOTE: density
+        rho_LIQ = self.thermo_source.calc_rho_LIQ(
+            temperature=temperature
+        )
+
+        # NOTE: volumetric flow rate from closure
         # ! volumetric flow from selected liquid closure [m3/s]
-        q_vol = self._calc_q_vol(F=F, temp=temp)
+        q_vol = self._calc_q_vol(
+            F=F,
+            rho_LIQ=rho_LIQ
+        )
+        # >> avoid zero or negative volumetric flow for concentration calculation
         q_vol = max(q_vol, 1e-30)
-        # ! concentration from flow form: C_i = F_i / Q [mol/m3]
+
+        # NOTE: concentration from flow
+        # ! C_i = F_i / Q [mol/m3]
         concentration = F / q_vol
 
         # NOTE: standardized concentration dict for rate interface
         concentration_std = {
-            sp: CustomProperty(value=concentration[i], unit="mol/m3", symbol="C")
+            sp: CustomProperty(
+                value=concentration[i], unit="mol/m3", symbol="C")
             for i, sp in enumerate(self.component_formula_state)
         }
 
         # SECTION: kinetics evaluation
         rates = self._calc_rates(
             concentration=concentration_std,
-            temperature=Temperature(value=temp, unit="K")
+            temperature=temperature
         )
 
         # SECTION: species balance
@@ -157,10 +184,22 @@ class LiquidPFRReactor:
             return dF_dV
 
         # SECTION: energy balance (optional)
-        dT_dV = self._build_dT_dV(F=F, rates=rates, temp=temp)
+        dT_dV = self._build_dT_dV(
+            F=F,
+            rates=rates,
+            temp=temp
+        )
+
+        # NOTE: concatenate species and thermal derivatives for non-isothermal mode
         return np.concatenate([dF_dV, np.array([dT_dV], dtype=float)])
 
-    def _calc_q_liquid(self, flow: np.ndarray, temperature: float) -> float:
+    # SECTION: helper methods for balances and closures
+    # ! Calculate liquid volumetric flow rate
+    def _calc_q_liquid(
+            self,
+            flow: np.ndarray,
+            rho_LIQ: np.ndarray
+    ) -> float:
         """
         Estimate liquid volumetric flow rate from molar-flow composition.
 
@@ -168,16 +207,18 @@ class LiquidPFRReactor:
         -------
         Q = Σ_i(F_i MW_i / rho_i)
         """
-        rho_liq = self.thermo_source.calc_rho_LIQ(
-            temperature=Temperature(value=temperature, unit="K")
-        )
-        return self.thermo_source.calc_liquid_volume(
-            n=flow,
+        return self.thermo_source.calc_liquid_volumetric_flow_rate(
+            molar_flow_rates=flow,
             molecular_weights=self.thermo_source.MW,
-            density=rho_liq
+            density=rho_LIQ
         )
 
-    def _calc_q_vol(self, F: np.ndarray, temp: float) -> float:
+    # ! Calculate volumetric flow rate closure for concentration calculation
+    def _calc_q_vol(
+            self,
+            F: np.ndarray,
+            rho_LIQ: np.ndarray
+    ) -> float:
         """
         Compute volumetric-flow closure used to recover concentrations.
 
@@ -189,11 +230,12 @@ class LiquidPFRReactor:
         if self.operation_mode == "constant_volume":
             return float(self._q_in)
         if self.operation_mode == "constant_pressure":
-            return float(self._calc_q_liquid(flow=F, temperature=temp))
+            return float(self._calc_q_liquid(flow=F, rho_LIQ=rho_LIQ))
         raise ValueError(
             f"Invalid operation_mode '{self.operation_mode}' for liquid PFR."
         )
 
+    # NOTE: helper methods for kinetics
     def _calc_rates(
         self,
         concentration: Dict[str, CustomProperty],
@@ -225,6 +267,7 @@ class LiquidPFRReactor:
 
         return np.array(rates, dtype=float)
 
+    # NOTE: species derivative builder for all modes
     def _build_dF_dV(self, rates: np.ndarray) -> np.ndarray:
         """
         Build species derivatives dF_i/dV.
@@ -244,6 +287,7 @@ class LiquidPFRReactor:
 
         return dF_dV
 
+    # NOTE: thermal derivative builder for non-isothermal mode
     def _build_dT_dV(
         self,
         F: np.ndarray,
@@ -260,34 +304,52 @@ class LiquidPFRReactor:
         # NOTE: temperature wrapper for thermo API
         temperature = Temperature(value=temp, unit="K")
 
-        # NOTE: flowing heat-capacity rate denominator [J/s.K]
-        cp_l_values = self.thermo_source.calc_Cp_LIQ(temperature=temperature)
-        cp_flow = calc_total_heat_capacity(x=F, cp=cp_l_values)
-        if cp_flow <= 1e-16:
-            raise ValueError("Total flowing liquid heat capacity is too small or zero.")
+        # NOTE: flowing heat-capacity rate denominator
+        # ! [J/s.K]
+        Cp_LIQ_values_out = self.thermo_source.calc_Cp_LIQ(
+            temperature=temperature
+        )
+
+        # ! total flowing liquid heat capacity [J/s.K]
+        Cp_LIQ_total = calc_total_heat_capacity(x=F, cp=Cp_LIQ_values_out)
+
+        # >> check
+        if Cp_LIQ_total <= 1e-16:
+            raise ValueError(
+                "Total flowing liquid heat capacity is too small or zero."
+            )
 
         # NOTE: reaction heat source term [W/m3]
-        delta_h = self.thermo_source.calc_dH_rxns_IG_ref(temperature=temperature)
+        # ! Q_rxn = sum_k((-dH_k) * r_k)
+        # ??? ΔH_k [J/mol]
+        delta_h = self.thermo_source.calc_dH_rxns_IG_ref(
+            temperature=temperature
+        )
+
+        # ??? Q_rxn [W/m3] or [J/s.m3] = sum_k((-ΔH_k) * r_k) [J/mol * mol/m3.s]
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
             rates=rates,
             reactor_volume=1.0
         )
 
-        # NOTE: jacket/surrounding heat exchange [W/m3]
+        # NOTE: jacket/surrounding heat exchange [W/m3] or [J/s.m3]
+        # ! Q_exchange = U A (T - T_jacket) / V
         q_exchange = 0.0
+
+        # >> check if heat exchange is enabled for this reactor configuration
         if self.heat_exchange:
             q_exchange = calc_heat_exchange(
                 temperature=temp,
                 jacket_temperature=self.jacket_temperature_value,
                 heat_transfer_area=self.heat_transfer_area_value,
                 heat_transfer_coefficient=self.heat_transfer_coefficient_value,
-                reactor_volume=self._V_R
+                reactor_volume=self._Vr
             )
 
         # NOTE: user-defined constant heat source [W/m3]
         q_constant = 0.0
         if self.heat_rate_value:
-            q_constant = self.heat_rate_value / self._V_R
+            q_constant = self.heat_rate_value / self._Vr
 
-        return (q_rxn + q_exchange + q_constant) / cp_flow
+        return (q_rxn + q_exchange + q_constant) / Cp_LIQ_total

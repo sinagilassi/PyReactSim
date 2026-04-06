@@ -1,14 +1,15 @@
 import logging
 import numpy as np
-from typing import Dict, List
+from typing import Dict, List, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Pressure, Temperature
 # locals
 from ..configs.constants import R_J_per_mol_K
 from ..models.rate_exp import ReactionRateExpression
+from ..models.ref import GasModel
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
 from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
-from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity
+from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity, calc_pressure_using_PFT
 from .pfrc import PFRReactorCore
 
 # NOTE: logger setup
@@ -91,12 +92,6 @@ class GasPFRReactor:
         # ! V_R: total reactor volume [m3]
         self._V_R = pfr_reactor_core.reactor_volume_value
 
-        # SECTION: Mode validation
-        if self.pressure_mode == "constant" and self.operation_mode == "constant_volume":
-            raise ValueError(
-                "Invalid gas PFR setup: operation_mode='constant_volume' is incompatible with pressure_mode='constant'."
-            )
-
     @property
     def F_in(self) -> np.ndarray:
         """Inlet component molar-flow vector [mol/s]."""
@@ -114,22 +109,25 @@ class GasPFRReactor:
         """
         # NOTE: inlet component molar flows [mol/s]
         f0 = self.F_in.astype(float)
-        # NOTE: mode checks
-        is_nonisothermal = self.heat_transfer_mode == "non-isothermal"
-        is_pressure_ode = self.pressure_mode == "calculated"
 
         # NOTE: build state vector parts based on selected case
         y0_parts: List[np.ndarray] = [f0]
-        if is_nonisothermal:
+
+        if self.heat_transfer_mode == "non-isothermal":
             y0_parts.append(np.array([float(self._T_in)], dtype=float))
-        if is_pressure_ode:
+
+        if self.pressure_mode == "calculated":
             y0_parts.append(np.array([float(self._P0)], dtype=float))
 
         if len(y0_parts) == 1:
             return y0_parts[0]
         return np.concatenate(y0_parts)
 
-    def rhs(self, V: float, y: np.ndarray) -> np.ndarray:
+    def rhs(
+            self,
+            V: float,
+            y: np.ndarray
+    ) -> np.ndarray:
         """
         Right-hand side for gas PFR ODE system in reactor-volume coordinate.
 
@@ -141,27 +139,20 @@ class GasPFRReactor:
         """
         ns = self.component_num
 
-        # NOTE: mode flags for current simulation case
-        is_nonisothermal = self.heat_transfer_mode == "non-isothermal"
-        is_pressure_ode = self.pressure_mode == "calculated"
-
         # SECTION: unpack state vector
         # ! species states: component molar flows [mol/s]
         F = np.clip(y[:ns], 0.0, None)
         idx = ns
 
+        # NOTE: temperature state configuration
         # ! thermal state [K]
-        if is_nonisothermal:
+        if self.pfr_reactor_core.is_non_isothermal:
             temp = float(y[idx])
-            idx += 1
         else:
             temp = float(self._T_in)
 
-        # ! pressure state [Pa] or fixed pressure closure
-        if is_pressure_ode:
-            p_total = float(max(y[idx], 1e-9))
-        else:
-            p_total = float(self._P0)
+        # >>> set
+        temperature = Temperature(value=temp, unit="K")
 
         # SECTION: closure relations
         # ! total molar flow [mol/s]
@@ -170,19 +161,55 @@ class GasPFRReactor:
         # ! gas mole fractions [-]
         y_mole = F / F_total
 
-        # ! ideal-gas volumetric flow: Q = F_total * R * T / P [m3/s]
-        q_vol = F_total * self.R * temp / p_total
+        # NOTE: pressure
+        # ! pressure state [Pa] or fixed pressure closure
+        if self.pressure_mode == "state_variable":
+            # set
+            idx += 1
+            p_total = float(max(y[idx], 1e-9))
+        elif self.pressure_mode == "shortcut":
+            # calc
+            p_total = calc_pressure_using_PFT(
+                P_in=self._P0,
+                F_in_total=self._F_in_total,
+                T_in=self._T_in,
+                F_out_total=F_total,
+                T_out=temp,
+            )
+        elif self.pressure_mode == "constant":
+            # set
+            p_total = float(self._P0)
+        else:
+            raise ValueError(
+                f"Invalid pressure_mode '{self.pressure_mode}' for gas PFR."
+            )
+
+        # >>> set
+        pressure = Pressure(value=p_total, unit="Pa")
+
+        # NOTE: gas volumetric flow
+        # ! Q = F_total * R * T / P [m3/s]
+        q_vol = self.thermo_source.calc_gas_volumetric_flow_rate(
+            molar_flow_rate=F_total,
+            temperature=temp,
+            pressure=p_total,
+            R=self.R,
+            gas_model=cast(GasModel, self.gas_model)
+        )
         q_vol = max(q_vol, 1e-30)
 
         # ! concentration from flow form: C_i = F_i / Q [mol/m3]
         concentration = F / q_vol
 
         # NOTE: standardized properties for rate expression interface
+        # ! partial pressures: P_i = y_i * P_total [Pa]
         partial_pressures_std = {
             sp: CustomProperty(
                 value=y_mole[i] * p_total, unit="Pa", symbol="P")
             for i, sp in enumerate(self.component_formula_state)
         }
+
+        # ! concentrations: C_i = F_i / Q [mol/m3]
         concentration_std = {
             sp: CustomProperty(
                 value=concentration[i], unit="mol/m3", symbol="C")
@@ -190,29 +217,40 @@ class GasPFRReactor:
         }
 
         # SECTION: kinetics evaluation
+        # ! reaction rates [mol/m3.s]
         rates = self._calc_rates(
             partial_pressures=partial_pressures_std,
             concentration=concentration_std,
-            temperature=Temperature(value=temp, unit="K"),
-            pressure=Pressure(value=p_total, unit="Pa")
+            temperature=temperature,
+            pressure=pressure
         )
 
-        # SECTION: species balance
+        # NOTE: species balance
         dF_dV = self._build_dF_dV(rates=rates)
 
-        out: List[np.ndarray] = [dF_dV]
+        # isothermal + constant/shortcut pressure case: only species balances
+        if (
+            self.heat_transfer_mode == "isothermal" and
+            self.pressure_mode != "state_variable"
+        ):
+            return dF_dV
 
-        # SECTION: energy balance (optional)
-        if is_nonisothermal:
+        # initialize output vector with species derivatives
+        out: np.ndarray = dF_dV
+
+        # NOTE: energy balance (optional)
+        if self.heat_transfer_mode == "non-isothermal":
             dT_dV = self._build_dT_dV(F=F, rates=rates, temp=temp)
-            out.append(np.array([dT_dV], dtype=float))
+            # concatenate species and temperature derivatives
+            out = np.concatenate([out, np.array([dT_dV], dtype=float)])
 
-        # SECTION: pressure balance (optional)
-        if is_pressure_ode:
+        # NOTE: pressure balance (optional)
+        if self.pressure_mode == "state_variable":
             dP_dV = self._calc_dP_dV(F=F, temp=temp, p_total=p_total)
-            out.append(np.array([dP_dV], dtype=float))
+            # concatenate species and pressure derivatives
+            out = np.concatenate([out, np.array([dP_dV], dtype=float)])
 
-        return np.concatenate(out)
+        return out
 
     def _calc_rates(
         self,
@@ -333,7 +371,7 @@ class GasPFRReactor:
         Expected future form
         --------------------
         - Ergun-type or friction-factor pressure-drop relation:
-          dP/dV = f(F, T, P, geometry, fluid properties)
+        dP/dV = f(F, T, P, geometry, fluid properties)
         """
         raise NotImplementedError(
             "Gas PFR pressure ODE placeholder: dP/dV model is not implemented yet. "

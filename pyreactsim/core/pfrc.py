@@ -92,8 +92,27 @@ class PFRReactorCore(ReactorCore):
 
         # SECTION: convenience flags
         self.is_constant_pressure = self.pressure_mode == "constant"
-        self.is_calculated_pressure = self.pressure_mode == "calculated"
 
+        # NOTE: mode flags for current simulation case
+        self.is_non_isothermal = self.heat_transfer_mode == "non-isothermal"
+        self.is_pressure_state_variable = self.pressure_mode == "state_variable"
+
+        # SECTION: final configuration checks
+        self.config_model()
+
+    # SECTION: model configuration
+    def config_model(
+            self
+    ):
+        if (
+            self.pressure_mode == "constant" and
+            self.operation_mode == "constant_volume"
+        ):
+            raise ValueError(
+                "Invalid gas PFR setup: operation_mode='constant_volume' is incompatible with pressure_mode='constant'."
+            )
+
+    # NOTE: temperature configuration
     def config_inlet_temperature(self) -> Temperature:
         """
         Configure and normalize inlet temperature to Kelvin.
@@ -105,7 +124,8 @@ class PFRReactorCore(ReactorCore):
         - numeric scalar (assumed Kelvin)
         """
         if "inlet_temperature" not in self.model_inputs_keys:
-            raise ValueError("inlet_temperature must be provided in model_inputs.")
+            raise ValueError(
+                "inlet_temperature must be provided in model_inputs.")
 
         inlet_temperature = self.model_inputs["inlet_temperature"]
 
@@ -125,13 +145,15 @@ class PFRReactorCore(ReactorCore):
 
         unit = str(unit).strip()
         if not unit:
-            raise ValueError("inlet_temperature unit must be a non-empty string.")
+            raise ValueError(
+                "inlet_temperature unit must be a non-empty string.")
 
         if unit.upper() != "K":
             value = to_K(value=value, unit=unit)
 
         return Temperature(value=value, unit="K")
 
+    # NOTE: pressure configuration
     def _config_pressure_initial(self) -> float:
         """
         Configure initial pressure [Pa] for PFR initialization.
@@ -141,14 +163,15 @@ class PFRReactorCore(ReactorCore):
         - gas phase:
             pressure is required for:
             * pressure_mode='constant'
-            * pressure_mode='calculated' (initial condition for P(V))
+            * pressure_mode='shortcut'
+            * pressure_mode='state_variable'
         - liquid phase:
             pressure is optional and defaults to 0.0
         """
         if self.phase != "gas":
             # NOTE: liquid PFR does not require pressure state/closure in this version.
-            if "pressure" in self.model_inputs_keys:
-                pressure = self.model_inputs["pressure"]
+            if "inlet_pressure" in self.model_inputs_keys:
+                pressure = self.model_inputs["inlet_pressure"]
                 return to_Pa(value=float(pressure.value), unit=pressure.unit)
             return 0.0
 

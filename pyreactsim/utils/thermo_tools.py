@@ -129,3 +129,34 @@ def calc_enthalpy_flow_rate(
         The total inlet energy flow (En_in) in J/s.
     """
     return np.sum(flow_rates * En)
+
+
+def calc_pressure_using_PFT(
+        P_in: float,
+        F_in_total: float,
+        T_in: float,
+        F_out_total: float,
+        T_out: float,
+):
+    """
+    Calculate the outlet pressure (P_out) using the Pressure-Flow-Temperature (PFT) relationship for ideal gases.
+
+    Parameters
+    ----------
+    P_in : float
+        Inlet pressure in Pa.
+    F_in_total : float
+        Total inlet molar flow rate in mol/s.
+    T_in : float
+        Inlet temperature in K.
+    F_out_total : float
+        Total outlet molar flow rate in mol/s.
+    T_out : float
+        Outlet temperature in K.
+
+    Returns
+    -------
+    float
+        Outlet pressure (P_out) in Pa.
+    """
+    return P_in * (F_out_total / F_in_total) * (T_out / T_in)

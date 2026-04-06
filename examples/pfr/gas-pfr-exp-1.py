@@ -65,7 +65,7 @@ heat_transfer_area = CustomProp(
 pfr_reactor_options = PFRReactorOptions(
     phase="gas",
     operation_mode="constant_pressure",
-    pressure_mode="calculated",
+    pressure_mode="constant",
     gas_model="ideal",
     gas_heat_capacity_mode="temperature-dependent",
 )
@@ -128,7 +128,7 @@ model_inputs = {
     "inlet_flows": feed_mole_flow,
     "reactor_volume": reactor_volume,
     "inlet_temperature": inlet_temperature,
-    "pressure": pressure,
+    "inlet_pressure": pressure,
 }
 
 # ====================================================

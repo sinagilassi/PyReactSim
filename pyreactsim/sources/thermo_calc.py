@@ -171,3 +171,72 @@ class ThermoCalc:
             Molar flow rate of the gas [mol/s].
         """
         return total_concentration * volumetric_flow_rate
+
+    def calc_gas_volumetric_flow_rate(
+            self,
+            molar_flow_rate: float,
+            temperature: float,
+            pressure: float,
+            R: float,
+            gas_model: GasModel
+    ):
+        """
+        Calculate the volumetric flow rate of the gas using the ideal gas law or real gas model.
+            V_dot = F * R * T / P
+
+        Parameters
+        ----------
+        molar_flow_rate : float
+            Molar flow rate of the gas [mol/s].
+        temperature : float
+            Temperature of the gas in the reactor [K].
+        pressure : float
+            Pressure of the gas in the reactor [Pa].
+        R : float
+            Ideal gas constant [J/mol.K].
+        gas_model : GasModel
+            The gas model to use for the calculation (e.g., "ideal", "real").
+
+        Returns
+        -------
+        float
+            Volumetric flow rate of the gas [m3/s].
+        """
+        if gas_model == "real":
+            return 0.0
+
+        # ideal gas model
+        return molar_flow_rate * R * temperature / pressure
+
+    def calc_liquid_volumetric_flow_rate(
+            self,
+            molar_flow_rates: np.ndarray,
+            molecular_weights: np.ndarray,
+            density: np.ndarray
+    ) -> float:
+        """
+        Calculate the volumetric flow rate of the liquid using the formula:
+            V_dot = sigma_i (F_i * MW_i) / density_i
+
+        Parameters
+        ----------
+        molar_flow_rates : np.ndarray
+            An array of molar flow rates for each component in the liquid phase [mol/s].
+        molecular_weights : np.ndarray
+            An array of molecular weights for each component in the liquid phase [g/mol].
+        density : np.ndarray
+            An array of densities for each component in the liquid phase [g/m3].
+
+        Returns
+        -------
+        float
+            Volumetric flow rate of the liquid [m3/s].
+        """
+        # calculate volumetric flow rate for each component
+        # F [mol/s], MW [g/mol], density [g/m3] => volumetric flow rate [m3/s]
+        volumetric_flow_rates = molar_flow_rates * molecular_weights / density
+
+        # total volumetric flow rate is the sum of the volumetric flow rates of each component
+        total_volumetric_flow_rate = np.sum(volumetric_flow_rates)
+
+        return total_volumetric_flow_rate
