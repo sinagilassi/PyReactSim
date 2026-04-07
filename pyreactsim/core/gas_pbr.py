@@ -188,6 +188,7 @@ class GasPBRReactor:
             gas_model=cast(GasModel, self.gas_model)
         )
         q_vol = max(q_vol, 1e-30)
+
         # ! concentration from flow form: C_i = F_i / Q [mol/m3]
         concentration = F / q_vol
 
@@ -198,6 +199,7 @@ class GasPBRReactor:
                 value=y_mole[i] * p_total, unit="Pa", symbol="P")
             for i, sp in enumerate(self.component_formula_state)
         }
+
         # ! concentrations: C_i = F_i / Q [mol/m3]
         concentration_std = {
             sp: CustomProperty(
@@ -236,12 +238,19 @@ class GasPBRReactor:
         args: Optional[Dict[str, CustomProperty]] = None,
     ) -> np.ndarray:
         """
-        Evaluate raw reaction rates for all reactions based on the provided state and closure properties.
+        Evaluate raw reaction rates for all reactions based on the provided state and closure properties. The raw rates are on catalyst-mass basis r' [mol/kg.s] and will be converted to reactor-volume basis r_V [mol/m3.s] via r_V = rho_B * r'.
+
+        Notes
+        -----
+        - The args parameter contains the bulk density rho_B for packed-bed conversion, which is passed to the rate expression calculations.
+        - The final rate unit is mol/m3.s after conversion, which is suitable for the species balance equations in the PBR model.
         """
         rates = []
 
         for rate_exp in self.reaction_rates:
             basis = rate_exp.basis
+
+            # >> check
             if basis == "pressure":
                 r_k = rate_exp.calc(
                     xi=partial_pressures,
@@ -260,6 +269,9 @@ class GasPBRReactor:
                 raise ValueError(
                     f"Invalid basis '{basis}' for gas PBR reaction rate expression '{rate_exp.name}'."
                 )
+
+            # check unit (already done)
+            # store
             rates.append(float(r_k.value))
 
         return np.array(rates, dtype=float)

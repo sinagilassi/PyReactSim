@@ -244,6 +244,9 @@ class LiquidPBRReactor:
         Notes
         -----
         Liquid PBR currently supports concentration-basis kinetics only.
+
+        - The args parameter contains the bulk density rho_B for packed-bed conversion, which is passed to the rate expression calculations.
+        - The final rate unit is mol/m3.s after conversion, which is suitable for the species balance equations in the PBR model.
         """
         rates = []
 
