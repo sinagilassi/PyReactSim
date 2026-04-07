@@ -10,13 +10,20 @@ from pyThermoLinkDB import (
     build_components_model_source,
     build_model_source
 )
+from pyThermoLinkDB import load_and_build_model_source
 from pyThermoLinkDB.models import ComponentModelSource, ModelSource
 from pythermodb_settings.models import Component, Pressure, Temperature, CustomProp, Volume, CustomProperty
 from pyThermoDB import ComponentThermoDB
 from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
+from pythermodb_settings.models import (
+    Component,
+    ComponentRule,
+    ComponentThermoDBSource,
+)
 # locals
 from examples.reference_2 import REFERENCE_CONTENT
+
 
 # check version
 print(ptdb.__version__)
@@ -87,41 +94,86 @@ C2H6 = Component(
 # components
 components = [CO2, H2, CH3OH, H2O]
 
-# NOTE: ignore state properties
-ignore_state_props = ['MW', 'VaPr', 'Cp_IG']
-
-# ====================================================
-# SECTION: build components thermodb
-# ====================================================
-thermodb_components: List[ComponentThermoDB] = []
-
-for comp in components:
-    thermodb_component = build_component_thermodb_from_reference(
-        component_name=comp.name,
-        component_formula=comp.formula,
-        component_state=comp.state,
-        reference_content=REFERENCE_CONTENT,
-        ignore_state_props=ignore_state_props,
-        thermodb_save=True,
-        thermodb_save_path=thermodb_dir,
-    )
-    if thermodb_component is None:
-        raise ValueError(f"thermodb_component for {comp.name} is None")
-    thermodb_components.append(thermodb_component)
-
-# ====================================================
-# SECTION: build model source
-# ====================================================
-# NOTE: with partially matched rules
-component_model_source: List[ComponentModelSource] = build_components_model_source(
-    components_thermodb=thermodb_components,
-    rules=None,
+# =======================================
+# SECTION: 🌍 LOAD THERMODB
+# =======================================
+# NOTE: thermodb configurations
+# thermodb file
+CO2_thermodb_file = os.path.join(
+    thermodb_dir,
+    'carbon dioxide.pkl'
+)
+H2_thermodb_file = os.path.join(
+    thermodb_dir,
+    'hydrogen.pkl'
+)
+CH3OH_thermodb_file = os.path.join(
+    thermodb_dir,
+    'methanol.pkl'
+)
+H2O_thermodb_file = os.path.join(
+    thermodb_dir,
+    'water.pkl'
 )
 
-# model source
-model_source: ModelSource = build_model_source(
-    source=component_model_source,
+# =======================================
+# SECTION: create thermodb source
+# ======================================
+# NOTE: component thermodb
+CO2_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
+    component=CO2,
+    source=CO2_thermodb_file
 )
+
+H2_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
+    component=H2,
+    source=H2_thermodb_file
+)
+
+CH3OH_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
+    component=CH3OH,
+    source=CH3OH_thermodb_file
+)
+
+H2O_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
+    component=H2O,
+    source=H2O_thermodb_file
+)
+
+# NOTE: load and build model source
+# ! with rules
+# model_source: ModelSource = load_and_build_model_source(
+#     thermodb_sources=[
+#         CO2_thermodb,
+#         ethanol_thermodb
+#     ],
+#     rules=thermodb_rules,
+#     original_equation_label=False
+# )
+# print(model_source)
+
+# # ! without rules & original labels is True
+# model_source: ModelSource = load_and_build_model_source(
+#     thermodb_sources=[
+#         CO2_thermodb,
+#         ethanol_thermodb
+#     ],
+#     original_equation_label=True
+# )
+# print(model_source)
+
+# ! without rules & original labels is False
+model_source: ModelSource = load_and_build_model_source(
+    thermodb_sources=[
+        CO2_thermodb,
+        H2_thermodb,
+        CH3OH_thermodb,
+        H2O_thermodb
+    ],
+    original_equation_label=False
+)
+print(model_source)
+
 # ====================================================
 # SECTION: THERMODB LINK CONFIGURATION
 # ====================================================
@@ -137,3 +189,4 @@ model_source: ModelSource = ModelSource(
     data_source=datasource,
     equation_source=equationsource
 )
+print(model_source)

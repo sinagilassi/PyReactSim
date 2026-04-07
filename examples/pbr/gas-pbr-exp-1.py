@@ -16,8 +16,13 @@ from pyreactsim.models import HeatTransferOptions, PBRReactorOptions
 from pyreactsim.thermo import build_thermo_source
 
 # NOTE: example-specific imports
-from examples.source.gas_model_source_exp_1 import model_source
-from examples.rates.rate_exp_1 import components, reaction_rates
+# ! create inline
+# from examples.source.gas_model_source_exp_1 import model_source
+# ! load from file
+from examples.source.gas_load_model_source import model_source
+# ! add components & reaction rates
+from examples.rates.rate_exp_7 import components, reaction_rates
+# ! plot
 from examples.plot.plot_res import plot_pbr_reactor_result
 
 # NOTE: example source and kinetics
