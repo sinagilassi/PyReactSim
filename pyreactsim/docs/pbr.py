@@ -77,6 +77,18 @@ class PBRReactor:
         solver_options: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> Optional[PBRReactorResult]:
+        """
+        Run steady-state PBR simulation along reactor-volume coordinate.
+
+        Parameters
+        ----------
+        solver_options : Optional[Dict[str, Any]]
+            ODE solver controls. Supported keys include:
+            - method: scipy solver method (default "BDF")
+            - volume_span: integration interval in m3 (default [0, V_R])
+            - rtol: relative tolerance
+            - atol: absolute tolerance
+        """
         method = solver_options.get("method", "BDF") if solver_options else "BDF"
         volume_span = (
             solver_options.get("volume_span", (0.0, self.pbr_reactor_core.reactor_volume_value))

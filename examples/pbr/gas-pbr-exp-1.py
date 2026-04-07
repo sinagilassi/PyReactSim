@@ -103,6 +103,12 @@ reactor_volume = Volume(
     unit="m3",
 )
 
+# NOTE: bulk density for catalyst mass to volume conversion [kg/m3]
+bulk_density = CustomProp(
+    value=800.0,
+    unit="kg/m3",
+)
+
 # NOTE: pressure
 pressure = CustomProp(
     value=50,
@@ -129,6 +135,7 @@ model_inputs = {
     "reactor_volume": reactor_volume,
     "inlet_temperature": inlet_temperature,
     "inlet_pressure": pressure,
+    "bulk_density": bulk_density,
 }
 
 # ====================================================

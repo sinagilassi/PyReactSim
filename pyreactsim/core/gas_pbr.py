@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Dict, List, cast
+from typing import Dict, List, cast, Optional
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Pressure, Temperature
 # locals
 from ..configs.constants import R_J_per_mol_K
@@ -53,7 +53,8 @@ class GasPBRReactor:
         self.heat_rate_value = pbr_reactor_core.heat_rate_value
 
         # NOTE: packed-bed catalyst bulk density [kg/m3]
-        self._rho_B = pbr_reactor_core._rho_B
+        self._rho_B_value = pbr_reactor_core._rho_B_value
+        self.rho_B = pbr_reactor_core.rho_B
 
         # SECTION: reaction and stoichiometry mapping
         self.reaction_rates = reaction_rates
@@ -70,7 +71,8 @@ class GasPBRReactor:
 
         # SECTION: component references
         self.component_num = self.thermo_source.component_refs["component_num"]
-        self.component_formula_state = self.thermo_source.component_refs["component_formula_state"]
+        self.component_formula_state = self.thermo_source.component_refs[
+            "component_formula_state"]
         self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: inlet and reactor geometry
@@ -85,10 +87,22 @@ class GasPBRReactor:
 
     @property
     def F_in(self) -> np.ndarray:
+        """Inlet component molar-flow vector [mol/s]."""
         return self._F_in
 
     def build_y0(self) -> np.ndarray:
+        """
+        Build inlet state vector for solve_ivp.
+
+        Notes
+        -----
+        - F_i(0) is always included.
+        - T(0) is added for non-isothermal mode.
+        - Pressure state is not included in current PBR scope.
+        """
+        # NOTE: inlet component molar flows [mol/s]
         f0 = self.F_in.astype(float)
+        # NOTE: build state vector parts based on selected case
         y0_parts: List[np.ndarray] = [f0]
 
         if self.heat_transfer_mode == "non-isothermal":
@@ -104,21 +118,41 @@ class GasPBRReactor:
             V: float,
             y: np.ndarray
     ) -> np.ndarray:
+        """
+        Right-hand side for gas PBR ODE system in reactor-volume coordinate.
+
+        Equations
+        ---------
+        - Species: dF_i/dV = Σ_j(ν_i,j r_V,j)
+        - Energy (optional): dT/dV = (q_rxn + q_exchange + q_constant) / Σ_i(F_i Cp_i^g)
+
+        Packed-bed conversion
+        ---------------------
+        - Raw kinetic rate from expression: r' [mol/kg.s]
+        - Converted reactor-volume rate: r_V = rho_B * r' [mol/m3.s]
+        """
         ns = self.component_num
 
         # SECTION: unpack state vector
+        # ! species states: component molar flows [mol/s]
         F = np.clip(y[:ns], 0.0, None)
 
+        # NOTE: temperature state configuration
+        # ! thermal state [K]
         if self.pbr_reactor_core.is_non_isothermal:
             temp = float(y[ns])
         else:
             temp = float(self._T_in)
+        # >>> set
         temperature = Temperature(value=temp, unit="K")
 
         # SECTION: closure relations
+        # ! total molar flow [mol/s]
         F_total = max(float(np.sum(F)), 1e-30)
+        # ! gas mole fractions [-]
         y_mole = F / F_total
 
+        # NOTE: pressure closure
         if self.pressure_mode == "shortcut":
             p_total = calc_pressure_using_PFT(
                 P_in=self._P0,
@@ -138,8 +172,11 @@ class GasPBRReactor:
                 f"Invalid pressure_mode '{self.pressure_mode}' for gas PBR."
             )
 
+        # >>> set
         pressure = Pressure(value=p_total, unit="Pa")
 
+        # NOTE: gas volumetric flow
+        # ! Q = F_total * R * T / P [m3/s]
         q_vol = self.thermo_source.calc_gas_volumetric_flow_rate(
             molar_flow_rate=F_total,
             temperature=temp,
@@ -148,35 +185,42 @@ class GasPBRReactor:
             gas_model=cast(GasModel, self.gas_model)
         )
         q_vol = max(q_vol, 1e-30)
+        # ! concentration from flow form: C_i = F_i / Q [mol/m3]
         concentration = F / q_vol
 
+        # NOTE: standardized properties for rate expression interface
+        # ! partial pressures: P_i = y_i * P_total [Pa]
         partial_pressures_std = {
             sp: CustomProperty(
                 value=y_mole[i] * p_total, unit="Pa", symbol="P")
             for i, sp in enumerate(self.component_formula_state)
         }
+        # ! concentrations: C_i = F_i / Q [mol/m3]
         concentration_std = {
             sp: CustomProperty(
                 value=concentration[i], unit="mol/m3", symbol="C")
             for i, sp in enumerate(self.component_formula_state)
         }
 
+        # SECTION: kinetics evaluation
         # NOTE: raw rates are catalyst-mass basis r' [mol/kg.s]
-        rates_prime = self._calc_rates(
+        # packed-bed conversion to reactor-volume basis r_V [mol/m3.s]
+        rates_v = self._calc_rates(
             partial_pressures=partial_pressures_std,
             concentration=concentration_std,
             temperature=temperature,
-            pressure=pressure
+            pressure=pressure,
+
         )
 
-        # NOTE: packed-bed conversion to reactor-volume basis r_V [mol/m3.s]
-        rates_v = self._rho_B * rates_prime
-
+        # NOTE: species balance
         dF_dV = self._build_dF_dV(rates=rates_v)
 
+        # isothermal case: only species balances
         if self.heat_transfer_mode == "isothermal":
             return dF_dV
 
+        # NOTE: energy balance (optional)
         dT_dV = self._build_dT_dV(F=F, rates_v=rates_v, temp=temp)
         return np.concatenate([dF_dV, np.array([dT_dV], dtype=float)])
 
@@ -185,8 +229,12 @@ class GasPBRReactor:
         partial_pressures: Dict[str, CustomProperty],
         concentration: Dict[str, CustomProperty],
         temperature: Temperature,
-        pressure: Pressure
+        pressure: Pressure,
+        args: Optional[Dict[str, CustomProperty]] = None,
     ) -> np.ndarray:
+        """
+        Evaluate raw reaction rates for all reactions based on the provided state and closure properties.
+        """
         rates = []
 
         for rate_exp in self.reaction_rates:
@@ -194,12 +242,14 @@ class GasPBRReactor:
             if basis == "pressure":
                 r_k = rate_exp.calc(
                     xi=partial_pressures,
+                    args=args,
                     temperature=temperature,
                     pressure=pressure
                 )
             elif basis == "concentration":
                 r_k = rate_exp.calc(
                     xi=concentration,
+                    args=args,
                     temperature=temperature,
                     pressure=pressure
                 )
@@ -212,6 +262,13 @@ class GasPBRReactor:
         return np.array(rates, dtype=float)
 
     def _build_dF_dV(self, rates: np.ndarray) -> np.ndarray:
+        """
+        Build species derivatives dF_i/dV.
+
+        Formula
+        -------
+        dF_i/dV = Σ_j(ν_i,j r_V,j)
+        """
         ns = self.component_num
         dF_dV = np.zeros(ns, dtype=float)
 
@@ -229,14 +286,24 @@ class GasPBRReactor:
         rates_v: np.ndarray,
         temp: float
     ) -> float:
+        """
+        Build thermal derivative dT/dV for non-isothermal gas PBR.
+
+        Formula
+        -------
+        dT/dV = (q_rxn + q_exchange + q_constant) / Σ_i(F_i Cp_i^g)
+        """
+        # NOTE: temperature wrapper for thermo API
         temperature = Temperature(value=temp, unit="K")
 
+        # NOTE: flowing heat-capacity rate denominator [J/s.K]
         cp_g_values = self.thermo_source.calc_Cp_IG(temperature=temperature)
         cp_flow = calc_total_heat_capacity(x=F, cp=cp_g_values)
         if cp_flow <= 1e-16:
             raise ValueError(
                 "Total flowing gas heat capacity is too small or zero.")
 
+        # NOTE: reaction heat source term [W/m3] uses converted r_V rates
         delta_h = self.thermo_source.calc_dH_rxns(temperature=temperature)
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
@@ -244,6 +311,7 @@ class GasPBRReactor:
             reactor_volume=1.0
         )
 
+        # NOTE: jacket/surrounding heat exchange [W/m3]
         q_exchange = 0.0
         if self.heat_exchange:
             q_exchange = calc_heat_exchange(
@@ -254,6 +322,7 @@ class GasPBRReactor:
                 reactor_volume=self._V_R
             )
 
+        # NOTE: user-defined constant heat source [W/m3]
         q_constant = 0.0
         if self.heat_rate_value:
             q_constant = self.heat_rate_value / self._V_R
