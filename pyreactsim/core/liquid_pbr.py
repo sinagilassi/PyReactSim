@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Dict, List
+from typing import Dict, List, Optional
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Temperature
 # locals
 from ..models.rate_exp import ReactionRateExpression
@@ -48,8 +48,12 @@ class LiquidPBRReactor:
         self.jacket_temperature_value = pbr_reactor_core.jacket_temperature_value
         self.heat_rate_value = pbr_reactor_core.heat_rate_value
 
-        # NOTE: packed-bed catalyst bulk density [kg/m3]
-        self._rho_B = pbr_reactor_core._rho_B
+        # NOTE: packed-bed catalyst bulk density (without unit conversion)
+        self._rho_B_value = pbr_reactor_core._rho_B_value
+        self._rho_B = pbr_reactor_core.rho_B
+        self.rho_B_arg = {
+            "rho_B": self._rho_B
+        }
 
         # SECTION: reaction and stoichiometry mapping
         self.reaction_rates = reaction_rates
@@ -66,7 +70,9 @@ class LiquidPBRReactor:
 
         # SECTION: component references
         self.component_num = self.thermo_source.component_refs["component_num"]
-        self.component_formula_state = self.thermo_source.component_refs["component_formula_state"]
+        self.component_formula_state = self.thermo_source.component_refs[
+            "component_formula_state"
+        ]
         self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: inlet and reactor geometry
@@ -143,6 +149,7 @@ class LiquidPBRReactor:
         rho_LIQ = self.thermo_source.calc_rho_LIQ(
             temperature=temperature
         )
+
         # NOTE: volumetric flow rate from closure
         # ! volumetric flow from selected liquid closure [m3/s]
         q_vol = self._calc_q_vol(
@@ -151,6 +158,7 @@ class LiquidPBRReactor:
         )
         # >> avoid zero or negative volumetric flow for concentration calculation
         q_vol = max(q_vol, 1e-30)
+
         # ! concentration from flow form: C_i = F_i / Q [mol/m3]
         concentration = F / q_vol
 
@@ -163,13 +171,12 @@ class LiquidPBRReactor:
 
         # SECTION: kinetics evaluation
         # NOTE: raw rates are catalyst-mass basis r' [mol/kg.s]
-        rates_prime = self._calc_rates(
+        # packed-bed conversion to reactor-volume basis r_V [mol/m3.s]
+        rates_v = self._calc_rates(
             concentration=concentration_std,
-            temperature=temperature
+            temperature=temperature,
+            args=self.rho_B_arg
         )
-
-        # NOTE: packed-bed conversion to reactor-volume basis r_V [mol/m3.s]
-        rates_v = self._rho_B * rates_prime
 
         # SECTION: species balance
         dF_dV = self._build_dF_dV(rates=rates_v)
@@ -228,7 +235,8 @@ class LiquidPBRReactor:
     def _calc_rates(
         self,
         concentration: Dict[str, CustomProperty],
-        temperature: Temperature
+        temperature: Temperature,
+        args: Optional[Dict[str, CustomProperty]] = None
     ) -> np.ndarray:
         """
         Evaluate raw liquid-phase reaction rates on catalyst-mass basis.
@@ -249,9 +257,12 @@ class LiquidPBRReactor:
 
             r_k = rate_exp.calc(
                 xi=concentration,
+                args=args,
                 temperature=temperature,
                 pressure=None
             )
+
+            # set converted rate on reactor-volume basis r_V [mol/m3.s]
             rates.append(float(r_k.value))
 
         return np.array(rates, dtype=float)

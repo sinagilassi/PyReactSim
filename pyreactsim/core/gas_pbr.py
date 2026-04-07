@@ -55,6 +55,9 @@ class GasPBRReactor:
         # NOTE: packed-bed catalyst bulk density [kg/m3]
         self._rho_B_value = pbr_reactor_core._rho_B_value
         self.rho_B = pbr_reactor_core.rho_B
+        self.rho_B_arg = {
+            "rho_B": self.rho_B
+        }
 
         # SECTION: reaction and stoichiometry mapping
         self.reaction_rates = reaction_rates
@@ -210,7 +213,7 @@ class GasPBRReactor:
             concentration=concentration_std,
             temperature=temperature,
             pressure=pressure,
-
+            args=self.rho_B_arg
         )
 
         # NOTE: species balance
