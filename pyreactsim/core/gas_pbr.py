@@ -1,0 +1,261 @@
+import logging
+import numpy as np
+from typing import Dict, List, cast
+from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Pressure, Temperature
+# locals
+from ..configs.constants import R_J_per_mol_K
+from ..models.rate_exp import ReactionRateExpression
+from ..models.ref import GasModel
+from ..sources.thermo_source import ThermoSource
+from ..utils.opt_tools import calc_heat_exchange
+from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
+from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity, calc_pressure_using_PFT
+from .pbrc import PBRReactorCore
+
+# NOTE: logger setup
+logger = logging.getLogger(__name__)
+
+
+class GasPBRReactor:
+    """
+    Gas-phase packed-bed reactor model.
+
+    PBR difference from PFR:
+    rates are interpreted on catalyst-mass basis r' [mol/kg.s] and converted to
+    reactor-volume basis r_V [mol/m3.s] via r_V = rho_B * r'.
+    """
+    R = R_J_per_mol_K
+
+    def __init__(
+        self,
+        components: List[Component],
+        reaction_rates: List[ReactionRateExpression],
+        thermo_source: ThermoSource,
+        pbr_reactor_core: PBRReactorCore,
+        component_key: ComponentKey,
+        **kwargs
+    ):
+        self.components = components
+        self.component_key = component_key
+        self.thermo_source = thermo_source
+        self.pbr_reactor_core = pbr_reactor_core
+
+        # SECTION: options and heat-transfer configuration
+        self.heat_transfer_mode = pbr_reactor_core.heat_transfer_mode
+        self.operation_mode = pbr_reactor_core.operation_mode
+        self.pressure_mode = pbr_reactor_core.pressure_mode
+        self.gas_model = pbr_reactor_core.gas_model
+
+        self.heat_exchange = pbr_reactor_core.heat_exchange
+        self.heat_transfer_coefficient_value = pbr_reactor_core.heat_transfer_coefficient_value
+        self.heat_transfer_area_value = pbr_reactor_core.heat_transfer_area_value
+        self.jacket_temperature_value = pbr_reactor_core.jacket_temperature_value
+        self.heat_rate_value = pbr_reactor_core.heat_rate_value
+
+        # NOTE: packed-bed catalyst bulk density [kg/m3]
+        self._rho_B = pbr_reactor_core._rho_B
+
+        # SECTION: reaction and stoichiometry mapping
+        self.reaction_rates = reaction_rates
+        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
+        self.reaction_stoichiometry = stoichiometry_mat_key(
+            reactions=self.reactions,
+            component_key=component_key
+        )
+        self.reaction_stoichiometry_matrix = stoichiometry_mat(
+            reactions=self.reactions,
+            components=self.components,
+            component_key=component_key,
+        )
+
+        # SECTION: component references
+        self.component_num = self.thermo_source.component_refs["component_num"]
+        self.component_formula_state = self.thermo_source.component_refs["component_formula_state"]
+        self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
+
+        # SECTION: inlet and reactor geometry
+        self._F_in = pbr_reactor_core._F_in
+        self._F_in_total = pbr_reactor_core._F_in_total
+        self._T_in = pbr_reactor_core._T_in
+        self._P0 = pbr_reactor_core._P0
+        self._V_R = pbr_reactor_core.reactor_volume_value
+
+        # SECTION: final configuration checks
+        self.pbr_reactor_core.config_model()
+
+    @property
+    def F_in(self) -> np.ndarray:
+        return self._F_in
+
+    def build_y0(self) -> np.ndarray:
+        f0 = self.F_in.astype(float)
+        y0_parts: List[np.ndarray] = [f0]
+
+        if self.heat_transfer_mode == "non-isothermal":
+            y0_parts.append(np.array([float(self._T_in)], dtype=float))
+
+        # NOTE: state-variable pressure is currently not implemented by design.
+        if len(y0_parts) == 1:
+            return y0_parts[0]
+        return np.concatenate(y0_parts)
+
+    def rhs(
+            self,
+            V: float,
+            y: np.ndarray
+    ) -> np.ndarray:
+        ns = self.component_num
+
+        # SECTION: unpack state vector
+        F = np.clip(y[:ns], 0.0, None)
+
+        if self.pbr_reactor_core.is_non_isothermal:
+            temp = float(y[ns])
+        else:
+            temp = float(self._T_in)
+        temperature = Temperature(value=temp, unit="K")
+
+        # SECTION: closure relations
+        F_total = max(float(np.sum(F)), 1e-30)
+        y_mole = F / F_total
+
+        if self.pressure_mode == "shortcut":
+            p_total = calc_pressure_using_PFT(
+                P_in=self._P0,
+                F_in_total=self._F_in_total,
+                T_in=self._T_in,
+                F_out_total=F_total,
+                T_out=temp,
+            )
+        elif self.pressure_mode == "constant":
+            p_total = float(self._P0)
+        elif self.pressure_mode == "state_variable":
+            raise NotImplementedError(
+                "PBR pressure_mode='state_variable' is not implemented yet."
+            )
+        else:
+            raise ValueError(
+                f"Invalid pressure_mode '{self.pressure_mode}' for gas PBR."
+            )
+
+        pressure = Pressure(value=p_total, unit="Pa")
+
+        q_vol = self.thermo_source.calc_gas_volumetric_flow_rate(
+            molar_flow_rate=F_total,
+            temperature=temp,
+            pressure=p_total,
+            R=self.R,
+            gas_model=cast(GasModel, self.gas_model)
+        )
+        q_vol = max(q_vol, 1e-30)
+        concentration = F / q_vol
+
+        partial_pressures_std = {
+            sp: CustomProperty(
+                value=y_mole[i] * p_total, unit="Pa", symbol="P")
+            for i, sp in enumerate(self.component_formula_state)
+        }
+        concentration_std = {
+            sp: CustomProperty(
+                value=concentration[i], unit="mol/m3", symbol="C")
+            for i, sp in enumerate(self.component_formula_state)
+        }
+
+        # NOTE: raw rates are catalyst-mass basis r' [mol/kg.s]
+        rates_prime = self._calc_rates(
+            partial_pressures=partial_pressures_std,
+            concentration=concentration_std,
+            temperature=temperature,
+            pressure=pressure
+        )
+
+        # NOTE: packed-bed conversion to reactor-volume basis r_V [mol/m3.s]
+        rates_v = self._rho_B * rates_prime
+
+        dF_dV = self._build_dF_dV(rates=rates_v)
+
+        if self.heat_transfer_mode == "isothermal":
+            return dF_dV
+
+        dT_dV = self._build_dT_dV(F=F, rates_v=rates_v, temp=temp)
+        return np.concatenate([dF_dV, np.array([dT_dV], dtype=float)])
+
+    def _calc_rates(
+        self,
+        partial_pressures: Dict[str, CustomProperty],
+        concentration: Dict[str, CustomProperty],
+        temperature: Temperature,
+        pressure: Pressure
+    ) -> np.ndarray:
+        rates = []
+
+        for rate_exp in self.reaction_rates:
+            basis = rate_exp.basis
+            if basis == "pressure":
+                r_k = rate_exp.calc(
+                    xi=partial_pressures,
+                    temperature=temperature,
+                    pressure=pressure
+                )
+            elif basis == "concentration":
+                r_k = rate_exp.calc(
+                    xi=concentration,
+                    temperature=temperature,
+                    pressure=pressure
+                )
+            else:
+                raise ValueError(
+                    f"Invalid basis '{basis}' for gas PBR reaction rate expression '{rate_exp.name}'."
+                )
+            rates.append(float(r_k.value))
+
+        return np.array(rates, dtype=float)
+
+    def _build_dF_dV(self, rates: np.ndarray) -> np.ndarray:
+        ns = self.component_num
+        dF_dV = np.zeros(ns, dtype=float)
+
+        for k, _ in enumerate(self.reactions):
+            r_k = rates[k]
+            for sp_name, nu_ik in self.reaction_stoichiometry[k].items():
+                i = self.component_id_to_index[sp_name]
+                dF_dV[i] += nu_ik * r_k
+
+        return dF_dV
+
+    def _build_dT_dV(
+        self,
+        F: np.ndarray,
+        rates_v: np.ndarray,
+        temp: float
+    ) -> float:
+        temperature = Temperature(value=temp, unit="K")
+
+        cp_g_values = self.thermo_source.calc_Cp_IG(temperature=temperature)
+        cp_flow = calc_total_heat_capacity(x=F, cp=cp_g_values)
+        if cp_flow <= 1e-16:
+            raise ValueError(
+                "Total flowing gas heat capacity is too small or zero.")
+
+        delta_h = self.thermo_source.calc_dH_rxns(temperature=temperature)
+        q_rxn = calc_rxn_heat_generation(
+            delta_h=delta_h,
+            rates=rates_v,
+            reactor_volume=1.0
+        )
+
+        q_exchange = 0.0
+        if self.heat_exchange:
+            q_exchange = calc_heat_exchange(
+                temperature=temp,
+                jacket_temperature=self.jacket_temperature_value,
+                heat_transfer_area=self.heat_transfer_area_value,
+                heat_transfer_coefficient=self.heat_transfer_coefficient_value,
+                reactor_volume=self._V_R
+            )
+
+        q_constant = 0.0
+        if self.heat_rate_value:
+            q_constant = self.heat_rate_value / self._V_R
+
+        return (q_rxn + q_exchange + q_constant) / cp_flow

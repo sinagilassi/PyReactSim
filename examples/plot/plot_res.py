@@ -8,6 +8,7 @@ import numpy as np
 from pyreactsim.models.br import BatchReactorResult
 from pyreactsim.models.cstr import CSTRReactorResult
 from pyreactsim.models.pfr import PFRReactorResult
+from pyreactsim.models.pbr import PBRReactorResult
 
 
 def _component_label(component: Any, fallback_index: int) -> str:
@@ -60,9 +61,11 @@ def _plot_reactor_result(
     if hasattr(result, "time"):
         x = np.asarray(result.time, dtype=float)
         x_label = "Time (s)"
+        species_y_label = "Moles (mol)"
     elif hasattr(result, "volume"):
         x = np.asarray(result.volume, dtype=float)
         x_label = "Reactor volume coordinate (m3)"
+        species_y_label = "Molar flow rate (mol/s)"
     else:
         raise ValueError(
             "Unsupported result coordinate. Expected 'time' or 'volume'.")
@@ -97,7 +100,7 @@ def _plot_reactor_result(
     # species subplot
     for idx, label in enumerate(mole_labels):
         ax_mole.plot(x, mole_state[idx], linewidth=2, label=label)
-    ax_mole.set_ylabel("Moles (mol)")
+    ax_mole.set_ylabel(species_y_label)
     ax_mole.set_title(f"{title_prefix} - Species")
     ax_mole.grid(True, alpha=0.3)
     ax_mole.legend(loc="best")
@@ -167,4 +170,19 @@ def plot_pfr_reactor_result(
         save_path=save_path,
         show=show,
         title_prefix="PFR Reactor",
+    )
+
+
+def plot_pbr_reactor_result(
+    result: PBRReactorResult,
+    components: Iterable[Any] | None = None,
+    save_path: Path | None = None,
+    show: bool = True,
+) -> None:
+    _plot_reactor_result(
+        result=result,
+        components=components,
+        save_path=save_path,
+        show=show,
+        title_prefix="PBR Reactor",
     )

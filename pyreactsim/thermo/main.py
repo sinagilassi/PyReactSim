@@ -8,6 +8,7 @@ from pyThermoLinkDB.thermo import Source
 from ..models.br import BatchReactorOptions
 from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
+from ..models.pbr import PBRReactorOptions
 from ..models.heat import HeatTransferOptions
 from ..models.rate_exp import ReactionRateExpression
 from ..sources.thermo_model_source import ThermoModelSource
@@ -23,7 +24,7 @@ def build_thermo_source(
     components: List[Component],
     model_source: ModelSource,
     thermo_inputs: Dict[str, Any],
-    reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions,
+    reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
     heat_transfer_options: HeatTransferOptions,
     reaction_rates: List[ReactionRateExpression],
     component_key: ComponentKey,
@@ -39,8 +40,8 @@ def build_thermo_source(
         A ModelSource object containing the source of the model to be used in the simulation.
     thermo_inputs : Dict[str, Any]
         A dictionary of model inputs, where the keys are the names of the inputs and the values
-    reactor_options : BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions
-        A BatchReactorOptions, CSTRReactorOptions, or PFRReactorOptions object containing
+    reactor_options : BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions
+        A BatchReactorOptions, CSTRReactorOptions, PFRReactorOptions, or PBRReactorOptions object containing
         the inputs for reactor simulation.
     heat_transfer_options : HeatTransferOptions
         A HeatTransferOptions object containing the inputs for heat transfer in the batch reactor simulation.

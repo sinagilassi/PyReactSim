@@ -235,6 +235,17 @@ def to_g_per_m3(value: float, unit: str) -> float:
         raise ValueError(f"Unsupported unit for conversion: {unit}")
 
 
+def to_kg_per_m3(value: float, unit: str) -> float:
+    """
+    Convert a given value to kilograms per cubic meter (kg/m3).
+    """
+    try:
+        return pycuc.convert_from_to(value, from_unit=unit, to_unit='kg/m3')
+    except Exception as e:
+        logging.error(f"Error converting {value} from {unit} to kg/m3: {e}")
+        raise ValueError(f"Unsupported unit for conversion: {unit}")
+
+
 def to_g_per_mol(value: float, unit: str) -> float:
     """
     Convert a given value to grams per mole (g/mol) based on the specified unit.
