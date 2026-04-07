@@ -1,5 +1,7 @@
 # import packages/modules
+import logging
 import os
+import time
 from pathlib import Path
 from rich import print
 from typing import Callable, Dict, Optional, Union, List, Any
@@ -24,6 +26,8 @@ from pythermodb_settings.models import (
 # locals
 from examples.reference_2 import REFERENCE_CONTENT
 
+# NOTE: setup logger
+logger = logging.getLogger(__name__)
 
 # check version
 print(ptdb.__version__)
@@ -141,6 +145,8 @@ H2O_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
 )
 
 # NOTE: load and build model source
+# NOTE: debug timing for model source build
+_build_t0 = time.perf_counter()
 # ! with rules
 # model_source: ModelSource = load_and_build_model_source(
 #     thermodb_sources=[
@@ -172,7 +178,11 @@ model_source: ModelSource = load_and_build_model_source(
     ],
     original_equation_label=False
 )
-print(model_source)
+_build_t1 = time.perf_counter()
+print(
+    f"[bold cyan]Timing[/bold cyan] load_and_build_model_source: "
+    f"{(_build_t1 - _build_t0) * 1000.0:.2f} ms"
+)
 
 # ====================================================
 # SECTION: THERMODB LINK CONFIGURATION
@@ -185,8 +195,13 @@ equationsource = model_source.equation_source
 # ====================================================
 # SECTION: model source
 # ====================================================
+_wrap_t0 = time.perf_counter()
 model_source: ModelSource = ModelSource(
     data_source=datasource,
     equation_source=equationsource
 )
-print(model_source)
+_wrap_t1 = time.perf_counter()
+print(
+    f"[bold cyan]Timing[/bold cyan] ModelSource wrapper build: "
+    f"{(_wrap_t1 - _wrap_t0) * 1000.0:.2f} ms"
+)

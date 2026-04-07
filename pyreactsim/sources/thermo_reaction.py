@@ -57,7 +57,8 @@ class ThermoReaction:
         self.reactions = self.build_reactions()
 
         # NOTE: Build stoichiometry matrix
-        self.stoichiometry_matrix = self.build_stoichiometry_matrix()
+        # self.stoichiometry_matrix = self.build_stoichiometry_matrix()
+        self.stoichiometry_matrix = None
 
     # SECTION: Reaction and stoichiometry related methods
     # ! Extract all reactions

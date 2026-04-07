@@ -1,5 +1,6 @@
 # import libs
 import logging
+import time
 from typing import List, Dict, Any, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, ComponentKey
 from pythermodb_settings.utils import set_component_id, build_components_mapper
@@ -59,7 +60,23 @@ class ThermoSource(ThermoSourceCore):
         # component reference
         self.component_refs = component_refs
 
+        # LINK: ThermoReaction initialization
+        t_start = time.perf_counter()
+        ThermoReaction_ = ThermoReaction(
+            components=components,
+            source=source,
+            thermo_inputs=thermo_inputs,
+            reaction_rates=reaction_rates,
+            component_key=component_key
+        )
+        thermo_reaction_ms = (time.perf_counter() - t_start) * 1000.0
+        logger.debug(
+            "ThermoReaction initialization time: %.2f ms",
+            thermo_reaction_ms
+        )
+
         # LINK: ThermoModelSource initialization
+        t_start = time.perf_counter()
         ThermoModelSource_ = ThermoModelSource(
             components=components,
             source=source,
@@ -70,8 +87,14 @@ class ThermoSource(ThermoSourceCore):
             component_refs=component_refs,
             component_key=component_key,
         )
+        thermo_model_source_ms = (time.perf_counter() - t_start) * 1000.0
+        logger.debug(
+            "ThermoModelSource initialization time: %.2f ms",
+            thermo_model_source_ms
+        )
 
         # LINK: ThermoInputs initialization
+        t_start = time.perf_counter()
         ThermoModelInputs_ = ThermoModelInputs(
             components=components,
             source=source,
@@ -81,14 +104,15 @@ class ThermoSource(ThermoSourceCore):
             component_refs=component_refs,
             component_key=component_key,
         )
+        thermo_model_inputs_ms = (time.perf_counter() - t_start) * 1000.0
+        logger.debug(
+            "ThermoModelInputs initialization time: %.2f ms",
+            thermo_model_inputs_ms
+        )
 
-        # LINK: ThermoReaction initialization
-        ThermoReaction_ = ThermoReaction(
-            components=components,
-            source=source,
-            thermo_inputs=thermo_inputs,
-            reaction_rates=reaction_rates,
-            component_key=component_key
+        logger.debug(
+            "ThermoSource helper initialization total time: %.2f ms",
+            thermo_model_source_ms + thermo_model_inputs_ms + thermo_reaction_ms
         )
 
         # section: Initialize ThermoSourceCore

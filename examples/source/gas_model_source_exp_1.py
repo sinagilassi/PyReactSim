@@ -1,5 +1,6 @@
 # import packages/modules
 import os
+import time
 from pathlib import Path
 from rich import print
 from typing import Callable, Dict, Optional, Union, List, Any
@@ -95,6 +96,7 @@ ignore_state_props = ['MW', 'VaPr', 'Cp_IG']
 # ====================================================
 thermodb_components: List[ComponentThermoDB] = []
 
+_thermodb_t0 = time.perf_counter()
 for comp in components:
     thermodb_component = build_component_thermodb_from_reference(
         component_name=comp.name,
@@ -108,11 +110,17 @@ for comp in components:
     if thermodb_component is None:
         raise ValueError(f"thermodb_component for {comp.name} is None")
     thermodb_components.append(thermodb_component)
+_thermodb_t1 = time.perf_counter()
+print(
+    f"[bold cyan]Timing[/bold cyan] build_component_thermodb_from_reference (total): "
+    f"{(_thermodb_t1 - _thermodb_t0) * 1000.0:.2f} ms"
+)
 
 # ====================================================
 # SECTION: build model source
 # ====================================================
 # NOTE: with partially matched rules
+_build_t0 = time.perf_counter()
 component_model_source: List[ComponentModelSource] = build_components_model_source(
     components_thermodb=thermodb_components,
     rules=None,
@@ -121,6 +129,11 @@ component_model_source: List[ComponentModelSource] = build_components_model_sour
 # model source
 model_source: ModelSource = build_model_source(
     source=component_model_source,
+)
+_build_t1 = time.perf_counter()
+print(
+    f"[bold cyan]Timing[/bold cyan] build_components_model_source + build_model_source: "
+    f"{(_build_t1 - _build_t0) * 1000.0:.2f} ms"
 )
 # ====================================================
 # SECTION: THERMODB LINK CONFIGURATION
@@ -133,7 +146,13 @@ equationsource = model_source.equation_source
 # ====================================================
 # SECTION: model source
 # ====================================================
+_wrap_t0 = time.perf_counter()
 model_source: ModelSource = ModelSource(
     data_source=datasource,
     equation_source=equationsource
+)
+_wrap_t1 = time.perf_counter()
+print(
+    f"[bold cyan]Timing[/bold cyan] ModelSource wrapper build: "
+    f"{(_wrap_t1 - _wrap_t0) * 1000.0:.2f} ms"
 )

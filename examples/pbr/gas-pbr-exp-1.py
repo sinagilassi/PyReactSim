@@ -38,10 +38,17 @@ print(ptdb.__version__)
 print(ptdblink.__version__)
 
 # NOTE: silence library warnings/errors for this example run
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
-for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactsim", "pyreactlab_core"):
-    logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
+# for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
+#     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
+
+# NOTE: debug logging for thermo source initialization timings
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+)
+logging.getLogger("pyreactsim.sources.thermo_source").setLevel(logging.DEBUG)
 
 # ====================================================
 # SECTION: Inputs
