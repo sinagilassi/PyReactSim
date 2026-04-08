@@ -11,9 +11,9 @@ from pyreactsim.thermo import build_thermo_source
 from pyreactsim import create_batch_reactor, BatchReactor
 # NOTE: for example
 # ! model sources
-from examples.source.gas_model_source_exp_1 import model_source
+# from examples.source.gas_model_source_exp_1 import model_source
 # ! rate expressions & components
-from examples.rates.rate_exp_1 import reaction_rates, components
+from examples.rates.rate_exp_1 import reaction_rates, components, model_source
 # ! plot function
 from examples.plot.plot_res import plot_batch_reactor_result
 

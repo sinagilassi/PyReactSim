@@ -96,7 +96,7 @@ C2H6 = Component(
 )
 
 # components
-components = [CO2, H2, CH3OH, H2O]
+# components = [CO2, H2, CH3OH, H2O]
 
 # =======================================
 # SECTION: 🌍 LOAD THERMODB
@@ -118,6 +118,10 @@ CH3OH_thermodb_file = os.path.join(
 H2O_thermodb_file = os.path.join(
     thermodb_dir,
     'water.pkl'
+)
+CO_thermodb_file = os.path.join(
+    thermodb_dir,
+    'carbon monoxide.pkl'
 )
 
 # =======================================

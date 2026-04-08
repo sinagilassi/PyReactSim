@@ -86,7 +86,7 @@ C2H6 = Component(
 )
 
 # components
-components = [CO2, H2, CH3OH, H2O]
+components = [CO]
 
 # NOTE: ignore state properties
 ignore_state_props = ['MW', 'VaPr', 'Cp_IG']

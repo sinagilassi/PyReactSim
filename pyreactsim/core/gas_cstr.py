@@ -802,6 +802,14 @@ class GasCSTRReactor:
             # * specified outlet flow
             return float(self._F_out_total)
 
+        elif (
+            self.operation_mode == "constant_pressure" and
+            self.cstr_reactor_core.holdup_volume_mode == "fixed"
+        ):
+            # ! pressure fixed by variable outlet flow
+            # ! n[tot] = constant
+            return float(np.sum(self.F_in))
+
         elif self.operation_mode == "constant_volume":
             # ! volume fixed, pressure may vary, so use operating policy
             # * v[in] = v[out]

@@ -19,9 +19,9 @@ from pyreactsim.thermo import build_thermo_source
 # ! create inline
 # from examples.source.gas_model_source_exp_1 import model_source
 # ! load from file
-from examples.source.gas_load_model_source import model_source
+# from examples.source.gas_load_model_source import model_source
 # ! add components & reaction rates
-from examples.rates.rate_exp_7 import components, reaction_rates
+from examples.rates.rate_exp_7 import components, reaction_rates, model_source
 # ! plot
 from examples.plot.plot_res import plot_pbr_reactor_result
 
@@ -185,7 +185,7 @@ simulation_results = pfr_reactor.simulate(
     }
 )
 print("[bold green]PFR simulation completed![/bold green]")
-print(simulation_results)
+# print(simulation_results)
 if simulation_results is not None:
     plot_pbr_reactor_result(
         result=simulation_results,

@@ -9,7 +9,8 @@ from pyreactsim.models import (
 
 # ! model source
 # assumes these are defined in your component source file
-from examples.source.gas_model_source_exp_1 import CO2, H2, CO, CH3OH, H2O
+# from examples.source.gas_model_source_exp_1 import CO2, H2, CO, CH3OH, H2O
+from examples.source.gas_load_model_source import model_source, CO2, H2, CH3OH, H2O, CO
 
 
 # ====================================================

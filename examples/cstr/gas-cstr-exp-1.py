@@ -12,8 +12,11 @@ from pyreactsim import CSTRReactor, create_cstr_reactor
 from pyreactsim.models import CSTRReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 # NOTE: example-specific imports
-from examples.source.gas_model_source_exp_1 import model_source
-from examples.rates.rate_exp_1 import components, reaction_rates
+# from examples.source.gas_model_source_exp_1 import model_source
+# from examples.rates.rate_exp_1 import components, reaction_rates
+# ! rate expressions & components
+from examples.rates.rate_exp_1 import reaction_rates, components, model_source
+
 from examples.plot.plot_res import plot_cstr_reactor_result
 
 # NOTE: example source and kinetics
@@ -150,7 +153,7 @@ model_inputs = {
     "initial_temperature": initial_temperature,
     "inlet_temperature": inlet_temperature,
     "pressure": pressure,
-    # "outlet_flow": outlet_mole_flow_total,
+    "outlet_flow": outlet_mole_flow_total,
 }
 
 # ====================================================

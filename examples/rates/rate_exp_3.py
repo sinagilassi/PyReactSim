@@ -9,12 +9,15 @@ from pyreactlab_core.models.reaction import Reaction
 from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 
 # ! model source
-from examples.source.gas_model_source_exp_1 import components, CO2, H2, CH3OH, H2O
+# from examples.source.gas_model_source_exp_1 import components, CO2, H2, CH3OH, H2O
+from examples.source.gas_load_model_source import model_source, CO2, H2, CH3OH, H2O
 
 
 # ====================================================
 # SECTION: Reaction Rate Expression
 # ====================================================
+
+components = [CO2, H2, CH3OH, H2O]
 
 reaction = Reaction(
     name="reaction 1",
