@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 from scipy.integrate import solve_ivp
 from typing import Any, Dict, Optional, cast
 from pythermodb_settings.models import ComponentKey
@@ -75,16 +76,40 @@ class PFRReactor:
     def simulate(
         self,
         solver_options: Optional[Dict[str, Any]] = None,
-        **kwargs
     ) -> Optional[PFRReactorResult]:
-        method = solver_options.get("method", "BDF") if solver_options else "BDF"
+        # NOTE: set default solver options if not provided
+        # ! method
+        method = solver_options.get(
+            "method", "BDF") if solver_options else "BDF"
+        # ! volume span
         volume_span = (
-            solver_options.get("volume_span", (0.0, self.pfr_reactor_core.reactor_volume_value))
+            solver_options.get(
+                "volume_span", (0.0, self.pfr_reactor_core.reactor_volume_value))
             if solver_options else
             (0.0, self.pfr_reactor_core.reactor_volume_value)
         )
+        # ! tolerances
         rtol = solver_options.get("rtol", 1e-6) if solver_options else 1e-6
         atol = solver_options.get("atol", 1e-9) if solver_options else 1e-9
+
+        # ! max step
+        max_step = solver_options.get(
+            "max_step", None
+        ) if solver_options else None
+
+        # NOTE: create kwargs
+        kwargs = {
+            "method": method,
+            "volume_span": volume_span,
+            "rtol": rtol,
+            "atol": atol,
+        }
+
+        # >> max step is optional and only added if not inf
+        if max_step is not None:
+            kwargs["max_step"] = max_step
+
+        # NOTE: define ODE function for PFR simulation
 
         def fun(V, y):
             return self.reactor.rhs(V, y)
@@ -95,9 +120,7 @@ class PFRReactor:
             fun,
             volume_span,
             y0,
-            method=method,
-            rtol=rtol,
-            atol=atol,
+            **kwargs,
         )
 
         if not sol.success:

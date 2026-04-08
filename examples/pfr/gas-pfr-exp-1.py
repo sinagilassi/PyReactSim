@@ -45,7 +45,7 @@ for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactsi
 
 # NOTE: jacket temperature
 jacket_temperature = Temperature(
-    value=340,
+    value=330,
     unit="K",
 )
 
@@ -72,7 +72,7 @@ pfr_reactor_options = PFRReactorOptions(
 
 # NOTE: heat transfer options
 heat_transfer_options = HeatTransferOptions(
-    heat_transfer_mode="isothermal",
+    heat_transfer_mode="non-isothermal",
     heat_transfer_coefficient=heat_transfer_coefficient,
     heat_transfer_area=heat_transfer_area,
     jacket_temperature=jacket_temperature,
@@ -163,6 +163,8 @@ simulation_results = pfr_reactor.simulate(
         "volume_span": (0.0, reactor_volume.value),
         "rtol": 1e-6,
         "atol": 1e-9,
+        # max step size as fraction of total volume
+        # "max_step": reactor_volume.value / 100,
     }
 )
 print("[bold green]PFR simulation completed![/bold green]")
