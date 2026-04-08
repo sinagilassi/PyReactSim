@@ -202,3 +202,5 @@ rate_expression = ReactionRateExpression(
     eq=r1,
     component_key='Name-Formula'
 )
+
+reaction_rates = [rate_expression]

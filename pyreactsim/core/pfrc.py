@@ -174,10 +174,10 @@ class PFRReactorCore(ReactorCore):
             return 0.0
 
         # NOTE: gas PFR requires pressure input for all current pressure modes.
-        if "pressure" not in self.model_inputs_keys:
+        if "inlet_pressure" not in self.model_inputs_keys:
             raise ValueError(
                 "pressure must be provided in model_inputs for gas-phase PFR."
             )
 
-        pressure = self.model_inputs["pressure"]
+        pressure = self.model_inputs["inlet_pressure"]
         return to_Pa(value=float(pressure.value), unit=pressure.unit)
