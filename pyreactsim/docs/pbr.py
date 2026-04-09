@@ -128,6 +128,11 @@ class PBRReactor:
             "max_step", None
         ) if solver_options else None
 
+        # ! first step
+        first_step = solver_options.get(
+            "first_step", None
+        ) if solver_options else None
+
         # ! dense output
         dense_output = solver_options.get(
             "dense_output", None
@@ -144,6 +149,10 @@ class PBRReactor:
         # >> max step is optional and only added if not inf
         if max_step is not None:
             kwargs["max_step"] = max_step
+
+        # >> first step is optional and only added if not inf
+        if first_step is not None:
+            kwargs["first_step"] = first_step
 
         # >> dense output
         if dense_output is not None:
