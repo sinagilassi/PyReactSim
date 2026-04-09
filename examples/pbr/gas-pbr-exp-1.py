@@ -86,9 +86,9 @@ pfr_reactor_options = PBRReactorOptions(
 # NOTE: heat transfer options
 heat_transfer_options = HeatTransferOptions(
     heat_transfer_mode="non-isothermal",
-    heat_transfer_coefficient=heat_transfer_coefficient,
-    heat_transfer_area=heat_transfer_area,
-    jacket_temperature=jacket_temperature,
+    heat_transfer_coefficient=None,
+    heat_transfer_area=None,
+    jacket_temperature=None,
 )
 
 # ====================================================
@@ -113,8 +113,7 @@ thermo_inputs = {
 # ====================================================
 # NOTE: reactor volume / integration limit [m3]
 reactor_volume = Volume(
-    # value=0.00796,
-    value=0.8,
+    value=0.00796,
     unit="m3",
 )
 
@@ -186,7 +185,7 @@ simulation_results = pfr_reactor.simulate(
         "volume_span": (0.0, reactor_volume.value),
         "rtol": 1e-7,
         "atol": 1e-9,
-        "dense_output": True
+        # "dense_output": True
     }
 )
 print("[bold green]PFR simulation completed![/bold green]")

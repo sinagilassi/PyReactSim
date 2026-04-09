@@ -63,10 +63,10 @@ def r1(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     a = args["a"].value
     R = params["R"].value
 
-    k1 = 4.89 * math.exp(-63000.0 / (R * T))
-    KCO = 2.16 * math.exp(46800.0 / (R * T))
-    KCO2 = 7.05 * math.exp(61700.0 / (R * T))
-    KH2O_over_sqrt_KH2 = 6.37 * math.exp(84000.0 / (R * T))
+    k1 = 4.65e7 * math.exp(-107752.86 / (R * T))
+    KCO = 2.16e-5 * math.exp(47120.51 / (R * T))
+    KCO2 = 7.92e-7 * math.exp(62148.78 / (R * T))
+    KH2O_over_sqrt_KH2 = 4.39e-9 * math.exp(84350.46 / (R * T))
     KP1 = 10.0 ** (5139.0 / T - 12.621)
 
     denominator = (
@@ -135,10 +135,10 @@ def r2(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     a = args["a"].value
     R = params["R"].value
 
-    k2 = 1.09 * math.exp(-87500.0 / (R * T))
-    KCO = 2.16 * math.exp(46800.0 / (R * T))
-    KCO2 = 7.05 * math.exp(61700.0 / (R * T))
-    KH2O_over_sqrt_KH2 = 6.37 * math.exp(84000.0 / (R * T))
+    k2 = 9.64e11 * math.exp(-152900.0 / (R * T))
+    KCO = 2.16e-5 * math.exp(47120.51 / (R * T))
+    KCO2 = 7.92e-7 * math.exp(62148.78 / (R * T))
+    KH2O_over_sqrt_KH2 = 4.39e-9 * math.exp(84350.46 / (R * T))
     KP2 = 10.0 ** (3066.0 / T - 10.592)
 
     denominator = (
@@ -207,10 +207,10 @@ def r3(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     a = args["a"].value
     R = params["R"].value
 
-    k3 = 9.64 * math.exp(-152900.0 / (R * T))
-    KCO = 2.16 * math.exp(46800.0 / (R * T))
-    KCO2 = 7.05 * math.exp(61700.0 / (R * T))
-    KH2O_over_sqrt_KH2 = 6.37 * math.exp(84000.0 / (R * T))
+    k3 = 1.09e5 * math.exp(-87500.00 / (R * T))
+    KCO = 2.16e-5 * math.exp(47120.51 / (R * T))
+    KCO2 = 7.92e-7 * math.exp(62148.78 / (R * T))
+    KH2O_over_sqrt_KH2 = 4.39e-9 * math.exp(84350.46 / (R * T))
     KP3 = 10.0 ** (-2073.0 / T + 2.029)
 
     denominator = (
