@@ -148,6 +148,11 @@ H2O_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
     source=H2O_thermodb_file
 )
 
+CO_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
+    component=CO,
+    source=CO_thermodb_file
+)
+
 # NOTE: load and build model source
 # NOTE: debug timing for model source build
 _build_t0 = time.perf_counter()
@@ -178,7 +183,8 @@ model_source: ModelSource = load_and_build_model_source(
         CO2_thermodb,
         H2_thermodb,
         CH3OH_thermodb,
-        H2O_thermodb
+        H2O_thermodb,
+        CO_thermodb
     ],
     original_equation_label=False
 )
