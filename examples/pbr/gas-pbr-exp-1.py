@@ -21,7 +21,8 @@ from pyreactsim.thermo import build_thermo_source
 # ! load from file
 # from examples.source.gas_load_model_source import model_source
 # ! add components & reaction rates
-from examples.rates.rate_exp_7 import components, reaction_rates, model_source
+# from examples.rates.rate_exp_7 import components, reaction_rates, model_source
+from examples.rates.methanol_1 import components, reaction_rates, model_source
 # ! plot
 from examples.plot.plot_res import plot_pbr_reactor_result
 
@@ -38,17 +39,17 @@ print(ptdb.__version__)
 print(ptdblink.__version__)
 
 # NOTE: silence library warnings/errors for this example run
-# warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
-# for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
-#     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
+for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
+    logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
 
 # NOTE: debug logging for thermo source initialization timings
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-)
-logging.getLogger("pyreactsim.sources.thermo_source").setLevel(logging.DEBUG)
+# logging.basicConfig(
+#     level=logging.DEBUG,
+#     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+# )
+# logging.getLogger("pyreactsim.sources.thermo_source").setLevel(logging.DEBUG)
 
 # ====================================================
 # SECTION: Inputs
@@ -57,7 +58,7 @@ logging.getLogger("pyreactsim.sources.thermo_source").setLevel(logging.DEBUG)
 
 # NOTE: jacket temperature
 jacket_temperature = Temperature(
-    value=340,
+    value=503,
     unit="K",
 )
 
@@ -69,7 +70,7 @@ heat_transfer_coefficient = CustomProp(
 
 # NOTE: heat transfer area
 heat_transfer_area = CustomProp(
-    value=2.0,
+    value=0.95,
     unit="m2",
 )
 
@@ -77,17 +78,17 @@ heat_transfer_area = CustomProp(
 pfr_reactor_options = PBRReactorOptions(
     phase="gas",
     operation_mode="constant_pressure",
-    pressure_mode="constant",
+    pressure_mode="shortcut",
     gas_model="ideal",
     gas_heat_capacity_mode="temperature-dependent",
 )
 
 # NOTE: heat transfer options
 heat_transfer_options = HeatTransferOptions(
-    heat_transfer_mode="isothermal",
-    heat_transfer_coefficient=heat_transfer_coefficient,
-    heat_transfer_area=heat_transfer_area,
-    jacket_temperature=jacket_temperature,
+    heat_transfer_mode="non-isothermal",
+    heat_transfer_coefficient=None,
+    heat_transfer_area=None,
+    jacket_temperature=None,
 )
 
 # ====================================================
@@ -99,6 +100,7 @@ constant_gas_heat_capacity = {
     "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
     "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
     "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
+    # "CO-g": CustomProp(value=35.0, unit="J/mol.K"),
 }
 
 # ! thermo inputs
@@ -111,34 +113,35 @@ thermo_inputs = {
 # ====================================================
 # NOTE: reactor volume / integration limit [m3]
 reactor_volume = Volume(
-    value=3.0,
+    value=0.00796,
     unit="m3",
 )
 
 # NOTE: bulk density for catalyst mass to volume conversion [kg/m3]
 bulk_density = CustomProp(
-    value=800.0,
+    value=1770.0,
     unit="kg/m3",
 )
 
 # NOTE: pressure
 pressure = CustomProp(
-    value=50,
+    value=76.98,
     unit="bar",
 )
 
 # NOTE: feed stream temperature [K]
 inlet_temperature = Temperature(
-    value=330,
+    value=503,
     unit="K",
 )
 
 # NOTE: feed component molar flow rates [mol/s]
 feed_mole_flow = {
-    "CO2-g": CustomProp(value=0.05, unit="mol/s"),
-    "H2-g": CustomProp(value=0.15, unit="mol/s"),
-    "CH3OH-g": CustomProp(value=0.0, unit="mol/s"),
-    "H2O-g": CustomProp(value=0.0, unit="mol/s"),
+    "CO2-g": CustomProp(value=0.0671, unit="mol/s"),
+    "H2-g": CustomProp(value=0.4702, unit="mol/s"),
+    "CH3OH-g": CustomProp(value=0.00356, unit="mol/s"),
+    "H2O-g": CustomProp(value=0.000285, unit="mol/s"),
+    "CO-g": CustomProp(value=0.0328, unit="mol/s"),
 }
 
 # NOTE: model inputs for PFR
@@ -178,7 +181,7 @@ print(pfr_reactor)
 # NOTE: simulate PFR along reactor volume
 simulation_results = pfr_reactor.simulate(
     solver_options={
-        "method": "BDF",
+        "method": "LSODA",
         "volume_span": (0.0, reactor_volume.value),
         "rtol": 1e-6,
         "atol": 1e-9,

@@ -117,12 +117,7 @@ gas_model = "ideal"
 reactor_inputs = BatchReactorOptions(
     phase='gas',
     gas_model=gas_model,
-    heat_transfer_mode='non-isothermal',
     operation_mode='constant_volume',
-    reactor_volume=reactor_volume,
-    jacket_temperature=jacket_temperature,
-    heat_transfer_coefficient=heat_transfer_coefficient,
-    heat_transfer_area=heat_transfer_area
 )
 
 # NOTE: initial temperature
@@ -200,6 +195,13 @@ result = rate_expression.calc(
     xi={
         'A-g': CustomProperty(value=1.0, unit="mol/m3", symbol="A-g"),
         'B-g': CustomProperty(value=1.0, unit="mol/m3", symbol="B-g")
+    },
+    args={
+        'T': CustomProperty(
+            value=300,
+            unit='K',
+            symbol='T'
+        )
     },
     temperature=initial_temperature,
     pressure=initial_pressure,
