@@ -75,7 +75,8 @@ class GasPBRReactor:
         # SECTION: component references
         self.component_num = self.thermo_source.component_refs["component_num"]
         self.component_formula_state = self.thermo_source.component_refs[
-            "component_formula_state"]
+            "component_formula_state"
+        ]
         self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: inlet and reactor geometry
