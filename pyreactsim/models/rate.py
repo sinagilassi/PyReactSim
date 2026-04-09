@@ -91,7 +91,8 @@ class ReactionRate:
         - State defines for each reaction based on formula-state component key such as CO2-g.
         """
         # NOTE: Build call args from defaults + call overrides
-        call_args: rArgs = {}
+        call_args: rArgs = self.args.copy()
+
         if args is not None:
             call_args.update(args)
 
@@ -151,7 +152,7 @@ class ReactionRate:
                     unit=current_x.unit
                 )
 
-        # NOTE: Add Temperature and Pressure to args if provided
+        # NOTE: Add Temperature to args if provided
         if temperature is not None:
             # internal temperature unit and value
             value_internal = temperature.value
@@ -177,6 +178,14 @@ class ReactionRate:
                         unit=unit_external,
                         symbol="T"
                     )
+
+                # ! get original
+                # >>> to unit external
+                call_args['T'] = CustomProperty(
+                    value=value_internal,
+                    unit=unit_external,
+                    symbol='T'
+                )
             else:
                 call_args['T'] = CustomProperty(
                     value=temperature.value,
@@ -184,6 +193,7 @@ class ReactionRate:
                     symbol="T"
                 )
 
+        # NOTE: add pressure to args if provided
         if pressure is not None:
             # internal pressure unit and value
             value_internal = pressure.value
@@ -209,6 +219,14 @@ class ReactionRate:
                         unit=unit_external,
                         symbol="P"
                     )
+
+                # ! get original
+                # >>> to unit external
+                call_args['P'] = CustomProperty(
+                    value=value_internal,
+                    unit=unit_external,
+                    symbol="P"
+                )
             else:
                 call_args['P'] = CustomProperty(
                     value=pressure.value,
