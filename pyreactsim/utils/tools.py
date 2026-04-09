@@ -183,3 +183,28 @@ def generate_component_references(
         "component_mapper": component_mapper,
         "component_id_to_index": component_id_to_index
     }
+
+
+# SECTION: smooth floor function
+def smooth_floor(x: float | np.ndarray, xmin: float, s: float) -> float | np.ndarray:
+    """
+    Smooth approximation of ``max(x, xmin)`` using a numerically stable softplus.
+
+    Parameters
+    ----------
+    x : float | np.ndarray
+        Value(s) to floor.
+    xmin : float
+        Minimum smooth floor value.
+    s : float
+        Smoothing width. Smaller values approach a hard floor.
+    """
+    if s <= 0.0:
+        raise ValueError("smooth_floor requires s > 0.")
+
+    z = (np.asarray(x, dtype=float) - xmin) / s
+    y = xmin + s * np.logaddexp(0.0, z)
+
+    if np.isscalar(x):
+        return float(y)
+    return y
