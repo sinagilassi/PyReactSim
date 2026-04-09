@@ -70,7 +70,7 @@ heat_transfer_coefficient = CustomProp(
 
 # NOTE: heat transfer area
 heat_transfer_area = CustomProp(
-    value=0.95,
+    value=2,
     unit="m2",
 )
 
@@ -113,13 +113,13 @@ thermo_inputs = {
 # ====================================================
 # NOTE: reactor volume / integration limit [m3]
 reactor_volume = Volume(
-    value=0.00796,
+    value=0.05,
     unit="m3",
 )
 
 # NOTE: bulk density for catalyst mass to volume conversion [kg/m3]
 bulk_density = CustomProp(
-    value=1770.0,
+    value=1200.0,
     unit="kg/m3",
 )
 
@@ -137,11 +137,11 @@ inlet_temperature = Temperature(
 
 # NOTE: feed component molar flow rates [mol/s]
 feed_mole_flow = {
-    "CO2-g": CustomProp(value=0.0671, unit="mol/s"),
-    "H2-g": CustomProp(value=0.4702, unit="mol/s"),
-    "CH3OH-g": CustomProp(value=0.00356, unit="mol/s"),
-    "H2O-g": CustomProp(value=0.000285, unit="mol/s"),
-    "CO-g": CustomProp(value=0.0328, unit="mol/s"),
+    "CO2-g": CustomProp(value=2.5, unit="mol/s"),
+    "H2-g": CustomProp(value=7.5, unit="mol/s"),
+    "CH3OH-g": CustomProp(value=0.0, unit="mol/s"),
+    "H2O-g": CustomProp(value=0.0, unit="mol/s"),
+    "CO-g": CustomProp(value=0.0, unit="mol/s"),
 }
 
 # NOTE: model inputs for PFR
@@ -181,7 +181,7 @@ print(pfr_reactor)
 # NOTE: simulate PFR along reactor volume
 simulation_results = pfr_reactor.simulate(
     solver_options={
-        "method": "BDF",
+        "method": "Radau",
         "volume_span": (0.0, reactor_volume.value),
         "rtol": 1e-7,
         "atol": 1e-9,
