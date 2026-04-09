@@ -181,10 +181,11 @@ print(pfr_reactor)
 # NOTE: simulate PFR along reactor volume
 simulation_results = pfr_reactor.simulate(
     solver_options={
-        "method": "LSODA",
+        "method": "BDF",
         "volume_span": (0.0, reactor_volume.value),
-        "rtol": 1e-6,
+        "rtol": 1e-7,
         "atol": 1e-9,
+        "dense_output": True
     }
 )
 print("[bold green]PFR simulation completed![/bold green]")
