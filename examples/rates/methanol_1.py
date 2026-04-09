@@ -5,6 +5,7 @@ from pythermodb_settings.models import CustomProperty
 from pyreactlab_core.models.reaction import Reaction
 
 from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
+from pyreactsim.utils.tools import smooth_floor
 from examples.source.gas_load_model_source import CO2, H2, CH3OH, H2O, CO, model_source
 
 
@@ -33,6 +34,7 @@ rate_params: rParams = {
     "R": CustomProperty(value=8.314462618, unit="J/mol.K", symbol="R"),
 }
 
+rate_eps = 1e-8
 
 # ====================================================
 # SECTION: Reaction 1
@@ -50,11 +52,11 @@ ret_1: rRet = CustomProperty(value=0.0, unit="mol/m3.s", symbol="r1")
 
 
 def r1(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
-    eps = 1.0e-30
+    eps = rate_eps
 
     P_CO = Xs["CO-g"].value
     P_CO2 = Xs["CO2-g"].value
-    P_H2 = max(Xs["H2-g"].value, eps)
+    P_H2 = float(smooth_floor(Xs["H2-g"].value, xmin=eps, s=0.1 * eps))
     P_CH3OH = Xs["CH3OH-g"].value
     P_H2O = Xs["H2O-g"].value
 
@@ -73,11 +75,12 @@ def r1(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
         (1.0 + KCO * P_CO + KCO2 * P_CO2)
         * (math.sqrt(P_H2) + KH2O_over_sqrt_KH2 * P_H2O)
     )
-    denominator = max(denominator, eps)
+    denominator = float(smooth_floor(denominator, xmin=eps, s=0.1 * eps))
+    KP1_safe = float(smooth_floor(KP1, xmin=eps, s=0.1 * eps))
 
     # r1 = k1*KCO*(P_CO*P_H2^(3/2) - P_CH3OH/(P_H2^(1/2)*KP1))/den
     r1_mass = k1 * KCO * (
-        P_CO * (P_H2 ** 1.5) - P_CH3OH / (math.sqrt(P_H2) * max(KP1, eps))
+        P_CO * (P_H2 ** 1.5) - P_CH3OH / (math.sqrt(P_H2) * KP1_safe)
     ) / denominator
 
     r1_volume = a * rho_B * r1_mass
@@ -122,11 +125,11 @@ ret_2: rRet = CustomProperty(value=0.0, unit="mol/m3.s", symbol="r2")
 
 
 def r2(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
-    eps = 1.0e-30
+    eps = rate_eps
 
     P_CO = Xs["CO-g"].value
     P_CO2 = Xs["CO2-g"].value
-    P_H2 = max(Xs["H2-g"].value, eps)
+    P_H2 = float(smooth_floor(Xs["H2-g"].value, xmin=eps, s=0.1 * eps))
     P_CH3OH = Xs["CH3OH-g"].value
     P_H2O = Xs["H2O-g"].value
 
@@ -145,12 +148,13 @@ def r2(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
         (1.0 + KCO * P_CO + KCO2 * P_CO2)
         * (math.sqrt(P_H2) + KH2O_over_sqrt_KH2 * P_H2O)
     )
-    denominator = max(denominator, eps)
+    denominator = float(smooth_floor(denominator, xmin=eps, s=0.1 * eps))
+    KP2_safe = float(smooth_floor(KP2, xmin=eps, s=0.1 * eps))
 
     # r2 = k2*KCO2*(P_CO2*P_H2^(3/2) - (P_H2O*P_CH3OH)/(P_H2^(3/2)*KP2))/den
     r2_mass = k2 * KCO2 * (
         P_CO2 * (P_H2 ** 1.5)
-        - (P_H2O * P_CH3OH) / ((P_H2 ** 1.5) * max(KP2, eps))
+        - (P_H2O * P_CH3OH) / ((P_H2 ** 1.5) * KP2_safe)
     ) / denominator
 
     r2_volume = a * rho_B * r2_mass
@@ -195,11 +199,11 @@ ret_3: rRet = CustomProperty(value=0.0, unit="mol/m3.s", symbol="r3")
 
 
 def r3(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
-    eps = 1.0e-30
+    eps = rate_eps
 
     P_CO = Xs["CO-g"].value
     P_CO2 = Xs["CO2-g"].value
-    P_H2 = max(Xs["H2-g"].value, eps)
+    P_H2 = float(smooth_floor(Xs["H2-g"].value, xmin=eps, s=0.1 * eps))
     P_H2O = Xs["H2O-g"].value
 
     T = args["T"].value
@@ -217,11 +221,12 @@ def r3(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
         (1.0 + KCO * P_CO + KCO2 * P_CO2)
         * (math.sqrt(P_H2) + KH2O_over_sqrt_KH2 * P_H2O)
     )
-    denominator = max(denominator, eps)
+    denominator = float(smooth_floor(denominator, xmin=eps, s=0.1 * eps))
+    KP3_safe = float(smooth_floor(KP3, xmin=eps, s=0.1 * eps))
 
     # r3 = k3*KCO2*(P_CO2*P_H2 - (P_H2O*P_CO)/KP3)/den
     r3_mass = k3 * KCO2 * (
-        P_CO2 * P_H2 - (P_H2O * P_CO) / max(KP3, eps)
+        P_CO2 * P_H2 - (P_H2O * P_CO) / KP3_safe
     ) / denominator
 
     r3_volume = a * rho_B * r3_mass
