@@ -126,7 +126,7 @@ bulk_density = CustomProp(
 
 # NOTE: pressure
 pressure = CustomProp(
-    value=76.98,
+    value=50,
     unit="bar",
 )
 
@@ -185,7 +185,9 @@ simulation_results = pfr_reactor.simulate(
         "method": "BDF",
         "volume_span": (0.0, reactor_volume.value),
         "rtol": 1e-5,
-        "atol": 1e-7,
+        "atol": [1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-6],
+        "first_step": 1e-8,
+        "max_step": 1e-3,
     }
 )
 print("[bold green]PFR simulation completed![/bold green]")
