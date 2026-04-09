@@ -5,6 +5,7 @@ from typing import Any, Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import FuncFormatter
 from pyreactsim.models.br import BatchReactorResult
 from pyreactsim.models.cstr import CSTRReactorResult
 from pyreactsim.models.pfr import PFRReactorResult
@@ -104,6 +105,7 @@ def _plot_reactor_result(
     ax_mole.set_title(f"{title_prefix} - Species")
     ax_mole.grid(True, alpha=0.3)
     ax_mole.legend(loc="best")
+    ax_mole.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f'{y:.2f}'))
 
     if ax_temp is not None and temp_state is not None:
         # temperature subplot
@@ -114,6 +116,8 @@ def _plot_reactor_result(
         ax_temp.set_title(f"{title_prefix} - Temperature")
         ax_temp.grid(True, alpha=0.3)
         ax_temp.legend(loc="best")
+        ax_temp.yaxis.set_major_formatter(
+            FuncFormatter(lambda y, _: f'{y:.2f}'))
     else:
         ax_mole.set_xlabel(x_label)
 
