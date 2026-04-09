@@ -325,32 +325,32 @@ reaction_rates = [
 # ---------------------------------------
 # SECTION: Evaluate Reactions
 # ---------------------------------------
-# NOTE: temperature
-temperature = Temperature(
-    value=503,
-    unit="K"
-)
+# # NOTE: temperature
+# temperature = Temperature(
+#     value=503,
+#     unit="K"
+# )
 
-# NOTE: pressure
-pressure = Pressure(
-    value=74.98,
-    unit="bar"
-)
+# # NOTE: pressure
+# pressure = Pressure(
+#     value=74.98,
+#     unit="bar"
+# )
 
-# NOTE: args
-args = {
-    'rho_B': CustomProperty(value=1770.0, unit="kgcat/m3", symbol="rho_B"),
-}
+# # NOTE: args
+# args = {
+#     'rho_B': CustomProperty(value=1770.0, unit="kgcat/m3", symbol="rho_B"),
+# }
 
-# calculate rate expression value
-result = rate_expression_1.calc(
-    xi={
-        'CH3OH-g': CustomProperty(value=0.2, unit="Pa", symbol="CH3OH-g"),
-        'CO-g': CustomProperty(value=0.4, unit="Pa", symbol="CO-g")
-    },
-    args=args,
-    temperature=temperature,
-    pressure=pressure,
-    mode="log"
-)
-print(result)
+# # calculate rate expression value
+# result = rate_expression_1.calc(
+#     xi={
+#         'CH3OH-g': CustomProperty(value=0.2, unit="Pa", symbol="CH3OH-g"),
+#         'CO-g': CustomProperty(value=0.4, unit="Pa", symbol="CO-g")
+#     },
+#     args=args,
+#     temperature=temperature,
+#     pressure=pressure,
+#     mode="log"
+# )
+# print(result)

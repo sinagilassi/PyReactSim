@@ -313,13 +313,18 @@ class GasPBRReactor:
 
         # NOTE: flowing heat-capacity rate denominator [J/s.K]
         cp_g_values = self.thermo_source.calc_Cp_IG(temperature=temperature)
+
         cp_flow = calc_total_heat_capacity(x=F, cp=cp_g_values)
+
+        # check
         if cp_flow <= 1e-16:
             raise ValueError(
                 "Total flowing gas heat capacity is too small or zero.")
 
-        # NOTE: reaction heat source term [W/m3] uses converted r_V rates
+        # NOTE: reaction heat source term [w/m3] uses converted r_V rates
         delta_h = self.thermo_source.calc_dH_rxns(temperature=temperature)
+
+        # calculate generation heat
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
             rates=rates_v,
