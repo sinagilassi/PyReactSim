@@ -140,9 +140,9 @@ inlet_temperature = Temperature(
 feed_mole_flow = {
     "CO2-g": CustomProp(value=2.5, unit="mol/s"),
     "H2-g": CustomProp(value=7.5, unit="mol/s"),
-    "CH3OH-g": CustomProp(value=0.0, unit="mol/s"),
-    "H2O-g": CustomProp(value=0.0, unit="mol/s"),
-    "CO-g": CustomProp(value=0.0, unit="mol/s"),
+    "CH3OH-g": CustomProp(value=0.001, unit="mol/s"),
+    "H2O-g": CustomProp(value=0.001, unit="mol/s"),
+    "CO-g": CustomProp(value=0.001, unit="mol/s"),
 }
 
 # NOTE: model inputs for PFR
@@ -184,8 +184,8 @@ simulation_results = pfr_reactor.simulate(
     solver_options={
         "method": "BDF",
         "volume_span": (0.0, reactor_volume.value),
-        "rtol": 1e-9,
-        "atol": 1e-9,
+        "rtol": 1e-5,
+        "atol": 1e-7,
     }
 )
 print("[bold green]PFR simulation completed![/bold green]")
