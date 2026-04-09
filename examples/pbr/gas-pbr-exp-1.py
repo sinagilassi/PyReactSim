@@ -184,7 +184,7 @@ simulation_results = pfr_reactor.simulate(
     solver_options={
         "method": "BDF",
         "volume_span": (0.0, reactor_volume.value),
-        "rtol": 1e-7,
+        "rtol": 1e-9,
         "atol": 1e-9,
     }
 )
