@@ -3,6 +3,7 @@ import numpy as np
 from typing import Dict, List, cast, Optional, Tuple
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Pressure, Temperature
 # locals
+from .pbrc import PBRReactorCore
 from ..configs.constants import R_J_per_mol_K
 from ..models.rate_exp import ReactionRateExpression
 from ..models.ref import GasModel
@@ -10,7 +11,7 @@ from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
 from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
 from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity, calc_pressure_using_PFT
-from .pbrc import PBRReactorCore
+from ..utils.tools import smooth_floor
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -155,13 +156,16 @@ class GasPBRReactorX:
         ns = self.component_num
 
         # NOTE: species molar flows [mol/s]
-        F = np.clip(y_scaled[:ns], 0.0, None) * self.F_scale
+        F = np.asarray(
+            smooth_floor(y_scaled[:ns], xmin=0.0, s=1e-9),
+            dtype=float
+        ) * self.F_scale
 
         # NOTE: thermal state [K]
         if self.pbr_reactor_core.is_non_isothermal:
             theta = float(y_scaled[ns])
             temp = self.T_ref + self.T_scale * theta
-            temp = max(temp, 1.0)
+            temp = float(smooth_floor(temp, xmin=1.0, s=1e-3))
         else:
             temp = float(self._T_in)
 
@@ -205,7 +209,10 @@ class GasPBRReactorX:
 
         # SECTION: unpack state vector
         # ! species states: component molar flows [mol/s]
-        F = np.clip(y[:ns], 0.0, None)
+        F = np.asarray(
+            smooth_floor(y[:ns], xmin=0.0, s=1e-12),
+            dtype=float
+        )
 
         # NOTE: temperature state configuration
         # ! thermal state [K]
@@ -218,7 +225,7 @@ class GasPBRReactorX:
 
         # SECTION: closure relations
         # ! total molar flow [mol/s]
-        F_total = max(float(np.sum(F)), 1e-30)
+        F_total = float(smooth_floor(float(np.sum(F)), xmin=1e-30, s=1e-31))
         # ! gas mole fractions [-]
         y_mole = F / F_total
 
@@ -254,7 +261,7 @@ class GasPBRReactorX:
             R=self.R,
             gas_model=cast(GasModel, self.gas_model)
         )
-        q_vol = max(q_vol, 1e-30)
+        q_vol = float(smooth_floor(q_vol, xmin=1e-30, s=1e-31))
 
         # ! concentration from flow form: C_i = F_i / Q [mol/m3]
         concentration = F / q_vol
