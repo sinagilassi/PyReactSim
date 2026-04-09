@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, cast
 from pythermodb_settings.models import ComponentKey
 # locals
 from ..core.gas_pbr import GasPBRReactor
+from ..core.gas_pbrx import GasPBRReactorX
 from ..core.liquid_pbr import LiquidPBRReactor
 from ..core.pbrc import PBRReactorCore
 from ..models.pbr import PBRReactorOptions, PBRReactorResult
@@ -38,6 +39,7 @@ class PBRReactor:
         self.heat_transfer_options = thermo_source.heat_transfer_options
         self.phase = self.pbr_reactor_options.phase
         self.reaction_rates = thermo_source.reaction_rates
+        self.modeling_type = self.pbr_reactor_options.modeling_type
 
         self.pbr_reactor_core = PBRReactorCore(
             components=self.components,
@@ -48,10 +50,15 @@ class PBRReactor:
             component_key=cast(ComponentKey, self.component_key),
         )
 
-        self.reactor: GasPBRReactor | LiquidPBRReactor = self._create_reactor()
+        self.reactor: GasPBRReactor | LiquidPBRReactor | GasPBRReactorX = self._create_reactor()
 
-    def _create_reactor(self) -> GasPBRReactor | LiquidPBRReactor:
-        if self.phase == "gas":
+    # SECTION: reactor creation and simulation methods
+    def _create_reactor(self) -> GasPBRReactor | LiquidPBRReactor | GasPBRReactorX:
+        # check phase and modeling type to determine reactor class
+        if (
+            self.phase == "gas" and
+            self.modeling_type == "physical"
+        ):
             return GasPBRReactor(
                 components=self.components,
                 reaction_rates=self.reaction_rates,
@@ -59,7 +66,18 @@ class PBRReactor:
                 pbr_reactor_core=self.pbr_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
             )
-        if self.phase == "liquid":
+        elif (
+            self.phase == "gas" and
+            self.modeling_type == "scale"
+        ):
+            return GasPBRReactorX(
+                components=self.components,
+                reaction_rates=self.reaction_rates,
+                thermo_source=self.thermo_source,
+                pbr_reactor_core=self.pbr_reactor_core,
+                component_key=cast(ComponentKey, self.component_key),
+            )
+        elif self.phase == "liquid":
             return LiquidPBRReactor(
                 components=self.components,
                 reaction_rates=self.reaction_rates,
@@ -72,6 +90,7 @@ class PBRReactor:
             f"PBR reactor for phase '{self.phase}' is not implemented yet."
         )
 
+    # NOTE: simulation method
     def simulate(
         self,
         solver_options: Optional[Dict[str, Any]] = None,
@@ -133,10 +152,34 @@ class PBRReactor:
         # NOTE: define ODE function for PFR simulation
 
         def fun(V, y):
-            return self.reactor.rhs(V, y)
+            '''ODE function for PBR simulation.'''
+            if isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor)):
+                return self.reactor.rhs(V, y)
+            elif isinstance(self.reactor, GasPBRReactorX):
+                return self.reactor.rhs_scaled(V, y)
+            else:
+                raise NotImplementedError(
+                    f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
+                )
 
-        y0 = self.reactor.build_y0()
+        # NOTE: get initial conditions
+        # >> check physical vs scale model to determine y0
+        if (
+            self.modeling_type == "physical" and
+            isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor))
+        ):
+            y0 = self.reactor.build_y0()
+        elif (
+            self.modeling_type == "scale" and
+            isinstance(self.reactor, GasPBRReactorX)
+        ):
+            y0 = self.reactor.build_y0_scaled()
+        else:
+            raise NotImplementedError(
+                f"Initial condition builder for modeling type '{self.modeling_type}' and reactor type '{type(self.reactor)}' is not implemented yet."
+            )
 
+        # NOTE: run ODE solver
         sol = solve_ivp(
             fun,
             volume_span,
@@ -144,6 +187,7 @@ class PBRReactor:
             **kwargs,
         )
 
+        # NOTE: check solver success and return results
         if not sol.success:
             logger.error(f"PBR ODE solver failed: {sol.message}")
             return None

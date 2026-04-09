@@ -12,6 +12,10 @@ class PBRReactorOptions(BaseModel):
         ...,
         description="Phase of the PBR reactor (gas or liquid)."
     )
+    modeling_type: Literal['physical', 'scale'] = Field(
+        default="physical",
+        description="Modeling type as physical or scale. The physical model uses physical parameters such as particle diameter and void fraction, while the scale model uses scale parameters such as bed length and cross-sectional area."
+    )
     operation_mode: Literal[
         'constant_pressure', 'constant_volume'
     ] = Field(
