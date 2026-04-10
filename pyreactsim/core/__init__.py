@@ -7,12 +7,14 @@ from .gas_brx import GasBatchReactorX
 from .gas_cstr import GasCSTRReactor
 from .gas_cstrx import GasCSTRReactorX
 from .gas_pfr import GasPFRReactor
+from .gas_pfrx import GasPFRReactorX
 from .gas_pbr import GasPBRReactor
 from .liquid_br import LiquidBatchReactor
 from .liquid_brx import LiquidBatchReactorX
 from .liquid_cstr import LiquidCSTRReactor
 from .liquid_cstrx import LiquidCSTRReactorX
 from .liquid_pfr import LiquidPFRReactor
+from .liquid_pfrx import LiquidPFRReactorX
 from .liquid_pbr import LiquidPBRReactor
 
 __all__ = [
@@ -25,11 +27,13 @@ __all__ = [
     "GasCSTRReactor",
     "GasCSTRReactorX",
     "GasPFRReactor",
+    "GasPFRReactorX",
     "GasPBRReactor",
     "LiquidBatchReactor",
     "LiquidBatchReactorX",
     "LiquidCSTRReactor",
     "LiquidCSTRReactorX",
     "LiquidPFRReactor",
+    "LiquidPFRReactorX",
     "LiquidPBRReactor",
 ]

@@ -5,7 +5,9 @@ from typing import Any, Dict, Optional, cast
 from pythermodb_settings.models import ComponentKey
 # locals
 from ..core.gas_pfr import GasPFRReactor
+from ..core.gas_pfrx import GasPFRReactorX
 from ..core.liquid_pfr import LiquidPFRReactor
+from ..core.liquid_pfrx import LiquidPFRReactorX
 from ..core.pfrc import PFRReactorCore
 from ..models.pfr import PFRReactorOptions, PFRReactorResult
 from ..sources.thermo_source import ThermoSource
@@ -38,6 +40,7 @@ class PFRReactor:
         )
         self.heat_transfer_options = thermo_source.heat_transfer_options
         self.phase = self.pfr_reactor_options.phase
+        self.modeling_type = self.pfr_reactor_options.modeling_type
         self.reaction_rates = thermo_source.reaction_rates
 
         self.pfr_reactor_core = PFRReactorCore(
@@ -49,10 +52,10 @@ class PFRReactor:
             component_key=cast(ComponentKey, self.component_key),
         )
 
-        self.reactor: GasPFRReactor | LiquidPFRReactor = self._create_reactor()
+        self.reactor: GasPFRReactor | GasPFRReactorX | LiquidPFRReactor | LiquidPFRReactorX = self._create_reactor()
 
-    def _create_reactor(self) -> GasPFRReactor | LiquidPFRReactor:
-        if self.phase == "gas":
+    def _create_reactor(self) -> GasPFRReactor | GasPFRReactorX | LiquidPFRReactor | LiquidPFRReactorX:
+        if self.phase == "gas" and self.modeling_type == "physical":
             return GasPFRReactor(
                 components=self.components,
                 reaction_rates=self.reaction_rates,
@@ -60,8 +63,24 @@ class PFRReactor:
                 pfr_reactor_core=self.pfr_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
             )
-        if self.phase == "liquid":
+        if self.phase == "gas" and self.modeling_type == "scale":
+            return GasPFRReactorX(
+                components=self.components,
+                reaction_rates=self.reaction_rates,
+                thermo_source=self.thermo_source,
+                pfr_reactor_core=self.pfr_reactor_core,
+                component_key=cast(ComponentKey, self.component_key),
+            )
+        if self.phase == "liquid" and self.modeling_type == "physical":
             return LiquidPFRReactor(
+                components=self.components,
+                reaction_rates=self.reaction_rates,
+                thermo_source=self.thermo_source,
+                pfr_reactor_core=self.pfr_reactor_core,
+                component_key=cast(ComponentKey, self.component_key),
+            )
+        if self.phase == "liquid" and self.modeling_type == "scale":
+            return LiquidPFRReactorX(
                 components=self.components,
                 reaction_rates=self.reaction_rates,
                 thermo_source=self.thermo_source,
@@ -70,7 +89,7 @@ class PFRReactor:
             )
 
         raise NotImplementedError(
-            f"PFR reactor for phase '{self.phase}' is not implemented yet."
+            f"PFR reactor for phase '{self.phase}' and modeling_type '{self.modeling_type}' is not implemented yet."
         )
 
     def simulate(
@@ -112,9 +131,23 @@ class PFRReactor:
         # NOTE: define ODE function for PFR simulation
 
         def fun(V, y):
-            return self.reactor.rhs(V, y)
+            if isinstance(self.reactor, (GasPFRReactor, LiquidPFRReactor)):
+                return self.reactor.rhs(V, y)
+            elif isinstance(self.reactor, (GasPFRReactorX, LiquidPFRReactorX)):
+                return self.reactor.rhs_scaled(V, y)
+            else:
+                raise NotImplementedError(
+                    f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
+                )
 
-        y0 = self.reactor.build_y0()
+        if isinstance(self.reactor, (GasPFRReactor, LiquidPFRReactor)):
+            y0 = self.reactor.build_y0()
+        elif isinstance(self.reactor, (GasPFRReactorX, LiquidPFRReactorX)):
+            y0 = self.reactor.build_y0_scaled()
+        else:
+            raise NotImplementedError(
+                f"Initial condition builder for reactor type '{type(self.reactor)}' is not implemented yet."
+            )
 
         sol = solve_ivp(
             fun,

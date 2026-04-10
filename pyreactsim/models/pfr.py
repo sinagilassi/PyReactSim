@@ -31,6 +31,10 @@ class PFRReactorOptions(ReactorOptions):
     molecular_weight_mode : Optional[Literal['model_inputs', 'model_source']]
         Source of molecular weight as model_inputs or model_source.
     """
+    modeling_type: Literal['physical', 'scale'] = Field(
+        default="physical",
+        description="Modeling type as physical or scale. The physical model solves ODE states in physical units, while the scale model solves scaled state variables."
+    )
     operation_mode: Literal[
         'constant_pressure', 'constant_volume'
     ] = Field(
