@@ -8,6 +8,7 @@ from pythermodb_settings.utils import measure_time
 from ..core.gas_pbr import GasPBRReactor
 from ..core.gas_pbrx import GasPBRReactorX
 from ..core.liquid_pbr import LiquidPBRReactor
+from ..core.liquid_pbrx import LiquidPBRReactorX
 from ..core.pbrc import PBRReactorCore
 from ..models.pbr import PBRReactorOptions, PBRReactorResult
 from ..sources.thermo_source import ThermoSource
@@ -52,10 +53,10 @@ class PBRReactor:
             component_key=cast(ComponentKey, self.component_key),
         )
 
-        self.reactor: GasPBRReactor | LiquidPBRReactor | GasPBRReactorX = self._create_reactor()
+        self.reactor: GasPBRReactor | GasPBRReactorX | LiquidPBRReactor | LiquidPBRReactorX = self._create_reactor()
 
     # SECTION: reactor creation and simulation methods
-    def _create_reactor(self) -> GasPBRReactor | LiquidPBRReactor | GasPBRReactorX:
+    def _create_reactor(self) -> GasPBRReactor | GasPBRReactorX | LiquidPBRReactor | LiquidPBRReactorX:
         # check phase and modeling type to determine reactor class
         if (
             self.phase == "gas" and
@@ -79,8 +80,22 @@ class PBRReactor:
                 pbr_reactor_core=self.pbr_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
             )
-        elif self.phase == "liquid":
+        elif (
+            self.phase == "liquid" and
+            self.modeling_type == "physical"
+        ):
             return LiquidPBRReactor(
+                components=self.components,
+                reaction_rates=self.reaction_rates,
+                thermo_source=self.thermo_source,
+                pbr_reactor_core=self.pbr_reactor_core,
+                component_key=cast(ComponentKey, self.component_key),
+            )
+        elif (
+            self.phase == "liquid" and
+            self.modeling_type == "scale"
+        ):
+            return LiquidPBRReactorX(
                 components=self.components,
                 reaction_rates=self.reaction_rates,
                 thermo_source=self.thermo_source,
@@ -89,7 +104,7 @@ class PBRReactor:
             )
 
         raise NotImplementedError(
-            f"PBR reactor for phase '{self.phase}' is not implemented yet."
+            f"PBR reactor for phase '{self.phase}' and modeling_type '{self.modeling_type}' is not implemented yet."
         )
 
     # NOTE: simulation method
@@ -174,7 +189,7 @@ class PBRReactor:
             '''ODE function for PBR simulation.'''
             if isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor)):
                 return self.reactor.rhs(V, y)
-            elif isinstance(self.reactor, GasPBRReactorX):
+            elif isinstance(self.reactor, (GasPBRReactorX, LiquidPBRReactorX)):
                 return self.reactor.rhs_scaled(V, y)
             else:
                 raise NotImplementedError(
@@ -190,7 +205,7 @@ class PBRReactor:
             y0 = self.reactor.build_y0()
         elif (
             self.modeling_type == "scale" and
-            isinstance(self.reactor, GasPBRReactorX)
+            isinstance(self.reactor, (GasPBRReactorX, LiquidPBRReactorX))
         ):
             y0 = self.reactor.build_y0_scaled()
         else:
@@ -256,7 +271,7 @@ class PBRReactor:
 
             if isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor)):
                 rhs = self.reactor.rhs(V, u_vec)
-            elif isinstance(self.reactor, GasPBRReactorX):
+            elif isinstance(self.reactor, (GasPBRReactorX, LiquidPBRReactorX)):
                 rhs = self.reactor.rhs_scaled(V, u_vec)
             else:
                 raise NotImplementedError(
@@ -276,7 +291,7 @@ class PBRReactor:
             y0 = self.reactor.build_y0()
         elif (
             self.modeling_type == "scale" and
-            isinstance(self.reactor, GasPBRReactorX)
+            isinstance(self.reactor, (GasPBRReactorX, LiquidPBRReactorX))
         ):
             y0 = self.reactor.build_y0_scaled()
         else:
