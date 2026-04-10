@@ -99,21 +99,22 @@ class ThermoModelSource:
                 )
 
             # NOTE: Enthalpy of formation at 298 K for ideal gas
-            # source
-            self.EnFo_IG_298_src = self.prop_dt_src(
-                component_ids=self.component_ids,
-                prop_name="EnFo_IG"
-            )
+            if self.reactor_options.ideal_gas_formation_enthalpy_mode == "model_source":
+                # extract data
+                self.EnFo_IG_298_src: Dict[str, Dict[str, Any]] = self.prop_dt_src(
+                    component_ids=self.component_ids,
+                    prop_name="EnFo_IG"
+                )
 
-            # ! values in J/mol
-            (
-                self.EnFo_IG_298,
-                self.EnFo_IG_298_comp
-            ) = config_components_property(
-                component_ids=self.component_ids,
-                prop_source=self.EnFo_IG_298_src,
-                unit_conversion_func=to_J_per_mol
-            )
+                # ! values in J/mol
+                (
+                    self.EnFo_IG_298,
+                    self.EnFo_IG_298_comp
+                ) = config_components_property(
+                    component_ids=self.component_ids,
+                    prop_source=self.EnFo_IG_298_src,
+                    unit_conversion_func=to_J_per_mol
+                )
 
         if self.phase == "liquid":
             # MW source
