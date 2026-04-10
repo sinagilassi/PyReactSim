@@ -67,7 +67,8 @@ pfr_reactor_options = PFRReactorOptions(
     operation_mode="constant_pressure",
     pressure_mode="constant",
     gas_model="ideal",
-    gas_heat_capacity_mode="temperature-dependent",
+    gas_heat_capacity_mode="constant",
+    ideal_gas_formation_enthalpy_mode="model_inputs",
 )
 
 # NOTE: heat transfer options
@@ -89,9 +90,18 @@ constant_gas_heat_capacity = {
     "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
 }
 
+# NOTE: ideal gas formation enthalpy at 298 K [J/mol]
+constant_ideal_gas_formation_enthalpy = {
+    "CO2-g": CustomProp(value=-393520.0, unit="J/mol"),
+    "H2-g": CustomProp(value=0.0, unit="J/mol"),
+    "CH3OH-g": CustomProp(value=-201000.0, unit="J/mol"),
+    "H2O-g": CustomProp(value=-241820.0, unit="J/mol"),
+}
+
 # ! thermo inputs
 thermo_inputs = {
-    # "gas_heat_capacity": constant_gas_heat_capacity,
+    "gas_heat_capacity": constant_gas_heat_capacity,
+    "ideal_gas_formation_enthalpy": constant_ideal_gas_formation_enthalpy,
 }
 
 # ====================================================

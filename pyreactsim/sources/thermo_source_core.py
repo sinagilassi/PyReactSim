@@ -140,8 +140,14 @@ class ThermoSourceCore(ThermoCalc):
             Dict[str, Any]
         ] = self.thermo_model_source.EnFo_IG_298_src
         # ! values in J/mol
-        self.EnFo_IG_298 = self.thermo_model_source.EnFo_IG_298
-        self.EnFo_IG_298_comp = self.thermo_model_source.EnFo_IG_298_comp
+        if len(self.EnFo_IG_298_src) > 0:
+            # >> from model source
+            self.EnFo_IG_298 = self.thermo_model_source.EnFo_IG_298
+            self.EnFo_IG_298_comp = self.thermo_model_source.EnFo_IG_298_comp
+        else:
+            # >> from model inputs
+            self.EnFo_IG_298 = self.thermo_model_inputs.EnFo_IG_298
+            self.EnFo_IG_298_comp = self.thermo_model_inputs.EnFo_IG_298_comp
 
         # dH_rxn at 298 K
         # ! values in J/mol

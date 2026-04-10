@@ -298,21 +298,21 @@ class ThermoModelInputs:
             # iterate through components and extract ideal gas formation enthalpy values
             EnFo_IG_298_src = {}
 
-            for id in self.component_formula_state:
-                if id in EnFo_IG_298_:
+            for id_formula_state, id_name_formula in zip(self.component_formula_state, self.component_ids):
+                if id_formula_state in EnFo_IG_298_:
                     EnFo_value = to_J_per_mol(
-                        EnFo_IG_298_[id].value,
-                        EnFo_IG_298_[id].unit
+                        EnFo_IG_298_[id_formula_state].value,
+                        EnFo_IG_298_[id_formula_state].unit
                     )
 
                     # add
-                    EnFo_IG_298_src[id] = {
+                    EnFo_IG_298_src[id_name_formula] = {
                         "value": EnFo_value,
                         "unit": "J/mol"
                     }
                 else:
                     raise ValueError(
-                        f"Ideal gas formation enthalpy value for component '{id}' not found in model_inputs."
+                        f"Ideal gas formation enthalpy value for component '{id_formula_state}' not found in model_inputs."
                     )
 
             # res

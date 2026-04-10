@@ -81,7 +81,8 @@ pfr_reactor_options = PBRReactorOptions(
     operation_mode="constant_pressure",
     pressure_mode="shortcut",
     gas_model="ideal",
-    gas_heat_capacity_mode="temperature-dependent",
+    gas_heat_capacity_mode="constant",
+    ideal_gas_formation_enthalpy_mode="model_inputs",
 )
 
 # NOTE: heat transfer options
@@ -101,12 +102,22 @@ constant_gas_heat_capacity = {
     "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
     "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
     "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
-    # "CO-g": CustomProp(value=35.0, unit="J/mol.K"),
+    "CO-g": CustomProp(value=35.0, unit="J/mol.K"),
+}
+
+# NOTE: ideal gas formation enthalpy at 298 K [J/mol]
+constant_ideal_gas_formation_enthalpy = {
+    "CO2-g": CustomProp(value=-393520.0, unit="J/mol"),
+    "H2-g": CustomProp(value=0.0, unit="J/mol"),
+    "CH3OH-g": CustomProp(value=-201000.0, unit="J/mol"),
+    "H2O-g": CustomProp(value=-241820.0, unit="J/mol"),
+    "CO-g": CustomProp(value=-110530.0, unit="J/mol"),
 }
 
 # ! thermo inputs
 thermo_inputs = {
-    # "gas_heat_capacity": constant_gas_heat_capacity,
+    "gas_heat_capacity": constant_gas_heat_capacity,
+    "ideal_gas_formation_enthalpy": constant_ideal_gas_formation_enthalpy,
 }
 
 # ====================================================
@@ -180,24 +191,24 @@ print("[bold green]PFR reactor successfully created![/bold green]")
 print(pfr_reactor)
 
 # NOTE: simulate PFR along reactor volume
-# simulation_results = pfr_reactor.simulate(
-#     solver_options={
-#         "method": "BDF",
-#         "volume_span": (0.0, reactor_volume.value),
-#         "rtol": 1e-5,
-#         "atol": [1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-6],
-#         "first_step": 1e-8,
-#         "max_step": 1e-3,
-#     }
-# )
-
-# NOTE: simulate using diffeqpy
-simulation_results = pfr_reactor.simulate_diffeqpy(
+simulation_results = pfr_reactor.simulate(
     solver_options={
-        "method": "Rodas5",
+        "method": "BDF",
         "volume_span": (0.0, reactor_volume.value),
+        "rtol": 1e-5,
+        "atol": [1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-6],
+        "first_step": 1e-8,
+        "max_step": 1e-3,
     }
 )
+
+# NOTE: simulate using diffeqpy
+# simulation_results = pfr_reactor.simulate_diffeqpy(
+#     solver_options={
+#         "method": "Rodas5",
+#         "volume_span": (0.0, reactor_volume.value),
+#     }
+# )
 
 
 print("[bold green]PFR simulation completed![/bold green]")
