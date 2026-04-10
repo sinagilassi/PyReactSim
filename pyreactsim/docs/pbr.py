@@ -207,3 +207,82 @@ class PBRReactor:
             success=sol.success,
             message=sol.message,
         )
+
+    def simulate_diffeqpy(
+            self,
+            solver_options: Optional[Dict[str, Any]] = None,
+            **kwargs
+    ) -> Optional[PBRReactorResult]:
+        """Run steady-state PBR simulation along reactor-volume coordinate using diffeqpy."""
+        from diffeqpy import de as _de
+
+        # diffeqpy.de replaces itself dynamically from Julia packages at runtime.
+        de: Any = cast(Any, _de)
+
+        # NOTE: set default solver options if not provided
+        # solver options
+        method = solver_options.get(
+            "method", "Rodas5") if solver_options else "Rodas5"
+        volume_span = (
+            solver_options.get(
+                "volume_span", (0.0, self.pbr_reactor_core.reactor_volume_value))
+            if solver_options else
+            (0.0, self.pbr_reactor_core.reactor_volume_value)
+        )
+        rtol = solver_options.get("rtol", 1e-6) if solver_options else 1e-6
+        atol = solver_options.get("atol", 1e-9) if solver_options else 1e-9
+
+        # NOTE: define ODE function for PFR simulation
+        # ! # out-of-place RHS for diffeqpy: f(u, p, t)
+        def fun(u, p, V):
+            '''ODE function for PBR simulation.'''
+            if isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor)):
+                return self.reactor.rhs(V, u)
+            elif isinstance(self.reactor, GasPBRReactorX):
+                return self.reactor.rhs_scaled(V, u)
+            else:
+                raise NotImplementedError(
+                    f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
+                )
+
+        # NOTE: get initial conditions
+        # >> check physical vs scale model to determine y0
+        if (
+            self.modeling_type == "physical" and
+            isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor))
+        ):
+            y0 = self.reactor.build_y0()
+        elif (
+            self.modeling_type == "scale" and
+            isinstance(self.reactor, GasPBRReactorX)
+        ):
+            y0 = self.reactor.build_y0_scaled()
+        else:
+            raise NotImplementedError(
+                f"Initial condition builder for modeling type '{self.modeling_type}' and reactor type '{type(self.reactor)}' is not implemented yet."
+            )
+
+        # NOTE: run diffeqpy solver
+        # >> create ODE problem
+        prob = de.ODEProblem(fun, y0, volume_span, None)
+
+        # NOTE: set solver options
+        # choose solver
+        if method == "Rodas5":
+            alg = de.Rodas5(autodiff=False)
+        elif method == "CVODE_BDF":
+            alg = de.CVODE_BDF()
+        elif method == "RadauIIA5":
+            alg = de.RadauIIA5()
+        else:
+            raise ValueError(f"Unsupported diffeqpy method: {method}")
+
+        # >> solve with specific solver
+        sol = de.solve(prob, alg, reltol=rtol, abstol=atol)
+
+        return PBRReactorResult(
+            volume=sol.t,
+            state=de.stack(sol.u),   # better than raw sol.u for array output
+            success=str(sol.retcode) == "Success",
+            message=str(sol.retcode),
+        )
