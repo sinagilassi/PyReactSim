@@ -6,12 +6,32 @@ from .ref import GasModel, ReactorPhase, ReactorOptions
 
 
 class CSTRReactorOptions(ReactorOptions):
-    """Options for configuring the CSTR reactor model."""
+    """
+    Options for configuring the CSTR reactor model.
 
-    phase: ReactorPhase = Field(
-        ...,
-        description="Phase of the CSTR reactor (gas or liquid)."
-    )
+    Attributes
+    ----------
+    operation_mode : Literal['constant_pressure', 'constant_volume']
+        Operating condition of the reactor (constant volume or constant pressure).
+    holdup_volume_mode : Literal["fixed", "dynamic"]
+        Holdup volume mode as fixed or dynamic (required if operation_mode is constant pressure).
+    outlet_flow_mode : Literal["calculated", "fixed"]
+        Outlet flow mode as calculated or fixed (optional, default is calculated).
+    phase : ReactorPhase
+        Phase of the reactor (gas or liquid).
+    gas_model : GasModel
+        Gas model to use (required if phase is gas).
+    gas_heat_capacity_mode : Optional[Literal['constant', 'temperature-dependent', 'differential']]
+        Gas heat capacity mode as constant, temperature-dependent, and differential.
+    liquid_heat_capacity_mode : Optional[Literal['constant', 'temperature-dependent', 'differential']]
+        Liquid heat capacity mode as constant, temperature-dependent, and differential.
+    liquid_density_mode : Optional[Literal['constant', 'temperature-dependent']]
+        Liquid density mode as constant or temperature-dependent.
+    ideal_gas_formation_enthalpy_mode : Optional[Literal['model_inputs', 'model_source']]
+        Source of gas formation enthalpy as model_inputs or model_source.
+    molecular_weight_mode : Optional[Literal['model_inputs', 'model_source']]
+        Source of molecular weight as model_inputs or model_source.
+    """
     operation_mode: Literal[
         'constant_pressure', 'constant_volume'
     ] = Field(
@@ -25,22 +45,6 @@ class CSTRReactorOptions(ReactorOptions):
     outlet_flow_mode: Literal["calculated", "fixed"] = Field(
         ...,
         description="Outlet flow mode as calculated or fixed (optional, default is calculated)."
-    )
-    gas_model: GasModel = Field(
-        default="ideal",
-        description="Gas model to use (required if phase is gas)."
-    )
-    gas_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
-        default="temperature-dependent",
-        description="Gas heat capacity mode as constant, temperature-dependent, and differential."
-    )
-    liquid_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
-        default="temperature-dependent",
-        description="Liquid heat capacity mode as constant, temperature-dependent, and differential."
-    )
-    liquid_density_mode: Optional[Literal["constant", "temperature-dependent"]] = Field(
-        default=None,
-        description="Density mode as constant or temperature-dependent."
     )
 
 

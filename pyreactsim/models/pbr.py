@@ -6,12 +6,33 @@ from .ref import GasModel, ReactorPhase, ReactorOptions
 
 
 class PBRReactorOptions(ReactorOptions):
-    """Options for configuring the PBR reactor model."""
+    """
+    Options for configuring the PBR reactor model.
 
-    phase: ReactorPhase = Field(
-        ...,
-        description="Phase of the PBR reactor (gas or liquid)."
-    )
+    Attributes
+    ----------
+    modeling_type : Literal['physical', 'scale']
+        Modeling type as physical or scale. The physical model uses physical parameters such as particle diameter and void fraction, while the scale model uses scale parameters such as bed length and cross-sectional area.
+    operation_mode : Literal['constant_pressure', 'constant_volume']
+        Operating condition of the reactor (constant volume or constant pressure).
+    pressure_mode : Optional[Literal["constant", "shortcut", "state_variable"]]
+        Pressure mode as constant, shortcut, and state_variable. The shortcut uses ideal-gas formulation and state_variable considers pressure as a variable computes the pressure drop along the reactor.
+    phase : ReactorPhase
+        Phase of the reactor (gas or liquid).
+    gas_model : GasModel
+        Gas model to use (required if phase is gas).
+    gas_heat_capacity_mode : Optional[Literal['constant', 'temperature-dependent', 'differential']]
+        Gas heat capacity mode as constant, temperature-dependent, and differential.
+    liquid_heat_capacity_mode : Optional[Literal['constant', 'temperature-dependent', 'differential']]
+        Liquid heat capacity mode as constant, temperature-dependent, and differential.
+    liquid_density_mode : Optional[Literal['constant', 'temperature-dependent']]
+        Liquid density mode as constant or temperature-dependent.
+    ideal_gas_formation_enthalpy_mode : Optional[Literal['model_inputs', 'model_source']]
+        Source of gas formation enthalpy as model_inputs or model_source.
+    molecular_weight_mode : Optional[Literal['model_inputs', 'model_source']]
+        Source of molecular weight as model_inputs or model_source.
+    """
+
     modeling_type: Literal['physical', 'scale'] = Field(
         default="physical",
         description="Modeling type as physical or scale. The physical model uses physical parameters such as particle diameter and void fraction, while the scale model uses scale parameters such as bed length and cross-sectional area."
@@ -25,22 +46,6 @@ class PBRReactorOptions(ReactorOptions):
     pressure_mode: Optional[Literal["constant", "shortcut", "state_variable"]] = Field(
         default="constant",
         description="Pressure mode as constant, shortcut, and state_variable. The shortcut uses ideal-gas formulation and state_variable considers pressure as a variable computes the pressure drop along the reactor."
-    )
-    gas_model: GasModel = Field(
-        default="ideal",
-        description="Gas model to use (required if phase is gas)."
-    )
-    gas_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
-        default="temperature-dependent",
-        description="Gas heat capacity mode as constant, temperature-dependent, and differential."
-    )
-    liquid_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
-        default="temperature-dependent",
-        description="Liquid heat capacity mode as constant, temperature-dependent, and differential."
-    )
-    liquid_density_mode: Optional[Literal["constant", "temperature-dependent"]] = Field(
-        default=None,
-        description="Density mode as constant or temperature-dependent."
     )
 
 

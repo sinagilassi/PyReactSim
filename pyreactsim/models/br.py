@@ -7,42 +7,31 @@ from .ref import ReactorPhase, OperationMode, GasModel, ReactorOptions
 
 
 class BatchReactorOptions(ReactorOptions):
-    """Options for configuring the batch reactor model.
+    """
+    Options for configuring the batch reactor model.
 
     Attributes
     ----------
-    phase : ReactorPhase
-        Phase of the batch reactor (gas or liquid).
     operation_mode : OperationMode
         Operating condition of the reactor (constant volume or constant pressure).
+    phase : ReactorPhase
+        Phase of the reactor (gas or liquid).
     gas_model : GasModel
         Gas model to use (required if phase is gas).
-    heat_capacity_mode : Optional[Literal['constant', 'variable']]
-        Heat capacity mode (constant or variable).
+    gas_heat_capacity_mode : Optional[Literal['constant', 'temperature-dependent', 'differential']]
+        Gas heat capacity mode as constant, temperature-dependent, and differential.
+    liquid_heat_capacity_mode : Optional[Literal['constant', 'temperature-dependent', 'differential']]
+        Liquid heat capacity mode as constant, temperature-dependent, and differential.
+    liquid_density_mode : Optional[Literal['constant', 'temperature-dependent']]
+        Liquid density mode as constant or temperature-dependent.
+    ideal_gas_formation_enthalpy_mode : Optional[Literal['model_inputs', 'model_source']]
+        Source of gas formation enthalpy as model_inputs or model_source.
+    molecular_weight_mode : Optional[Literal['model_inputs', 'model_source']]
+        Source of molecular weight as model_inputs or model_source.
     """
-    phase: ReactorPhase = Field(
-        ...,
-        description="Phase of the batch reactor (gas or liquid)."
-    )
     operation_mode: OperationMode = Field(
         ...,
         description="Operating condition of the reactor (constant volume or constant pressure)."
-    )
-    gas_model: GasModel = Field(
-        default='ideal',
-        description="Gas model to use (required if phase is gas)."
-    )
-    gas_heat_capacity_mode: Optional[Literal['constant', 'temperature-dependent', 'differential']] = Field(
-        default='temperature-dependent',
-        description="Heat capacity mode as constant, temperature-dependant, and differential."
-    )
-    liquid_heat_capacity_mode: Optional[Literal['constant', 'temperature-dependent', 'differential']] = Field(
-        default='temperature-dependent',
-        description="Heat capacity mode as constant, temperature-dependant."
-    )
-    liquid_density_mode: Optional[Literal['constant', 'temperature-dependent']] = Field(
-        default=None,
-        description="Density mode as constant, temperature-dependant."
     )
 
 
