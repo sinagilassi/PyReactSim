@@ -37,7 +37,7 @@ REFERENCES:
               BODY:
                 - term1 = parms['C | C | 1'] / args['temperature | T | K']
                 - term2 = parms['E | E | 1'] / args['temperature | T | K']
-                - res['ideal-gas-heat-capacity | Cp_IG | J/kmol.K'] = (
+                - res['ideal-gas-heat-capacity | Cp_IG | J/mol.K'] = (
                     parms['A | A | 1'] +
                     parms['B | B | 1'] * math.pow(term1 / math.sinh(term1), 2) +
                     parms['D | D | 1'] * math.pow(term2 / math.cosh(term2), 2)
@@ -51,7 +51,7 @@ REFERENCES:
           STRUCTURE:
             COLUMNS: [No.,Name,Formula,State,A,B,C,D,E,F,G,universal-gas-constant,Eq]
             SYMBOL: [None,None,None,None,A,B,C,D,E,F,G,R,Cp_IG]
-            UNIT: [None,None,None,None,1,1,1,1,1,1,1,J/mol.K,J/kmol.K]
+            UNIT: [None,None,None,None,1,1,1,1,1,1,1,J/mol.K,J/mol.K]
           VALUES:
             - [1,'water','H2O','g',33484.75,9275.30,1218.48,20241.42,2919.59,0,0,8.314,2]
             - [2,'ammonia','NH3','g',34083.18,26087.00,990.77,33100.02,2905.60,0,0,8.314,2]
