@@ -3,9 +3,6 @@ import logging
 import numpy as np
 from typing import List, Dict, Any, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, CustomProp, ComponentKey
-
-from pyThermoLinkDB.thermo import Source
-from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pyreactlab_core import build_rxns_stoichiometry
 # locals
 from ..utils.reaction_tools import stoichiometry_mat
@@ -23,7 +20,6 @@ class ThermoReaction:
     def __init__(
         self,
         components: List[Component],
-        source: Source,
         thermo_inputs: Dict[str, Any],
         reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
@@ -35,8 +31,6 @@ class ThermoReaction:
         ----------
         components : List[Component]
             A list of Component objects representing the chemical components involved in the model source.
-        source : Source
-            A Source object containing information about the source of the data or equations used in the model source.
         model_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
         reactor_inputs : BatchReactorOptions
@@ -48,7 +42,6 @@ class ThermoReaction:
         """
         # NOTE: Set attributes
         self.components = components
-        self.source = source
         self.thermo_inputs = thermo_inputs
         self.reaction_rates = reaction_rates
         self.component_key = component_key
