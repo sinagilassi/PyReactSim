@@ -56,6 +56,34 @@ class PBRReactor:
 
         self.reactor: GasPBRReactor | GasPBRReactorX | LiquidPBRReactor | LiquidPBRReactorX = self._create_reactor()
 
+    # SECTION: state conversion methods
+    def _state_to_physical(self, state: np.ndarray) -> np.ndarray:
+        """
+        Convert solver state history to physical units for public outputs.
+        """
+        state_arr = np.asarray(state, dtype=float)
+        if state_arr.ndim != 2:
+            raise ValueError(
+                "Expected state history with shape (n_states, n_points).")
+
+        if not isinstance(self.reactor, (GasPBRReactorX, LiquidPBRReactorX)):
+            return state_arr
+
+        n_points = state_arr.shape[1]
+        physical_cols = []
+        for j in range(n_points):
+            y_scaled = state_arr[:, j]
+            f, temp = self.reactor._unscale_state(y_scaled)
+
+            if self.pbr_reactor_core.is_non_isothermal:
+                y_physical = np.concatenate([f, np.array([temp], dtype=float)])
+            else:
+                y_physical = f
+
+            physical_cols.append(y_physical)
+
+        return np.column_stack(physical_cols)
+
     # SECTION: reactor creation and simulation methods
     def _create_reactor(self) -> GasPBRReactor | GasPBRReactorX | LiquidPBRReactor | LiquidPBRReactorX:
         # check phase and modeling type to determine reactor class
@@ -202,7 +230,7 @@ class PBRReactor:
 
         return PBRReactorResult(
             volume=sol.t,
-            state=sol.y,
+            state=self._state_to_physical(sol.y),
             success=sol.success,
             message=sol.message,
         )
@@ -307,7 +335,7 @@ class PBRReactor:
 
         return PBRReactorResult(
             volume=sol.t,
-            state=state,
+            state=self._state_to_physical(state),
             success=success,
             message=str(sol.retcode),
         )

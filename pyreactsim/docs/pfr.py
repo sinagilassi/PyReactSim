@@ -56,6 +56,44 @@ class PFRReactor:
 
         self.reactor: GasPFRReactor | GasPFRReactorX | LiquidPFRReactor | LiquidPFRReactorX = self._create_reactor()
 
+    def _state_to_physical(self, state: np.ndarray) -> np.ndarray:
+        """
+        Convert solver state history to physical units for public outputs.
+        """
+        state_arr = np.asarray(state, dtype=float)
+        if state_arr.ndim != 2:
+            raise ValueError("Expected state history with shape (n_states, n_points).")
+
+        if not isinstance(self.reactor, (GasPFRReactorX, LiquidPFRReactorX)):
+            return state_arr
+
+        n_points = state_arr.shape[1]
+        physical_cols = []
+        for j in range(n_points):
+            y_scaled = state_arr[:, j]
+
+            if isinstance(self.reactor, GasPFRReactorX):
+                f, temp, p_total = self.reactor._unscale_state(y_scaled)
+                y_parts = [f]
+                if self.reactor.heat_transfer_mode == "non-isothermal":
+                    y_parts.append(np.array([temp], dtype=float))
+                if self.reactor.pressure_mode == "state_variable":
+                    if p_total is None:
+                        raise ValueError(
+                            "Scaled gas PFR state_variable pressure could not be recovered."
+                        )
+                    y_parts.append(np.array([float(p_total)], dtype=float))
+            else:
+                f, temp = self.reactor._unscale_state(y_scaled)
+                y_parts = [f]
+                if self.reactor.heat_transfer_mode == "non-isothermal":
+                    y_parts.append(np.array([temp], dtype=float))
+
+            y_physical = y_parts[0] if len(y_parts) == 1 else np.concatenate(y_parts)
+            physical_cols.append(y_physical)
+
+        return np.column_stack(physical_cols)
+
     def _create_reactor(self) -> GasPFRReactor | GasPFRReactorX | LiquidPFRReactor | LiquidPFRReactorX:
         if self.phase == "gas" and self.modeling_type == "physical":
             return GasPFRReactor(
@@ -181,7 +219,7 @@ class PFRReactor:
 
         return PFRReactorResult(
             volume=sol.t,
-            state=sol.y,
+            state=self._state_to_physical(sol.y),
             success=sol.success,
             message=sol.message,
         )

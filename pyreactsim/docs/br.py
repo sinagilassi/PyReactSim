@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 from scipy.integrate import solve_ivp
 from typing import Any, Dict, List, Optional, cast
 from pythermodb_settings.models import Component, ComponentKey
@@ -82,6 +83,32 @@ class BatchReactor:
 
         # SECTION: Create reactor
         self.reactor: GasBatchReactor | GasBatchReactorX | LiquidBatchReactor | LiquidBatchReactorX = self._create_reactor()
+
+    def _state_to_physical(self, state: np.ndarray) -> np.ndarray:
+        """
+        Convert solver state history to physical units for public outputs.
+        """
+        state_arr = np.asarray(state, dtype=float)
+        if state_arr.ndim != 2:
+            raise ValueError("Expected state history with shape (n_states, n_points).")
+
+        if not isinstance(self.reactor, (GasBatchReactorX, LiquidBatchReactorX)):
+            return state_arr
+
+        n_points = state_arr.shape[1]
+        physical_cols = []
+        for j in range(n_points):
+            y_scaled = state_arr[:, j]
+            n, temp = self.reactor._unscale_state(y_scaled)
+
+            y_parts = [n]
+            if self.reactor.heat_transfer_mode == "non-isothermal":
+                y_parts.append(np.array([temp], dtype=float))
+
+            y_physical = y_parts[0] if len(y_parts) == 1 else np.concatenate(y_parts)
+            physical_cols.append(y_physical)
+
+        return np.column_stack(physical_cols)
 
     # SECTION: Reactor creation method
     def _create_reactor(self) -> GasBatchReactor | GasBatchReactorX | LiquidBatchReactor | LiquidBatchReactorX:
@@ -218,7 +245,7 @@ class BatchReactor:
 
         return BatchReactorResult(
             time=t,
-            state=y,
+            state=self._state_to_physical(y),
             success=sol.success,
             message=sol.message,
         )
