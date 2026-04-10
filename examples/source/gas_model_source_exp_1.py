@@ -86,10 +86,10 @@ C2H6 = Component(
 )
 
 # components
-components = [CO]
+components = [CO, H2, CH3OH, H2O, CO2]
 
 # NOTE: ignore state properties
-ignore_state_props = ['MW', 'VaPr', 'Cp_IG']
+ignore_state_props = ['MW', 'VaPr', 'Cp_IG', 'Cp_LIQ', 'rho_LIQ']
 
 # ====================================================
 # SECTION: build components thermodb
