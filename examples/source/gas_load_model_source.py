@@ -23,8 +23,6 @@ from pythermodb_settings.models import (
     ComponentRule,
     ComponentThermoDBSource,
 )
-# locals
-from examples.reference_2 import REFERENCE_CONTENT
 
 # NOTE: setup logger
 logger = logging.getLogger(__name__)
@@ -41,7 +39,7 @@ parent_dir = os.path.dirname(os.path.abspath(__file__))
 print(parent_dir)
 
 # NOTE: thermodb directory
-thermodb_dir = str(Path(__file__).parent.parent / 'thermodb')
+thermodb_dir = str(Path(__file__).parent.parent / 'thermodb/ref1')
 print(thermodb_dir)
 
 # NOTE: create component
