@@ -180,29 +180,31 @@ print("[bold green]PFR reactor successfully created![/bold green]")
 print(pfr_reactor)
 
 # NOTE: simulate PFR along reactor volume
-# simulation_results = pfr_reactor.simulate(
+simulation_results = pfr_reactor.simulate(
+    volume_span=(0, reactor_volume.value),
+    solver_options={
+        "method": "Radau",
+        "rtol": 1e-5,
+        "atol": 1e-8,
+        # "atol": [1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-6],
+        # "first_step": 1e-8,
+        # "max_step": 1e-3,
+    },
+    mode="log"
+)
+
+# NOTE: simulate using diffeqpy
+# simulation_results = pfr_reactor.simulate_diffeqpy(
 #     solver_options={
-#         "method": "BDF",
+#         "method": "Rodas5",
 #         "volume_span": (0.0, reactor_volume.value),
-#         "rtol": 1e-5,
-#         "atol": [1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-6],
-#         "first_step": 1e-8,
-#         "max_step": 1e-3,
 #     }
 # )
 
-# NOTE: simulate using diffeqpy
-simulation_results = pfr_reactor.simulate_diffeqpy(
-    solver_options={
-        "method": "Rodas5",
-        "volume_span": (0.0, reactor_volume.value),
-    }
-)
-
 
 print("[bold green]PFR simulation completed![/bold green]")
-
 # print(simulation_results)
+
 if simulation_results is not None:
     plot_pbr_reactor_result(
         result=simulation_results,
