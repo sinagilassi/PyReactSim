@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 from scipy.integrate import solve_ivp
 from typing import Any, Dict, Optional, cast
 from pythermodb_settings.models import ComponentKey
@@ -232,18 +233,27 @@ class PBRReactor:
         rtol = solver_options.get("rtol", 1e-6) if solver_options else 1e-6
         atol = solver_options.get("atol", 1e-9) if solver_options else 1e-9
 
-        # NOTE: define ODE function for PFR simulation
-        # ! # out-of-place RHS for diffeqpy: f(u, p, t)
-        def fun(u, p, V):
-            '''ODE function for PBR simulation.'''
+        # NOTE: define ODE function for PBR simulation
+        # ! in-place RHS for diffeqpy: f(du, u, p, t)
+        # This avoids Julia type-instability errors from out-of-place Python returns.
+        def fun(du, u, p, V):
+            '''In-place ODE function for PBR simulation.'''
+            # NOTE: Julia vectors from diffeqpy are safest to consume by
+            # element-wise conversion instead of direct np.asarray(u, dtype=float).
+            u_vec = np.array([float(ui) for ui in u], dtype=float)
+
             if isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor)):
-                return self.reactor.rhs(V, u)
+                rhs = self.reactor.rhs(V, u_vec)
             elif isinstance(self.reactor, GasPBRReactorX):
-                return self.reactor.rhs_scaled(V, u)
+                rhs = self.reactor.rhs_scaled(V, u_vec)
             else:
                 raise NotImplementedError(
                     f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
                 )
+
+            rhs = np.asarray(rhs, dtype=float)
+            for i in range(len(rhs)):
+                du[i] = rhs[i]
 
         # NOTE: get initial conditions
         # >> check physical vs scale model to determine y0
@@ -264,15 +274,18 @@ class PBRReactor:
 
         # NOTE: run diffeqpy solver
         # >> create ODE problem
-        prob = de.ODEProblem(fun, y0, volume_span, None)
+        u0 = [float(v) for v in np.asarray(y0, dtype=float).ravel()]
+        tspan = (float(volume_span[0]), float(volume_span[1]))
+        prob = de.ODEProblem(fun, u0, tspan, None)
 
         # NOTE: set solver options
         # choose solver
-        if method == "Rodas5":
+        method_name = str(method).strip().lower()
+        if method_name == "rodas5":
             alg = de.Rodas5(autodiff=False)
-        elif method == "CVODE_BDF":
+        elif method_name == "cvode_bdf":
             alg = de.CVODE_BDF()
-        elif method == "RadauIIA5":
+        elif method_name == "radauiia5":
             alg = de.RadauIIA5()
         else:
             raise ValueError(f"Unsupported diffeqpy method: {method}")
@@ -280,9 +293,20 @@ class PBRReactor:
         # >> solve with specific solver
         sol = de.solve(prob, alg, reltol=rtol, abstol=atol)
 
+        success = str(sol.retcode) == "Success"
+        if not success:
+            logger.error(f"PBR diffeqpy solver failed: {sol.retcode}")
+            return None
+
+        state = np.asarray(sol.u, dtype=float)
+        if state.ndim == 1:
+            state = state.reshape(1, -1)
+        elif state.shape[0] == len(sol.t):
+            state = state.T
+
         return PBRReactorResult(
             volume=sol.t,
-            state=de.stack(sol.u),   # better than raw sol.u for array output
-            success=str(sol.retcode) == "Success",
+            state=state,
+            success=success,
             message=str(sol.retcode),
         )
