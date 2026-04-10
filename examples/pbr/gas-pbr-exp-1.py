@@ -116,8 +116,8 @@ constant_ideal_gas_formation_enthalpy = {
 
 # ! thermo inputs
 thermo_inputs = {
-    "gas_heat_capacity": constant_gas_heat_capacity,
-    "ideal_gas_formation_enthalpy": constant_ideal_gas_formation_enthalpy,
+    # "gas_heat_capacity": constant_gas_heat_capacity,
+    # "ideal_gas_formation_enthalpy": constant_ideal_gas_formation_enthalpy,
 }
 
 # ====================================================
@@ -196,10 +196,12 @@ simulation_results = pfr_reactor.simulate(
         "method": "BDF",
         "volume_span": (0.0, reactor_volume.value),
         "rtol": 1e-5,
-        "atol": [1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-6],
+        "atol": 1e-8,
+        # "atol": [1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-6],
         "first_step": 1e-8,
         "max_step": 1e-3,
-    }
+    },
+    mode='log'
 )
 
 # NOTE: simulate using diffeqpy

@@ -3,6 +3,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from typing import Any, Dict, Optional, cast
 from pythermodb_settings.models import ComponentKey
+from pythermodb_settings.utils import measure_time
 # locals
 from ..core.gas_pbr import GasPBRReactor
 from ..core.gas_pbrx import GasPBRReactorX
@@ -92,6 +93,7 @@ class PBRReactor:
         )
 
     # NOTE: simulation method
+    @measure_time
     def simulate(
         self,
         solver_options: Optional[Dict[str, Any]] = None,
@@ -108,6 +110,13 @@ class PBRReactor:
             - volume_span: integration interval in m3 (default [0, V_R])
             - rtol: relative tolerance
             - atol: absolute tolerance
+            - max_step: maximum step size in m3 (optional)
+            - first_step: initial step size in m3 (optional)
+            - dense_output: whether to compute a continuous solution (optional)
+        **kwargs
+        Additional keyword arguments.
+        - mode : Literal['silent', 'log', 'attach'], optional
+            Mode for time measurement logging. Default is 'silent'.
         """
         # NOTE: set default solver options if not provided
         # ! method
@@ -140,7 +149,7 @@ class PBRReactor:
         ) if solver_options else None
 
         # NOTE: create kwargs
-        kwargs = {
+        solver_kwargs = {
             "method": method,
             "volume_span": volume_span,
             "rtol": rtol,
@@ -149,15 +158,15 @@ class PBRReactor:
 
         # >> max step is optional and only added if not inf
         if max_step is not None:
-            kwargs["max_step"] = max_step
+            solver_kwargs["max_step"] = max_step
 
         # >> first step is optional and only added if not inf
         if first_step is not None:
-            kwargs["first_step"] = first_step
+            solver_kwargs["first_step"] = first_step
 
         # >> dense output
         if dense_output is not None:
-            kwargs["dense_output"] = dense_output
+            solver_kwargs["dense_output"] = dense_output
 
         # NOTE: define ODE function for PFR simulation
 
@@ -194,7 +203,7 @@ class PBRReactor:
             fun,
             volume_span,
             y0,
-            **kwargs,
+            **solver_kwargs,
         )
 
         # NOTE: check solver success and return results
@@ -209,6 +218,8 @@ class PBRReactor:
             message=sol.message,
         )
 
+    # NOTE: simulation method using diffeqpy
+    @measure_time
     def simulate_diffeqpy(
             self,
             solver_options: Optional[Dict[str, Any]] = None,
@@ -223,7 +234,8 @@ class PBRReactor:
         # NOTE: set default solver options if not provided
         # solver options
         method = solver_options.get(
-            "method", "Rodas5") if solver_options else "Rodas5"
+            "method", "Rodas5"
+        ) if solver_options else "Rodas5"
         volume_span = (
             solver_options.get(
                 "volume_span", (0.0, self.pbr_reactor_core.reactor_volume_value))
