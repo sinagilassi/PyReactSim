@@ -12,6 +12,7 @@ from ..core.liquid_pbrx import LiquidPBRReactorX
 from ..core.pbrc import PBRReactorCore
 from ..models.pbr import PBRReactorOptions, PBRReactorResult
 from ..sources.thermo_source import ThermoSource
+from ..utils.tools import configure_solver_options
 
 # NOTE: set logger
 logger = logging.getLogger(__name__)
@@ -111,6 +112,7 @@ class PBRReactor:
     @measure_time
     def simulate(
         self,
+        volume_span: tuple[float, float],
         solver_options: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> Optional[PBRReactorResult]:
@@ -132,56 +134,28 @@ class PBRReactor:
             Additional keyword arguments.
             - mode : Literal['silent', 'log', 'attach'], optional
                 Mode for time measurement logging. Default is 'silent'.
+
+        Returns
+        -------
+        Optional[PBRReactorResult]
+            PBRReactorResult containing volume points, state trajectories, and solver information. Returns None if the solver fails.
+
+        Notes
+        -----
+        - The method uses `scipy.integrate.solve_ivp` to solve the ODEs defined by PBR reactor model.
+        - The `mode` keyword argument can be used to control how the execution time is logged:
+            - 'silent': No logging of execution time.
+            - 'log': Logs the execution time to the logger.
+            - 'attach': Logs the execution time and attaches it to the result object.
+        - The solver options can be customized by passing a dictionary to `solver_options`. If not provided, default options will be used for the solver. The default values are as:
+            - method: 'BDF'
+            - rtol: 1e-6
+            - atol: 1e-9
         """
         # NOTE: set default solver options if not provided
-        # ! method
-        method = solver_options.get(
-            "method", "BDF") if solver_options else "BDF"
-        # ! volume span
-        volume_span = (
-            solver_options.get(
-                "volume_span", (0.0, self.pbr_reactor_core.reactor_volume_value))
-            if solver_options else
-            (0.0, self.pbr_reactor_core.reactor_volume_value)
+        configured_solver_options = configure_solver_options(
+            solver_options=solver_options
         )
-        # ! tolerances
-        rtol = solver_options.get("rtol", 1e-6) if solver_options else 1e-6
-        atol = solver_options.get("atol", 1e-9) if solver_options else 1e-9
-
-        # ! max step
-        max_step = solver_options.get(
-            "max_step", None
-        ) if solver_options else None
-
-        # ! first step
-        first_step = solver_options.get(
-            "first_step", None
-        ) if solver_options else None
-
-        # ! dense output
-        dense_output = solver_options.get(
-            "dense_output", None
-        ) if solver_options else None
-
-        # NOTE: create kwargs
-        solver_kwargs = {
-            "method": method,
-            "volume_span": volume_span,
-            "rtol": rtol,
-            "atol": atol,
-        }
-
-        # >> max step is optional and only added if not inf
-        if max_step is not None:
-            solver_kwargs["max_step"] = max_step
-
-        # >> first step is optional and only added if not inf
-        if first_step is not None:
-            solver_kwargs["first_step"] = first_step
-
-        # >> dense output
-        if dense_output is not None:
-            solver_kwargs["dense_output"] = dense_output
 
         # NOTE: define ODE function for PFR simulation
 
@@ -218,7 +192,7 @@ class PBRReactor:
             fun,
             volume_span,
             y0,
-            **solver_kwargs,
+            **configured_solver_options,
         )
 
         # NOTE: check solver success and return results

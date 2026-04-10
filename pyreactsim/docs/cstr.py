@@ -143,6 +143,8 @@ class CSTRReactor:
         Optional[CSTRReactorResult]
             CSTRReactorResult containing time points, state trajectories, and solver information. Returns None if the solver fails.
 
+        Notes
+        -----
         - The method uses `scipy.integrate.solve_ivp` to solve the ODEs defined by the CSTR reactor model.
         - The `mode` keyword argument can be used to control how the execution time is logged:
             - 'silent': No logging of execution time.

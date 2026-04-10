@@ -3,6 +3,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from typing import Any, Dict, Optional, cast
 from pythermodb_settings.models import ComponentKey
+from pythermodb_settings.utils import measure_time
 # locals
 from ..core.gas_pfr import GasPFRReactor
 from ..core.gas_pfrx import GasPFRReactorX
@@ -11,6 +12,7 @@ from ..core.liquid_pfrx import LiquidPFRReactorX
 from ..core.pfrc import PFRReactorCore
 from ..models.pfr import PFRReactorOptions, PFRReactorResult
 from ..sources.thermo_source import ThermoSource
+from ..utils.tools import configure_solver_options
 
 # NOTE: set logger
 logger = logging.getLogger(__name__)
@@ -92,41 +94,54 @@ class PFRReactor:
             f"PFR reactor for phase '{self.phase}' and modeling_type '{self.modeling_type}' is not implemented yet."
         )
 
+    # SECTION: Simulation method
+    @measure_time
     def simulate(
         self,
+        volume_span: tuple[float, float],
         solver_options: Optional[Dict[str, Any]] = None,
     ) -> Optional[PFRReactorResult]:
+        """
+        Run PFR simulation over the specified volume span with given solver options.
+
+        Parameters
+        ----------
+        volume_span : tuple[float, float]
+            The start and end volume for the PFR simulation.
+        solver_options : Optional[Dict[str, Any]], optional
+            A dictionary of solver options to pass to `scipy.integrate.solve_ivp`. If None, default options will be used.
+            Supported options include:
+            - method: ODE solver method (e.g., 'BDF', 'RK45', etc.)
+            - rtol: Relative tolerance for the solver
+            - atol: Absolute tolerance for the solver
+            - first_step: Initial step size for the solver
+            - max_step: Maximum step size for the solver
+        **kwargs
+            Additional keyword arguments.
+            - mode : Literal['silent', 'log', 'attach'], optional
+                Mode for time measurement logging. Default is 'silent'.
+
+        Returns
+        -------
+        Optional[PFRReactorResult]
+            The result of the PFR simulation, including volume, state, success flag, and message.
+
+        Notes
+        -----
+        - The method uses `scipy.integrate.solve_ivp` to solve the ODEs defined by the PFR reactor model.
+        - The `mode` keyword argument can be used to control how the execution time is logged:
+            - 'silent': No logging of execution time.
+            - 'log': Logs the execution time to the logger.
+            - 'attach': Logs the execution time and attaches it to the result object.
+        - The solver options can be customized by passing a dictionary to `solver_options`. If not provided, default options will be used for the solver. The default values are as:
+            - method: 'BDF'
+            - rtol: 1e-6
+            - atol: 1e-9
+        """
         # NOTE: set default solver options if not provided
-        # ! method
-        method = solver_options.get(
-            "method", "BDF") if solver_options else "BDF"
-        # ! volume span
-        volume_span = (
-            solver_options.get(
-                "volume_span", (0.0, self.pfr_reactor_core.reactor_volume_value))
-            if solver_options else
-            (0.0, self.pfr_reactor_core.reactor_volume_value)
+        configured_solver_options = configure_solver_options(
+            solver_options=solver_options
         )
-        # ! tolerances
-        rtol = solver_options.get("rtol", 1e-6) if solver_options else 1e-6
-        atol = solver_options.get("atol", 1e-9) if solver_options else 1e-9
-
-        # ! max step
-        max_step = solver_options.get(
-            "max_step", None
-        ) if solver_options else None
-
-        # NOTE: create kwargs
-        kwargs = {
-            "method": method,
-            "volume_span": volume_span,
-            "rtol": rtol,
-            "atol": atol,
-        }
-
-        # >> max step is optional and only added if not inf
-        if max_step is not None:
-            kwargs["max_step"] = max_step
 
         # NOTE: define ODE function for PFR simulation
 
@@ -140,6 +155,7 @@ class PFRReactor:
                     f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
                 )
 
+        # NOTE: build initial condition vector
         if isinstance(self.reactor, (GasPFRReactor, LiquidPFRReactor)):
             y0 = self.reactor.build_y0()
         elif isinstance(self.reactor, (GasPFRReactorX, LiquidPFRReactorX)):
@@ -149,13 +165,15 @@ class PFRReactor:
                 f"Initial condition builder for reactor type '{type(self.reactor)}' is not implemented yet."
             )
 
+        # NOTE: run ODE solver
         sol = solve_ivp(
             fun,
             volume_span,
             y0,
-            **kwargs,
+            **configured_solver_options,
         )
 
+        # NOTE: check solver success and return results
         if not sol.success:
             logger.error(f"PFR ODE solver failed: {sol.message}")
             return None
