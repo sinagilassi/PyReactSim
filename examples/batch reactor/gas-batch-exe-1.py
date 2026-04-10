@@ -53,11 +53,12 @@ heat_transfer_area = CustomProp(
 
 # ! batch reactor options
 batch_reactor_options = BatchReactorOptions(
+    modeling_type='scale',
     phase='gas',
     operation_mode='constant_volume',
     gas_model='ideal',
-    gas_heat_capacity_mode="constant",
-    ideal_gas_formation_enthalpy_mode="model_inputs",
+    # gas_heat_capacity_mode="constant",
+    # ideal_gas_formation_enthalpy_mode="model_inputs",
 )
 
 # ! heat transfer options
@@ -175,8 +176,8 @@ simulation_results = batch_reactor.simulate(
         "method": "BDF",
         "rtol": 1e-5,
         "atol": 1e-8,
-        "first_step": 1e-8,
-        "max_step": 1e-3,
+        # "first_step": 1e-8,
+        # "max_step": 1e-3,
     },
     mode='log'
 )

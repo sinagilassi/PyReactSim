@@ -10,7 +10,9 @@ from ..models.heat import HeatTransferOptions
 from ..models.br import BatchReactorOptions, BatchReactorResult
 from ..models.rate_exp import ReactionRateExpression
 from ..core.gas_br import GasBatchReactor
+from ..core.gas_brx import GasBatchReactorX
 from ..core.liquid_br import LiquidBatchReactor
+from ..core.liquid_brx import LiquidBatchReactorX
 from ..core.brc import BatchReactorCore
 from ..sources.thermo_source import ThermoSource
 from ..utils.tools import configure_solver_options
@@ -62,6 +64,7 @@ class BatchReactor:
         self.heat_transfer_options = thermo_source.heat_transfer_options
         # ! phase
         self.phase = self.batch_reactor_options.phase
+        self.modeling_type = self.batch_reactor_options.modeling_type
 
         # ! reaction rates
         self.reaction_rates = thermo_source.reaction_rates
@@ -77,35 +80,46 @@ class BatchReactor:
         )
 
         # SECTION: Create reactor
-        self.reactor: GasBatchReactor | LiquidBatchReactor = self._create_reactor(
-            thermo_source=self.thermo_source
-        )
+        self.reactor: GasBatchReactor | GasBatchReactorX | LiquidBatchReactor | LiquidBatchReactorX = self._create_reactor()
 
     # SECTION: Reactor creation method
-    def _create_reactor(self, thermo_source) -> GasBatchReactor | LiquidBatchReactor:
-        if self.phase == "gas":
-            gas_br = GasBatchReactor(
+    def _create_reactor(self) -> GasBatchReactor | GasBatchReactorX | LiquidBatchReactor | LiquidBatchReactorX:
+        if self.phase == "gas" and self.modeling_type == "physical":
+            return GasBatchReactor(
                 components=self.components,
                 reaction_rates=self.reaction_rates,
                 thermo_source=self.thermo_source,
                 batch_reactor_core=self.batch_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
             )
-
-            return gas_br
-        elif self.phase == "liquid":
-            liquid_br = LiquidBatchReactor(
+        elif self.phase == "gas" and self.modeling_type == "scale":
+            return GasBatchReactorX(
                 components=self.components,
                 reaction_rates=self.reaction_rates,
                 thermo_source=self.thermo_source,
                 batch_reactor_core=self.batch_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
             )
-
-            return liquid_br
+        elif self.phase == "liquid" and self.modeling_type == "physical":
+            return LiquidBatchReactor(
+                components=self.components,
+                reaction_rates=self.reaction_rates,
+                thermo_source=self.thermo_source,
+                batch_reactor_core=self.batch_reactor_core,
+                component_key=cast(ComponentKey, self.component_key),
+            )
+        elif self.phase == "liquid" and self.modeling_type == "scale":
+            return LiquidBatchReactorX(
+                components=self.components,
+                reaction_rates=self.reaction_rates,
+                thermo_source=self.thermo_source,
+                batch_reactor_core=self.batch_reactor_core,
+                component_key=cast(ComponentKey, self.component_key),
+            )
         else:
             raise NotImplementedError(
-                f"Batch reactor for phase '{self.phase}' is not implemented yet.")
+                f"Batch reactor for phase '{self.phase}' and modeling_type '{self.modeling_type}' is not implemented yet."
+            )
 
     # SECTION: Simulation method
     @measure_time
@@ -162,10 +176,24 @@ class BatchReactor:
         # NOTE: run simulation
         # >>> create function
         def fun(t, y):
-            return self.reactor.rhs(t, y)
+            if isinstance(self.reactor, (GasBatchReactor, LiquidBatchReactor)):
+                return self.reactor.rhs(t, y)
+            elif isinstance(self.reactor, (GasBatchReactorX, LiquidBatchReactorX)):
+                return self.reactor.rhs_scaled(t, y)
+            else:
+                raise NotImplementedError(
+                    f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
+                )
 
         # NOTE: build initial conditions
-        y0 = self.reactor.build_y0()
+        if isinstance(self.reactor, (GasBatchReactor, LiquidBatchReactor)):
+            y0 = self.reactor.build_y0()
+        elif isinstance(self.reactor, (GasBatchReactorX, LiquidBatchReactorX)):
+            y0 = self.reactor.build_y0_scaled()
+        else:
+            raise NotImplementedError(
+                f"Initial condition builder for reactor type '{type(self.reactor)}' is not implemented yet."
+            )
 
         # NOTE: solve ode
         sol = solve_ivp(

@@ -12,6 +12,8 @@ class BatchReactorOptions(ReactorOptions):
 
     Attributes
     ----------
+    modeling_type : Literal['physical', 'scale']
+        Modeling type as physical or scale. The physical model solves the ODE system in physical units, while the scale model solves an equivalent scaled state vector.
     operation_mode : OperationMode
         Operating condition of the reactor (constant volume or constant pressure).
     phase : ReactorPhase
@@ -29,6 +31,10 @@ class BatchReactorOptions(ReactorOptions):
     molecular_weight_mode : Optional[Literal['model_inputs', 'model_source']]
         Source of molecular weight as model_inputs or model_source.
     """
+    modeling_type: Literal['physical', 'scale'] = Field(
+        default="physical",
+        description="Modeling type as physical or scale. The physical model solves the ODE system in physical units, while the scale model solves an equivalent scaled state vector."
+    )
     operation_mode: OperationMode = Field(
         ...,
         description="Operating condition of the reactor (constant volume or constant pressure)."
