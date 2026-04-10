@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -50,6 +50,8 @@ def _plot_reactor_result(
     save_path: Path | None = None,
     show: bool = True,
     title_prefix: str = "Reactor",
+    x_values: Iterable[float] | None = None,
+    x_label: str | None = None,
 ) -> None:
     if not result:
         raise ValueError("simulation_result is empty.")
@@ -58,24 +60,34 @@ def _plot_reactor_result(
         raise RuntimeError(
             f"Simulation failed: {result.message or 'unknown error'}")
 
-    # NOTE: support both time-based (Batch/CSTR) and volume-based (PFR) coordinates
-    if hasattr(result, "time"):
+    # NOTE: support explicit x-axis override, then fallback to result coordinates.
+    if x_values is not None:
+        x = np.asarray(list(x_values), dtype=float)
+        x_axis_label = x_label or "Coordinate"
+        species_y_label = "Molar flow rate (mol/s)"
+    elif hasattr(result, "time"):
         x = np.asarray(result.time, dtype=float)
-        x_label = "Time (s)"
+        x_axis_label = "Time (s)"
         species_y_label = "Moles (mol)"
     elif hasattr(result, "volume"):
         x = np.asarray(result.volume, dtype=float)
-        x_label = "Reactor volume coordinate (m3)"
+        x_axis_label = "Reactor volume coordinate (m3)"
         species_y_label = "Molar flow rate (mol/s)"
     else:
         raise ValueError(
-            "Unsupported result coordinate. Expected 'time' or 'volume'.")
+            "Unsupported result coordinate. Expected 'time' or 'volume', "
+            "or provide x_values explicitly.")
 
     state = np.asarray(result.state, dtype=float)
 
     if state.ndim != 2:
         raise ValueError(
             "Expected result.state to be a 2D array with shape (n_states, n_points).")
+    if x.shape[0] != state.shape[1]:
+        raise ValueError(
+            f"Coordinate/state length mismatch: len(x)={x.shape[0]} "
+            f"but state has {state.shape[1]} points."
+        )
 
     has_temperature = _detect_temperature_state(state.shape[0], components)
 
@@ -111,7 +123,7 @@ def _plot_reactor_result(
         # temperature subplot
         ax_temp.plot(x, temp_state, linewidth=2,
                      color="tab:red", label="Temperature")
-        ax_temp.set_xlabel(x_label)
+        ax_temp.set_xlabel(x_axis_label)
         ax_temp.set_ylabel("Temperature (K)")
         ax_temp.set_title(f"{title_prefix} - Temperature")
         ax_temp.grid(True, alpha=0.3)
@@ -119,7 +131,7 @@ def _plot_reactor_result(
         ax_temp.yaxis.set_major_formatter(
             FuncFormatter(lambda y, _: f'{y:.2f}'))
     else:
-        ax_mole.set_xlabel(x_label)
+        ax_mole.set_xlabel(x_axis_label)
 
     if save_path is not None:
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -182,11 +194,57 @@ def plot_pbr_reactor_result(
     components: Iterable[Any] | None = None,
     save_path: Path | None = None,
     show: bool = True,
+    x_axis: Literal["auto", "volume", "time"] = "auto",
+    reactor: Any | None = None,
 ) -> None:
+    x_values = None
+    x_label = None
+
+    if x_axis == "time":
+        if hasattr(result, "time"):
+            x_values = result.time
+            x_label = "Time (s)"
+        elif reactor is not None and hasattr(result, "volume"):
+            core = getattr(reactor, "pbr_reactor_core", None)
+            thermo_source = getattr(reactor, "thermo_source", None)
+            reactor_model = getattr(reactor, "reactor", None)
+
+            if core is None or thermo_source is None or reactor_model is None:
+                raise ValueError(
+                    "x_axis='time' requires either result.time or a valid `reactor` object."
+                )
+            phase = getattr(core, "phase", None)
+            if phase != "gas":
+                raise ValueError(
+                    "Automatic x_axis='time' estimation is currently supported only for gas-phase PBR."
+                )
+
+            q_in = thermo_source.calc_gas_volumetric_flow_rate(
+                molar_flow_rate=core._F_in_total,
+                temperature=core._T_in,
+                pressure=core._P0,
+                R=reactor_model.R,
+                gas_model=core.gas_model,
+            )
+            q_in_value = max(float(q_in), 1e-30)
+            x_values = np.asarray(result.volume, dtype=float) / q_in_value
+            x_label = "Time (s)"
+        else:
+            raise ValueError(
+                "x_axis='time' requires result.time or `reactor` to estimate residence time."
+            )
+    elif x_axis == "volume":
+        if not hasattr(result, "volume"):
+            raise ValueError("x_axis='volume' is not available for this result object.")
+        x_values = result.volume
+        x_label = "Reactor volume coordinate (m3)"
+
     _plot_reactor_result(
         result=result,
         components=components,
         save_path=save_path,
         show=show,
         title_prefix="PBR Reactor",
+        x_values=x_values,
+        x_label=x_label,
     )
