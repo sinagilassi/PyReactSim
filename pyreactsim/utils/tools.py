@@ -237,8 +237,6 @@ def configure_solver_options(
             "method": "BDF",
             "rtol": 1e-6,
             "atol": 1e-9,
-            "first_step": 1e-8,
-            "max_step": 1e-3,
         }
 
     # Merge user-provided options with defaults

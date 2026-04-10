@@ -2,6 +2,7 @@ import logging
 from scipy.integrate import solve_ivp
 from typing import Any, Dict, Optional, cast
 from pythermodb_settings.models import ComponentKey
+from pythermodb_settings.utils import measure_time
 # locals
 from ..core.cstrc import CSTRReactorCore
 from ..core.gas_cstr import GasCSTRReactor
@@ -11,6 +12,7 @@ from ..core.liquid_cstrx import LiquidCSTRReactorX
 from ..models.cstr import CSTRReactorOptions
 from ..models.cstr import CSTRReactorResult
 from ..sources.thermo_source import ThermoSource
+from ..utils.tools import configure_solver_options
 
 # NOTE: set logger
 logger = logging.getLogger(__name__)
@@ -109,22 +111,52 @@ class CSTRReactor:
         )
 
     # SECTION: Simulation method
+    @measure_time
     def simulate(
         self,
+        time_span: tuple[float, float],
         solver_options: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> Optional[CSTRReactorResult]:
+        """
+        Run CSTR simulation over the specified time span with given solver options.
+
+        Parameters
+        ----------
+        time_span : tuple[float, float]
+            Start and end times for the simulation.
+        solver_options : Optional[Dict[str, Any]], optional
+            A dictionary of solver options to pass to `scipy.integrate.solve_ivp`. If None, default options will be used.
+            Supported options include:
+            - method: ODE solver method (e.g., 'BDF', 'RK45', etc.)
+            - rtol: Relative tolerance for the solver
+            - atol: Absolute tolerance for the solver
+            - first_step: Initial step size for the solver
+            - max_step: Maximum step size for the solver
+        **kwargs
+            Additional keyword arguments.
+            - mode : Literal['silent', 'log', 'attach'], optional
+                Mode for time measurement logging. Default is 'silent'.
+
+        Returns
+        -------
+        Optional[CSTRReactorResult]
+            CSTRReactorResult containing time points, state trajectories, and solver information. Returns None if the solver fails.
+
+        - The method uses `scipy.integrate.solve_ivp` to solve the ODEs defined by the CSTR reactor model.
+        - The `mode` keyword argument can be used to control how the execution time is logged:
+            - 'silent': No logging of execution time.
+            - 'log': Logs the execution time to the logger.
+            - 'attach': Logs the execution time and attaches it to the result object.
+        - The solver options can be customized by passing a dictionary to `solver_options`. If not provided, default options will be used for the solver. The default values are as:
+            - method: 'BDF'
+            - rtol: 1e-6
+            - atol: 1e-9
+        """
         # NOTE: set default solver options
-        method = solver_options.get(
-            "method",
-            "BDF"
-        ) if solver_options else "BDF"
-        time_span = solver_options.get(
-            "time_span",
-            (0, 100)
-        ) if solver_options else (0, 100)
-        rtol = solver_options.get("rtol", 1e-6) if solver_options else 1e-6
-        atol = solver_options.get("atol", 1e-9) if solver_options else 1e-9
+        configured_solver_options = configure_solver_options(
+            solver_options=solver_options
+        )
 
         # NOTE: define ODE function
         def fun(t, y):
@@ -152,9 +184,7 @@ class CSTRReactor:
             fun,
             time_span,
             y0,
-            method=method,
-            rtol=rtol,
-            atol=atol,
+            **configured_solver_options,
         )
 
         if not sol.success:

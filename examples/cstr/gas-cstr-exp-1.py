@@ -35,7 +35,7 @@ print(ptdblink.__version__)
 # NOTE: silence library warnings/errors for this example run
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
-for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactsim", "pyreactlab_core"):
+for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
 
 # ====================================================
@@ -63,8 +63,9 @@ heat_transfer_area = CustomProp(
 
 # NOTE: reactor options for thermo/source compatibility
 cstr_reactor_options = CSTRReactorOptions(
+    modeling_type='scale',
     phase="gas",
-    operation_mode="constant_pressure",
+    operation_mode="constant_volume",
     holdup_volume_mode="fixed",
     outlet_flow_mode="calculated",
     gas_model="ideal",
@@ -102,12 +103,6 @@ thermo_inputs = {
 reactor_volume = Volume(
     value=3.0,
     unit="m3",
-)
-
-# NOTE: pressure
-pressure = CustomProp(
-    value=50,
-    unit="bar",
 )
 
 # NOTE: initial reactor temperature [K]
@@ -152,7 +147,6 @@ model_inputs = {
     "reactor_volume": reactor_volume,
     "initial_temperature": initial_temperature,
     "inlet_temperature": inlet_temperature,
-    "pressure": pressure,
     "outlet_flow": outlet_mole_flow_total,
 }
 
@@ -183,15 +177,17 @@ print(cstr_reactor)
 
 # NOTE: simulate CSTR
 simulation_results = cstr_reactor.simulate(
+    time_span=(0, 50.0),
     solver_options={
-        "method": "BDF",
-        "time_span": (0, 150.0),
+        "method": "Radau",
         "rtol": 1e-6,
         "atol": 1e-9,
-    }
+        "max_step": 0.5,
+    },
+    mode="log"
 )
 print("[bold green]CSTR simulation completed![/bold green]")
-print(simulation_results)
+# print(simulation_results)
 
 # NOTE: plot CSTR results
 if simulation_results is not None:

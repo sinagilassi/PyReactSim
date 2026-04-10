@@ -24,6 +24,10 @@ class ThermoModelInputs:
     liquid_heat_capacity_constant_comp: Dict[str, float] = {}
     liquid_density_constant_values: np.ndarray = np.array([])
     liquid_density_constant_comp: Dict[str, float] = {}
+    # ! ideal gas formation enthalpy at 298 K
+    EnFo_IG_298_src: Dict[str, Dict[str, Any]] = {}
+    EnFo_IG_298: np.ndarray = np.array([])
+    EnFo_IG_298_comp: Dict[str, float] = {}
 
     def __init__(
         self,
