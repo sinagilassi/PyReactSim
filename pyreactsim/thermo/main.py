@@ -20,6 +20,7 @@ from ..utils.tools import generate_component_references
 logger = logging.getLogger(__name__)
 
 
+# SECTION: Build thermo source
 def build_thermo_source(
     components: List[Component],
     model_source: ModelSource,
@@ -84,3 +85,5 @@ def build_thermo_source(
     )
 
     return thermo_source
+
+# SECTION: build thermo source from
