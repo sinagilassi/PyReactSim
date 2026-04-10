@@ -10,9 +10,10 @@ from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
 from ..models.rate_exp import ReactionRateExpression
+from ..utils.tools import config_components_property
 from ..models.heat import HeatTransferOptions
 from ..models import GasModel
-from ..utils.unit_tools import to_J_per_mol_K, to_g_per_m3
+from ..utils.unit_tools import to_J_per_mol_K, to_g_per_m3, to_J_per_mol
 
 
 class ThermoModelInputs:
@@ -60,8 +61,10 @@ class ThermoModelInputs:
         self.component_key = component_key
 
         # SECTION: component reference
-        # ! component references
-        self.component_formula_state = self.component_refs['component_formula_state']
+        # ! component refs
+        self.component_ids = component_refs['component_ids']
+        self.component_formula_state = component_refs['component_formula_state']
+        self.component_mapper = component_refs['component_mapper']
 
         # ! model inputs keys
         self.thermo_inputs_keys = list(self.thermo_inputs.keys())
@@ -93,6 +96,23 @@ class ThermoModelInputs:
                     self.gas_heat_capacity_constant_comp
                 ) = self._config_constant_gas_heat_capacity()
 
+            # NOTE: Enthalpy of formation at 298 K for ideal gas
+            if self.reactor_options.ideal_gas_formation_enthalpy_mode == "model_inputs":
+                # ! to J/mol
+                self.EnFo_IG_298_src: Dict[
+                    str, Dict[str, Any]
+                ] = self._config_constant_ideal_gas_formation_enthalpy()
+
+                # ! values in J/mol
+                (
+                    self.EnFo_IG_298,
+                    self.EnFo_IG_298_comp
+                ) = config_components_property(
+                    component_ids=self.component_ids,
+                    prop_source=self.EnFo_IG_298_src,
+                    unit_conversion_func=to_J_per_mol
+                )
+
         # ! phase
         if self.phase == "liquid":
             # check heat capacity mode
@@ -115,6 +135,7 @@ class ThermoModelInputs:
                     self.liquid_density_constant_comp
                 ) = self._config_constant_liquid_density()
 
+    # SECTION: configuration methods for properties
     # ! gas phase heat capacity configuration
     def _config_constant_gas_heat_capacity(
             self,
@@ -252,4 +273,51 @@ class ThermoModelInputs:
         else:
             raise ValueError(
                 "Density must be provided in model_inputs for constant density mode."
+            )
+
+    # ! ideal gas formation enthalpy at 298 K
+    def _config_constant_ideal_gas_formation_enthalpy(
+            self
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Configure the ideal gas formation enthalpy at 298 K in [J/mol] for the batch reactor based on the model inputs and reactor configuration.
+        """
+        # check ideal gas formation enthalpy mode
+        if self.reactor_options.ideal_gas_formation_enthalpy_mode is None:
+            raise ValueError(
+                "Ideal gas formation enthalpy mode must be specified in reactor_inputs for non-isothermal reactors."
+            )
+
+        # ideal gas formation enthalpy constant
+        if "ideal_gas_formation_enthalpy" in self.thermo_inputs_keys:
+            EnFo_IG_298_: dict[
+                str,
+                CustomProp
+            ] = self.thermo_inputs["ideal_gas_formation_enthalpy"]
+
+            # iterate through components and extract ideal gas formation enthalpy values
+            EnFo_IG_298_src = {}
+
+            for id in self.component_formula_state:
+                if id in EnFo_IG_298_:
+                    EnFo_value = to_J_per_mol(
+                        EnFo_IG_298_[id].value,
+                        EnFo_IG_298_[id].unit
+                    )
+
+                    # add
+                    EnFo_IG_298_src[id] = {
+                        "value": EnFo_value,
+                        "unit": "J/mol"
+                    }
+                else:
+                    raise ValueError(
+                        f"Ideal gas formation enthalpy value for component '{id}' not found in model_inputs."
+                    )
+
+            # res
+            return EnFo_IG_298_src
+        else:
+            raise ValueError(
+                "Ideal gas formation enthalpy must be provided in model_inputs for constant ideal gas formation enthalpy mode."
             )
