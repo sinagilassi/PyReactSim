@@ -44,6 +44,7 @@ class BatchReactor:
         # NOTE: set attributes
         self.model_inputs = model_inputs
         self.thermo_source = thermo_source
+        self.reactor_kwargs = kwargs
 
         # NOTE: components
         self.components = thermo_source.components
@@ -91,6 +92,7 @@ class BatchReactor:
                 thermo_source=self.thermo_source,
                 batch_reactor_core=self.batch_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
+                **self.reactor_kwargs,
             )
         elif self.phase == "gas" and self.modeling_type == "scale":
             return GasBatchReactorX(
@@ -99,6 +101,7 @@ class BatchReactor:
                 thermo_source=self.thermo_source,
                 batch_reactor_core=self.batch_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
+                **self.reactor_kwargs,
             )
         elif self.phase == "liquid" and self.modeling_type == "physical":
             return LiquidBatchReactor(
@@ -107,6 +110,7 @@ class BatchReactor:
                 thermo_source=self.thermo_source,
                 batch_reactor_core=self.batch_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
+                **self.reactor_kwargs,
             )
         elif self.phase == "liquid" and self.modeling_type == "scale":
             return LiquidBatchReactorX(
@@ -115,6 +119,7 @@ class BatchReactor:
                 thermo_source=self.thermo_source,
                 batch_reactor_core=self.batch_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
+                **self.reactor_kwargs,
             )
         else:
             raise NotImplementedError(

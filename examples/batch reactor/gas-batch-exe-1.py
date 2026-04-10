@@ -23,9 +23,9 @@ print(ptdb.__version__)
 print(ptdblink.__version__)
 
 # NOTE: silence library warnings/errors for this example run
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
-for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactsim", "pyreactlab_core"):
+for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
 
 # ====================================================
@@ -161,9 +161,11 @@ print(thermo_source)
 # SECTION: create batch reactor
 # ====================================================
 batch_reactor: BatchReactor = create_batch_reactor(
-    components=components,
     model_inputs=model_inputs,
     thermo_source=thermo_source,
+    rhs_log_interval=10,
+    rhs_log_enabled=True,
+    rhs_log_timing_enabled=True,
 )
 print("[bold green]Batch reactor successfully created![/bold green]")
 print(batch_reactor)

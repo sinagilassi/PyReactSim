@@ -1,5 +1,6 @@
 # import libs
 import logging
+import time
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty, Volume
@@ -63,8 +64,6 @@ class GasBatchReactor:
         ----------
         components : List[Component]
             A list of Component objects representing the chemical components involved in the gas-phase batch reactor.
-        source : Source
-            A Source object containing information about the source of the data or equations used in the gas-phase batch reactor simulations.
         model_inputs : Dict[str, Any]
             A dictionary containing the model inputs for the gas-phase batch reactor simulations, such as temperature, pressure, and initial mole numbers.
         reactor_inputs : BatchReactorOptions
@@ -167,6 +166,33 @@ class GasBatchReactor:
                 f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
             )
 
+        # SECTION: rhs logging configuration
+        # Use `rhs_log_interval` (or `log_t_interval`) to log once every X in t.
+        log_interval = kwargs.get(
+            "rhs_log_interval", kwargs.get("log_t_interval"))
+        if log_interval is None:
+            self.rhs_log_interval: Optional[float] = None
+        else:
+            self.rhs_log_interval = float(log_interval)
+            if self.rhs_log_interval < 0.0:
+                raise ValueError("rhs_log_interval must be >= 0.")
+
+        enabled_default = self.rhs_log_interval is not None
+        self.rhs_log_enabled = bool(
+            kwargs.get("rhs_log_enabled", kwargs.get(
+                "enable_rhs_logging", enabled_default))
+        )
+        self.rhs_log_level = int(kwargs.get("rhs_log_level", logging.INFO))
+        self.rhs_log_timing_enabled = bool(
+            kwargs.get("rhs_log_timing_enabled", True)
+        )
+        self._rhs_next_log_t: Optional[float] = None
+        self._rhs_last_t: Optional[float] = None
+        self._rhs_log_active = False
+        self._rhs_log_t: Optional[float] = None
+        self._rhs_wall_t0: Optional[float] = None
+        self._rhs_last_log_wall: Optional[float] = None
+
     # SECTION: Properties
     @property
     def N0(self) -> np.ndarray:
@@ -206,6 +232,100 @@ class GasBatchReactor:
 
         return y0
 
+    def configure_rhs_logging(
+        self,
+        interval: Optional[float],
+        enabled: bool = True,
+        level: int = logging.INFO,
+        timing_enabled: bool = True
+    ) -> None:
+        """
+        Configure rhs logging cadence.
+
+        Parameters
+        ----------
+        interval : Optional[float]
+            Log cadence in solver time units. If None, logging is disabled.
+            If 0.0, log every rhs call.
+        enabled : bool
+            Enable/disable logging.
+        level : int
+            Python logging level.
+        timing_enabled : bool
+            Include wall-clock timing fields in each rhs log line.
+        """
+        if interval is None:
+            self.rhs_log_interval = None
+            self.rhs_log_enabled = False
+        else:
+            interval = float(interval)
+            if interval < 0.0:
+                raise ValueError("interval must be >= 0.")
+            self.rhs_log_interval = interval
+            self.rhs_log_enabled = bool(enabled)
+
+        self.rhs_log_level = int(level)
+        self.rhs_log_timing_enabled = bool(timing_enabled)
+        self._rhs_next_log_t = None
+        self._rhs_last_t = None
+        self._rhs_log_active = False
+        self._rhs_log_t = None
+        self._rhs_wall_t0 = None
+        self._rhs_last_log_wall = None
+
+    def _should_log_rhs(self, t: float) -> bool:
+        if not self.rhs_log_enabled:
+            return False
+
+        interval = self.rhs_log_interval
+        if interval is None:
+            return False
+
+        t = float(t)
+        tol = 1e-12
+
+        # Some solvers can revisit lower t values (rejected/restarted step).
+        if self._rhs_last_t is not None and t < (self._rhs_last_t - tol):
+            self._rhs_next_log_t = None
+        self._rhs_last_t = t
+
+        if interval == 0.0:
+            return True
+
+        if self._rhs_next_log_t is None:
+            self._rhs_next_log_t = t
+
+        if t + tol < self._rhs_next_log_t:
+            return False
+
+        while self._rhs_next_log_t is not None and self._rhs_next_log_t <= (t + tol):
+            self._rhs_next_log_t += interval
+
+        return True
+
+    def _log_rhs(self, section: str, **fields: Any) -> None:
+        if not self._rhs_log_active:
+            return
+        t_now = 0.0 if self._rhs_log_t is None else self._rhs_log_t
+        if self.rhs_log_timing_enabled:
+            now = time.perf_counter()
+            if self._rhs_wall_t0 is None:
+                self._rhs_wall_t0 = now
+            if self._rhs_last_log_wall is None:
+                self._rhs_last_log_wall = self._rhs_wall_t0
+
+            elapsed_ms = (now - self._rhs_wall_t0) * 1e3
+            step_ms = (now - self._rhs_last_log_wall) * 1e3
+            self._rhs_last_log_wall = now
+            fields = {"step_ms": step_ms, "elapsed_ms": elapsed_ms, **fields}
+
+        if fields:
+            details = ", ".join(f"{k}={v}" for k, v in fields.items())
+            logger.log(self.rhs_log_level,
+                       "rhs[t=%.6g] %s | %s", t_now, section, details)
+        else:
+            logger.log(self.rhs_log_level, "rhs[t=%.6g] %s", t_now, section)
+
     # SECTION: ODE system for solve_ivp
     def rhs(
             self,
@@ -227,6 +347,14 @@ class GasBatchReactor:
             Current state vector of the system, which includes the moles of each component and, if applicable, the temperature.
         """
         ns = self.component_num
+        self._rhs_log_active = self._should_log_rhs(t)
+        self._rhs_log_t = float(t) if self._rhs_log_active else None
+        if self._rhs_log_active:
+            self._rhs_wall_t0 = time.perf_counter()
+            self._rhs_last_log_wall = self._rhs_wall_t0
+        else:
+            self._rhs_wall_t0 = None
+            self._rhs_last_log_wall = None
 
         if self.heat_transfer_mode == "isothermal":
             if self._T0 is None:
@@ -239,9 +367,13 @@ class GasBatchReactor:
             n = y[:ns]
             temp = float(y[ns])
 
+        self._log_rhs(
+            "rhs.start", heat_transfer_mode=self.heat_transfer_mode, ns=ns, temp=temp)
+
         # NOTE: Calculate total moles
         n_total = np.sum(n)
         n_total = max(n_total, 1e-30)
+        self._log_rhs("rhs.moles", n_total=float(n_total))
 
         # Calculate partial pressures
         y_mole = n / n_total
@@ -258,6 +390,8 @@ class GasBatchReactor:
             y_mole=y_mole,
             T=temp
         )
+        self._log_rhs("rhs.partial_pressure", p_total=float(
+            p_total), reactor_volume=float(reactor_volume))
 
         # ! calculate concentration: C_i = n_i / V
         (
@@ -268,6 +402,7 @@ class GasBatchReactor:
             n=n,
             reactor_volume=reactor_volume
         )
+        self._log_rhs("rhs.concentration")
 
         # NOTE: Calculate Reaction rates for each component (partial pressures and temperature)
         # ! r_k = k(T, P_i) for each reaction k
@@ -277,21 +412,30 @@ class GasBatchReactor:
             temperature=Temperature(value=temp, unit="K"),
             pressure=Pressure(value=p_total, unit="Pa")
         )
+        self._log_rhs("rhs.rates", rates=np.asarray(
+            rates, dtype=float).tolist())
 
         # NOTE: Species balances:
-        # ! dn_i/dt = V * Σ_k ν_i,k * r_k
+        # ! dn_i/dt = V * sum_k nu_i,k * r_k
         dn_dt = self._build_dn_dt(
             ns=ns,
             rates=rates,
             reactor_volume=reactor_volume
         )
+        self._log_rhs("rhs.dn_dt", dn_dt=np.asarray(
+            dn_dt, dtype=float).tolist())
 
         # >>> calculate dn/dt for isothermal case
         if self.heat_transfer_mode == "isothermal":
+            self._log_rhs("rhs.end_isothermal")
+            self._rhs_log_active = False
+            self._rhs_log_t = None
+            self._rhs_wall_t0 = None
+            self._rhs_last_log_wall = None
             return dn_dt
 
         # NOTE: Energy balance:
-        # ! (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
+        # ! (sum_i n_i Cp_i) dT/dt = V sum_k [(-DeltaH_k) r_k] + UA (T_s - T)
         # >>> calculate dT/dt
         dT_dt = self._build_dT_dt(
             n=n,
@@ -299,9 +443,16 @@ class GasBatchReactor:
             temp=temp,
             reactor_volume=reactor_volume
         )
+        self._log_rhs("rhs.dT_dt", dT_dt=float(dT_dt))
 
         # >>> calculate both dn/dt and dT/dt
-        return np.concatenate([dn_dt, np.array([dT_dt], dtype=float)])
+        out = np.concatenate([dn_dt, np.array([dT_dt], dtype=float)])
+        self._log_rhs("rhs.end_nonisothermal")
+        self._rhs_log_active = False
+        self._rhs_log_t = None
+        self._rhs_wall_t0 = None
+        self._rhs_last_log_wall = None
+        return out
 
     # SECTION: Calculate rates
     def _calc_rates(
@@ -365,6 +516,7 @@ class GasBatchReactor:
 
         # >> to array
         rates = np.array(rates, dtype=float)
+        self._log_rhs("_calc_rates", n_reactions=len(rates))
 
         return rates
 
@@ -420,6 +572,7 @@ class GasBatchReactor:
             # for i in range(ns):
             #     dn_dt[i] += g_k[i]
 
+        self._log_rhs("_build_dn_dt", reactor_volume=float(reactor_volume))
         return dn_dt
 
     # SECTION: Building dT/dt
@@ -462,6 +615,9 @@ class GasBatchReactor:
         # ??? Σ_i n_i Cp_i
         # unit check: n_i [mol], Cp_i [J/mol.K] => n_i * Cp_i [J/K]
         Cp_IG_total = calc_total_heat_capacity(n, Cp_IG_values)
+        self._log_rhs("_build_dT_dt.Cp", Cp_IG_values=np.asarray(
+            Cp_IG_values, dtype=float).tolist())
+        self._log_rhs("_build_dT_dt.Cp_total", Cp_IG_total=float(Cp_IG_total))
 
         if Cp_IG_total <= 1e-16:
             raise ValueError("Total heat capacity is too small or zero.")
@@ -472,6 +628,10 @@ class GasBatchReactor:
         delta_h = self.thermo_source.calc_dH_rxns(
             temperature=temperature
         )
+        self._log_rhs(
+            "_build_dT_dt.delta_h",
+            delta_h=np.asarray(delta_h, dtype=float).tolist()
+        )
 
         # ??? Q_rxn
         q_rxn = calc_rxn_heat_generation(
@@ -479,6 +639,7 @@ class GasBatchReactor:
             rates=rates,
             reactor_volume=reactor_volume
         )
+        self._log_rhs("_build_dT_dt.q_rxn", q_rxn=float(q_rxn))
 
         # ! calculate heat exchange with surroundings: Q_exchange = UA (T_s - T)
         # U[W/m2.K], A[m2], (T_s - T)[K] => Q_exchange [W] or [J/s]
@@ -494,6 +655,7 @@ class GasBatchReactor:
                 heat_transfer_coefficient=self.heat_transfer_coefficient_value,
                 reactor_volume=1
             )
+        self._log_rhs("_build_dT_dt.q_exchange", q_exchange=float(q_exchange))
 
         # ??? Q_constant: constant heat flux (in W or J/s)
         # W/m^2.K => J/s or W
@@ -502,9 +664,11 @@ class GasBatchReactor:
         # >>> check if constant heat rate is provided
         if self.heat_rate_value:
             q_constant = self.heat_rate_value
+        self._log_rhs("_build_dT_dt.q_constant", q_constant=float(q_constant))
 
         # >>> calculate dT/dt
         dT_dt = (q_rxn + q_exchange + q_constant) / Cp_IG_total
+        self._log_rhs("_build_dT_dt.result", dT_dt=float(dT_dt))
 
         return dT_dt
 
@@ -588,6 +752,8 @@ class GasBatchReactor:
                 symbol="P"
             )
 
+        self._log_rhs("_calc_partial_pressure", p_total=float(
+            p_total), reactor_volume=float(reactor_volume))
         return partial_pressures, partial_pressures_std, p_total, reactor_volume
 
     def _calc_concentration(
@@ -636,4 +802,6 @@ class GasBatchReactor:
             ) for sp, conc in zip(conc_ids, concentration)
         }
 
+        self._log_rhs("_calc_concentration",
+                      concentration_total=float(concentration_total))
         return concentration, concentration_std, concentration_total
