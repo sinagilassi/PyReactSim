@@ -39,7 +39,7 @@ parent_dir = os.path.dirname(os.path.abspath(__file__))
 print(parent_dir)
 
 # NOTE: thermodb directory
-thermodb_dir = str(Path(__file__).parent.parent / 'thermodb/ref1')
+thermodb_dir = str(Path(__file__).parent.parent / 'thermodb')
 print(thermodb_dir)
 
 # NOTE: create component

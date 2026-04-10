@@ -17,7 +17,7 @@ from pyThermoDB import ComponentThermoDB
 from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
 # locals
-from examples.reference_2 import REFERENCE_CONTENT
+from examples.reference import REFERENCE_CONTENT
 
 # check version
 print(ptdb.__version__)
