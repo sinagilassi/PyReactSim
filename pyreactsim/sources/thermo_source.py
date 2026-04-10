@@ -64,7 +64,6 @@ class ThermoSource(ThermoSourceCore):
         t_start = time.perf_counter()
         ThermoReaction_ = ThermoReaction(
             components=components,
-            source=source,
             thermo_inputs=thermo_inputs,
             reaction_rates=reaction_rates,
             component_key=component_key
@@ -97,7 +96,6 @@ class ThermoSource(ThermoSourceCore):
         t_start = time.perf_counter()
         ThermoModelInputs_ = ThermoModelInputs(
             components=components,
-            source=source,
             thermo_inputs=thermo_inputs,
             reactor_options=reactor_options,
             heat_transfer_options=heat_transfer_options,
