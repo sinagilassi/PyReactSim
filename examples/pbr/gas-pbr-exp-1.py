@@ -220,4 +220,5 @@ if simulation_results is not None:
     plot_pbr_reactor_result(
         result=simulation_results,
         components=components,
+        x_axis="volume"
     )
