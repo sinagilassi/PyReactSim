@@ -2,6 +2,7 @@ import logging
 from scipy.integrate import solve_ivp
 from typing import Any, Dict, List, Optional, cast
 from pythermodb_settings.models import Component, ComponentKey
+from pythermodb_settings.utils import measure_time
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
 # locals
@@ -12,6 +13,7 @@ from ..core.gas_br import GasBatchReactor
 from ..core.liquid_br import LiquidBatchReactor
 from ..core.brc import BatchReactorCore
 from ..sources.thermo_source import ThermoSource
+from ..utils.tools import configure_solver_options
 
 # NOTE: set logger
 logger = logging.getLogger(__name__)
@@ -106,24 +108,56 @@ class BatchReactor:
                 f"Batch reactor for phase '{self.phase}' is not implemented yet.")
 
     # SECTION: Simulation method
+    @measure_time
     def simulate(
             self,
+            time_span: tuple[float, float],
             solver_options: Optional[Dict[str, Any]] = None,
             **kwargs
     ) -> Optional[BatchReactorResult]:
+        """
+        Run batch reactor simulation over time using scipy's solve_ivp ODE solver.
+
+        Parameters
+        ----------
+        time_span : tuple[float, float]
+            A tuple specifying the start and end times for the simulation (e.g., (0, 100)).
+        solver_options : Optional[Dict[str, Any]], optional
+            A dictionary of solver options to pass to `scipy.integrate.solve_ivp`. If None, default options will be used.
+            Supported options include:
+            - method: ODE solver method (e.g., 'BDF', 'RK45', etc.)
+            - rtol: Relative tolerance for the solver
+            - atol: Absolute tolerance for the solver
+            - first_step: Initial step size for the solver
+            - max_step: Maximum step size for the solver
+        **kwargs
+            Additional keyword arguments.
+            - mode : Literal['silent', 'log', 'attach'], optional
+                Mode for time measurement logging. Default is 'silent'.
+
+        Returns
+        -------
+        Optional[BatchReactorResult]
+            A BatchReactorResult object containing the simulation results, or None if the solver failed.
+
+        Notes
+        -----
+        - The method uses `scipy.integrate.solve_ivp` to solve the ODEs defined by the batch reactor model.
+        - The `mode` keyword argument can be used to control how the execution time is logged:
+            - 'silent': No logging of execution time.
+            - 'log': Logs the execution time to the logger.
+            - 'attach': Logs the execution time and attaches it to the result object.
+        - The solver options can be customized by passing a dictionary to `solver_options`. If not provided, default options will be used for the solver. The default values are as:
+            - method: 'BDF'
+            - rtol: 1e-6
+            - atol: 1e-9
+            - first_step: 1e-8
+            - max_step: 1e-3
+        """
         # NOTE: Solver options
-        # ! method
-        method = solver_options.get(
-            'method', 'BDF'
-        ) if solver_options else 'BDF'
-        # ! time span
-        time_span = solver_options.get(
-            'time_span', (0, 100)
-        ) if solver_options else (0, 100)
-        # ! relative tolerance
-        rtol = solver_options.get('rtol', 1e-6) if solver_options else 1e-6
-        # ! absolute tolerance
-        atol = solver_options.get('atol', 1e-9) if solver_options else 1e-9
+        configured_solver_options = configure_solver_options(
+            solver_options=solver_options
+        )
 
         # NOTE: run simulation
         # >>> create function
@@ -138,9 +172,7 @@ class BatchReactor:
             fun,
             time_span,
             y0,
-            method=method,
-            rtol=rtol,
-            atol=atol,
+            **configured_solver_options,
         )
 
         # NOTE: process results

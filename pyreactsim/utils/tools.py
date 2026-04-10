@@ -208,3 +208,43 @@ def smooth_floor(x: float | np.ndarray, xmin: float, s: float) -> float | np.nda
     if np.isscalar(x):
         return float(y)
     return y
+
+# SECTION: solver configuration for reactor simulation
+
+
+def configure_solver_options(
+        solver_options: Optional[Dict[str, Any]] = None,
+        default_options: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Configure solver options for reactor simulation by merging user-provided options with default options.
+
+    Parameters
+    ----------
+    solver_options : Optional[Dict[str, Any]]
+        A dictionary of user-provided solver options to override the defaults.
+    default_options : Optional[Dict[str, Any]]
+        A dictionary of default solver options to be used if not overridden by the user.
+
+    Returns
+    -------
+    Dict[str, Any]
+        A dictionary containing the merged solver options to be used for reactor simulation.
+    """
+    # Set default options if not provided
+    if default_options is None:
+        default_options = {
+            "method": "BDF",
+            "rtol": 1e-6,
+            "atol": 1e-9,
+            "first_step": 1e-8,
+            "max_step": 1e-3,
+        }
+
+    # Merge user-provided options with defaults
+    if solver_options is not None:
+        merged_options = {**default_options, **solver_options}
+    else:
+        merged_options = default_options
+
+    return merged_options

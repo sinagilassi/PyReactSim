@@ -56,7 +56,8 @@ batch_reactor_options = BatchReactorOptions(
     phase='gas',
     operation_mode='constant_volume',
     gas_model='ideal',
-    gas_heat_capacity_mode='temperature-dependent',
+    gas_heat_capacity_mode="constant",
+    ideal_gas_formation_enthalpy_mode="model_inputs",
 )
 
 # ! heat transfer options
@@ -66,6 +67,33 @@ heat_transfer_options = HeatTransferOptions(
     heat_transfer_area=heat_transfer_area,
     jacket_temperature=jacket_temperature,
 )
+
+# ====================================================
+# SECTION: thermo inputs
+# ====================================================
+# NOTE: optional constant gas heat capacities [J/mol.K]
+constant_gas_heat_capacity = {
+    "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
+    "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
+    "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
+    "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
+    "CO-g": CustomProp(value=35.0, unit="J/mol.K"),
+}
+
+# NOTE: ideal gas formation enthalpy at 298 K [J/mol]
+constant_ideal_gas_formation_enthalpy = {
+    "CO2-g": CustomProp(value=-393520.0, unit="J/mol"),
+    "H2-g": CustomProp(value=0.0, unit="J/mol"),
+    "CH3OH-g": CustomProp(value=-201000.0, unit="J/mol"),
+    "H2O-g": CustomProp(value=-241820.0, unit="J/mol"),
+    "CO-g": CustomProp(value=-110530.0, unit="J/mol"),
+}
+
+# ! thermo inputs
+thermo_inputs = {
+    "gas_heat_capacity": constant_gas_heat_capacity,
+    "ideal_gas_formation_enthalpy": constant_ideal_gas_formation_enthalpy,
+}
 
 # ====================================================
 # SECTION: model inputs
@@ -102,11 +130,6 @@ constant_gas_heat_capacity = {
     "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
     "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
     "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
-}
-
-# ! thermo inputs
-thermo_inputs = {
-    "gas_heat_capacity": constant_gas_heat_capacity,
 }
 
 # ! model inputs
@@ -146,9 +169,19 @@ print(batch_reactor)
 
 
 # NOTE: simulate batch reactor
-simulation_results = batch_reactor.simulate()
+simulation_results = batch_reactor.simulate(
+    time_span=(0, 50),
+    solver_options={
+        "method": "BDF",
+        "rtol": 1e-5,
+        "atol": 1e-8,
+        "first_step": 1e-8,
+        "max_step": 1e-3,
+    },
+    mode='log'
+)
 print("[bold green]Batch reactor simulation completed![/bold green]")
-print(simulation_results)
+# print(simulation_results)
 
 if simulation_results is not None:
     plot_batch_reactor_result(

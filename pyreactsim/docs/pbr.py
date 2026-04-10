@@ -114,9 +114,9 @@ class PBRReactor:
             - first_step: initial step size in m3 (optional)
             - dense_output: whether to compute a continuous solution (optional)
         **kwargs
-        Additional keyword arguments.
-        - mode : Literal['silent', 'log', 'attach'], optional
-            Mode for time measurement logging. Default is 'silent'.
+            Additional keyword arguments.
+            - mode : Literal['silent', 'log', 'attach'], optional
+                Mode for time measurement logging. Default is 'silent'.
         """
         # NOTE: set default solver options if not provided
         # ! method
