@@ -2,10 +2,10 @@
 from pydantic import BaseModel, Field
 from typing import Any, Dict, Literal, Optional
 # locals
-from .ref import GasModel, ReactorPhase
+from .ref import GasModel, ReactorPhase, ReactorOptions
 
 
-class PFRReactorOptions(BaseModel):
+class PFRReactorOptions(ReactorOptions):
     """Options for configuring the PFR reactor model."""
 
     phase: ReactorPhase = Field(

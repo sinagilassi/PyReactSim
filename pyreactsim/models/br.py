@@ -3,10 +3,10 @@ from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union, TypeAlias
 from pythermodb_settings.models import Component, CustomProp, Volume, Temperature
 # locals
-from .ref import ReactorPhase, OperationMode, GasModel
+from .ref import ReactorPhase, OperationMode, GasModel, ReactorOptions
 
 
-class BatchReactorOptions(BaseModel):
+class BatchReactorOptions(ReactorOptions):
     """Options for configuring the batch reactor model.
 
     Attributes

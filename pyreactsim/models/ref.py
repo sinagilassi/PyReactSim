@@ -15,3 +15,16 @@ OperationMode = Literal[
 ]
 # NOTE: Gas Model
 GasModel = Literal['ideal', 'real']
+
+
+# SECTION: General Reference Models
+class ReactorOptions(BaseModel):
+    """Base class for reactor options."""
+    ideal_gas_formation_enthalpy_mode: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_source",
+        description="Source of gas formation enthalpy as model_inputs or model_source."
+    )
+    molecular_weight_mode: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_source",
+        description="Source of molecular weight as model_inputs or model_source."
+    )
