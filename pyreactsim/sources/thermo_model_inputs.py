@@ -27,7 +27,6 @@ class ThermoModelInputs:
     def __init__(
         self,
         components: List[Component],
-        source: Source,
         thermo_inputs: Dict[str, Any],
         reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
@@ -41,8 +40,6 @@ class ThermoModelInputs:
         ----------
         components : List[Component]
             A list of Component objects representing the chemical components involved in the model source.
-        source : Source
-            A Source object containing information about the source of the data or equations used in the model source.
         thermo_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
         reactor_inputs : BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions
@@ -56,7 +53,6 @@ class ThermoModelInputs:
         """
         # NOTE: Set attributes
         self.components = components
-        self.source = source
         self.thermo_inputs = thermo_inputs
         self.reactor_options = reactor_options
         self.heat_transfer_options = heat_transfer_options
