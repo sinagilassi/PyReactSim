@@ -147,6 +147,7 @@ class GasPBRReactor:
             temp = float(y[ns])
         else:
             temp = float(self._T_in)
+        temp = max(temp, 1.0)
         # >>> set
         temperature = Temperature(value=temp, unit="K")
 

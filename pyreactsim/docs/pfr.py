@@ -100,6 +100,7 @@ class PFRReactor:
         self,
         volume_span: tuple[float, float],
         solver_options: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> Optional[PFRReactorResult]:
         """
         Run PFR simulation over the specified volume span with given solver options.

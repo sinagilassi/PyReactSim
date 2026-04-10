@@ -161,10 +161,10 @@ class PBRReactor:
 
         def fun(V, y):
             '''ODE function for PBR simulation.'''
-            if isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor)):
-                return self.reactor.rhs(V, y)
-            elif isinstance(self.reactor, (GasPBRReactorX, LiquidPBRReactorX)):
+            if isinstance(self.reactor, (GasPBRReactorX, LiquidPBRReactorX)):
                 return self.reactor.rhs_scaled(V, y)
+            elif isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor)):
+                return self.reactor.rhs(V, y)
             else:
                 raise NotImplementedError(
                     f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
@@ -243,10 +243,10 @@ class PBRReactor:
             # element-wise conversion instead of direct np.asarray(u, dtype=float).
             u_vec = np.array([float(ui) for ui in u], dtype=float)
 
-            if isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor)):
-                rhs = self.reactor.rhs(V, u_vec)
-            elif isinstance(self.reactor, (GasPBRReactorX, LiquidPBRReactorX)):
+            if isinstance(self.reactor, (GasPBRReactorX, LiquidPBRReactorX)):
                 rhs = self.reactor.rhs_scaled(V, u_vec)
+            elif isinstance(self.reactor, (GasPBRReactor, LiquidPBRReactor)):
+                rhs = self.reactor.rhs(V, u_vec)
             else:
                 raise NotImplementedError(
                     f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."

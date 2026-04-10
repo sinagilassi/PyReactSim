@@ -63,12 +63,11 @@ heat_transfer_area = CustomProp(
 
 # NOTE: reactor options for thermo/source compatibility
 pfr_reactor_options = PFRReactorOptions(
+    modeling_type="scale",
     phase="gas",
     operation_mode="constant_pressure",
     pressure_mode="constant",
     gas_model="ideal",
-    gas_heat_capacity_mode="constant",
-    ideal_gas_formation_enthalpy_mode="model_inputs",
 )
 
 # NOTE: heat transfer options
@@ -168,17 +167,19 @@ print(pfr_reactor)
 
 # NOTE: simulate PFR along reactor volume
 simulation_results = pfr_reactor.simulate(
+    volume_span=(0, reactor_volume.value),
     solver_options={
-        "method": "BDF",
-        "volume_span": (0.0, reactor_volume.value),
+        "method": "Radau",
         "rtol": 1e-6,
         "atol": 1e-9,
         # max step size as fraction of total volume
         # "max_step": reactor_volume.value / 100,
-    }
+    },
+    mode="log"
 )
 print("[bold green]PFR simulation completed![/bold green]")
-print(simulation_results)
+# print(simulation_results)
+
 if simulation_results is not None:
     plot_pfr_reactor_result(
         result=simulation_results,

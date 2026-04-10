@@ -192,14 +192,14 @@ print(pfr_reactor)
 
 # NOTE: simulate PFR along reactor volume
 simulation_results = pfr_reactor.simulate(
+    volume_span=(0, reactor_volume.value),
     solver_options={
-        "method": "BDF",
-        "volume_span": (0.0, reactor_volume.value),
+        "method": "Radau",
         "rtol": 1e-5,
         "atol": 1e-8,
         # "atol": [1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-6],
-        "first_step": 1e-8,
-        "max_step": 1e-3,
+        # "first_step": 1e-8,
+        # "max_step": 1e-3,
     },
     mode='log'
 )
