@@ -83,6 +83,7 @@ class ThermoSource(ThermoSourceCore):
         ThermoModelSource_ = ThermoModelSource(
             components=components,
             source=source,
+            model_source=model_source,
             thermo_inputs=thermo_inputs,
             reactor_options=reactor_options,
             heat_transfer_options=heat_transfer_options,

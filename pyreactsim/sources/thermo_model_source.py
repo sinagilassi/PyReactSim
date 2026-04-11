@@ -4,7 +4,10 @@ import numpy as np
 from typing import List, Dict, Any, cast, Optional
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, ComponentKey
 from pyThermoLinkDB.thermo import Source
+from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
+from pyThermoCalcDB.docs.thermo import build_hsg_properties
+from pyThermoCalcDB.core import HSGProperties
 # locals
 from ..sources.interface import (
     ext_components_dt,
@@ -42,6 +45,7 @@ class ThermoModelSource:
         self,
         components: List[Component],
         source: Source,
+        model_source: ModelSource,
         thermo_inputs: Dict[str, Any],
         reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
@@ -58,6 +62,8 @@ class ThermoModelSource:
             A list of Component objects representing the chemical components involved in the model source.
         source : Source
             A Source object containing information about the source of the data or equations used in the model source.
+        model_source : ModelSource
+            A ModelSource object containing information about the model source, including its name, description, and other relevant details.
         thermo_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
         reactor_options : BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions
@@ -74,6 +80,7 @@ class ThermoModelSource:
         # NOTE: Set attributes
         self.components = components
         self.source = source
+        self.model_source = model_source
         self.thermo_inputs = thermo_inputs
         self.reactor_options = reactor_options
         self.heat_transfer_options = heat_transfer_options
@@ -269,3 +276,29 @@ class ThermoModelSource:
             res[symbol] = value
 
         return res
+
+    # SECTION: HSG properties
+    def _config_components_hsg_properties(
+            self,
+            temperature: float
+    ) -> Dict[str, HSGProperties]:
+        # build properties
+        component_hsg_properties = {}
+
+        for i, comp_id in enumerate(self.component_formula_state):
+            # build
+            hsg_props = build_hsg_properties(
+                component=self.components[i],
+                model_source=self.model_source
+            )
+
+            # >> check
+            if hsg_props is None:
+                logger.error(
+                    f"Failed to build HSG properties for component {comp_id}.")
+                raise ValueError(
+                    f"Failed to build HSG properties for component {comp_id}.")
+
+            component_hsg_properties[comp_id] = hsg_props
+
+        return component_hsg_properties
