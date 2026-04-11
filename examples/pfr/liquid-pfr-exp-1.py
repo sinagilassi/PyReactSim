@@ -174,9 +174,9 @@ print(cstr_reactor)
 
 # NOTE: simulate CSTR
 simulation_results = cstr_reactor.simulate(
+    volume_span=(0, reactor_volume.value),
     solver_options={
-        "method": "BDF",
-        "time_span": (0, 150.0),
+        "method": "Radau",
         "rtol": 1e-6,
         "atol": 1e-9,
     }

@@ -1,5 +1,6 @@
 # import packages/modules
 import os
+from pathlib import Path
 from rich import print
 from typing import Callable, Dict, Optional, Union, List, Any
 import pyThermoDB as ptdb
@@ -29,7 +30,7 @@ parent_dir = os.path.dirname(os.path.abspath(__file__))
 print(parent_dir)
 
 # NOTE: thermodb directory
-thermodb_dir = os.path.join(parent_dir, 'thermodb')
+thermodb_dir = str(Path(__file__).parent.parent / 'thermodb/liquid')
 print(thermodb_dir)
 
 # NOTE: create component
@@ -80,6 +81,8 @@ for comp in components:
         component_state=comp.state,
         reference_content=REFERENCE_CONTENT,
         ignore_state_props=ignore_state_props,
+        thermodb_save=True,
+        thermodb_save_path=thermodb_dir,
     )
     if thermodb_component is None:
         raise ValueError(f"thermodb_component for {comp.name} is None")
