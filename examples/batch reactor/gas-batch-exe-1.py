@@ -163,9 +163,9 @@ print(thermo_source)
 batch_reactor: BatchReactor = create_batch_reactor(
     model_inputs=model_inputs,
     thermo_source=thermo_source,
-    rhs_log_interval=10,
-    rhs_log_enabled=True,
-    rhs_log_timing_enabled=True,
+    # rhs_log_interval=10,
+    # rhs_log_enabled=True,
+    # rhs_log_timing_enabled=True,
 )
 print("[bold green]Batch reactor successfully created![/bold green]")
 print(batch_reactor)
