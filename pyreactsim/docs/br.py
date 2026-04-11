@@ -206,20 +206,20 @@ class BatchReactor:
         # NOTE: run simulation
         # >>> create function
         def fun(t, y):
-            if isinstance(self.reactor, (GasBatchReactor, LiquidBatchReactor)):
-                return self.reactor.rhs(t, y)
-            elif isinstance(self.reactor, (GasBatchReactorX, LiquidBatchReactorX)):
+            if isinstance(self.reactor, (GasBatchReactorX, LiquidBatchReactorX)):
                 return self.reactor.rhs_scaled(t, y)
+            elif isinstance(self.reactor, (GasBatchReactor, LiquidBatchReactor)):
+                return self.reactor.rhs(t, y)
             else:
                 raise NotImplementedError(
                     f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
                 )
 
         # NOTE: build initial conditions
-        if isinstance(self.reactor, (GasBatchReactor, LiquidBatchReactor)):
-            y0 = self.reactor.build_y0()
-        elif isinstance(self.reactor, (GasBatchReactorX, LiquidBatchReactorX)):
+        if isinstance(self.reactor, (GasBatchReactorX, LiquidBatchReactorX)):
             y0 = self.reactor.build_y0_scaled()
+        elif isinstance(self.reactor, (GasBatchReactor, LiquidBatchReactor)):
+            y0 = self.reactor.build_y0()
         else:
             raise NotImplementedError(
                 f"Initial condition builder for reactor type '{type(self.reactor)}' is not implemented yet."

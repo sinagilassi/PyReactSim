@@ -3,6 +3,15 @@ import logging
 import sys
 import warnings
 from pathlib import Path
+
+# NOTE: example source and kinetics
+# ! add project root and examples root to import path for standalone script execution
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+EXAMPLES_DIR = Path(__file__).resolve().parents[1]
+for path in (PROJECT_DIR, EXAMPLES_DIR):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
 from rich import print
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
@@ -18,14 +27,6 @@ from pyreactsim.thermo import build_thermo_source
 from examples.rates.rate_exp_1 import reaction_rates, components, model_source
 
 from examples.plot.plot_res import plot_cstr_reactor_result
-
-# NOTE: example source and kinetics
-# ! add project root and examples root to import path for standalone script execution
-PROJECT_DIR = Path(__file__).resolve().parents[2]
-EXAMPLES_DIR = Path(__file__).resolve().parents[1]
-for path in (PROJECT_DIR, EXAMPLES_DIR):
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
 
 # NOTE: CSTR plotting helper
 # check version
@@ -194,4 +195,5 @@ if simulation_results is not None:
     plot_cstr_reactor_result(
         result=simulation_results,
         components=components,
+        reactor=cstr_reactor,
     )

@@ -72,13 +72,15 @@ class CSTRReactor:
         # SECTION: Create reactor
         self.reactor: GasCSTRReactor | GasCSTRReactorX | LiquidCSTRReactor | LiquidCSTRReactorX = self._create_reactor()
 
+    # SECTION: State conversion method
     def _state_to_physical(self, state: np.ndarray) -> np.ndarray:
         """
         Convert solver state history to physical units for public outputs.
         """
         state_arr = np.asarray(state, dtype=float)
         if state_arr.ndim != 2:
-            raise ValueError("Expected state history with shape (n_states, n_points).")
+            raise ValueError(
+                "Expected state history with shape (n_states, n_points).")
 
         if not isinstance(self.reactor, (GasCSTRReactorX, LiquidCSTRReactorX)):
             return state_arr
@@ -93,7 +95,8 @@ class CSTRReactor:
             if self.reactor.heat_transfer_mode == "non-isothermal":
                 y_parts.append(np.array([temp], dtype=float))
 
-            y_physical = y_parts[0] if len(y_parts) == 1 else np.concatenate(y_parts)
+            y_physical = y_parts[0] if len(
+                y_parts) == 1 else np.concatenate(y_parts)
             physical_cols.append(y_physical)
 
         return np.column_stack(physical_cols)
@@ -189,20 +192,20 @@ class CSTRReactor:
 
         # NOTE: define ODE function
         def fun(t, y):
-            if isinstance(self.reactor, (GasCSTRReactor, LiquidCSTRReactor)):
-                return self.reactor.rhs(t, y)
-            elif isinstance(self.reactor, (GasCSTRReactorX, LiquidCSTRReactorX)):
+            if isinstance(self.reactor, (GasCSTRReactorX, LiquidCSTRReactorX)):
                 return self.reactor.rhs_scaled(t, y)
+            elif isinstance(self.reactor, (GasCSTRReactor, LiquidCSTRReactor)):
+                return self.reactor.rhs(t, y)
             else:
                 raise NotImplementedError(
                     f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
                 )
 
         # NOTE: build initial state vector
-        if isinstance(self.reactor, (GasCSTRReactor, LiquidCSTRReactor)):
-            y0 = self.reactor.build_y0()
-        elif isinstance(self.reactor, (GasCSTRReactorX, LiquidCSTRReactorX)):
+        if isinstance(self.reactor, (GasCSTRReactorX, LiquidCSTRReactorX)):
             y0 = self.reactor.build_y0_scaled()
+        elif isinstance(self.reactor, (GasCSTRReactor, LiquidCSTRReactor)):
+            y0 = self.reactor.build_y0()
         else:
             raise NotImplementedError(
                 f"Initial condition builder for reactor type '{type(self.reactor)}' is not implemented yet."

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Iterable, Literal
 
 import matplotlib.pyplot as plt
@@ -164,9 +165,45 @@ def plot_cstr_reactor_result(
     components: Iterable[Any] | None = None,
     save_path: Path | None = None,
     show: bool = True,
+    reactor: Any | None = None,
 ) -> None:
+    plot_result: Any = result
+
+    if reactor is not None and getattr(reactor, "modeling_type", None) == "scale":
+        reactor_model = getattr(reactor, "reactor", None)
+        state = np.asarray(result.state, dtype=float)
+        if reactor_model is not None and state.ndim == 2 and hasattr(reactor_model, "_unscale_state"):
+            # Detect if state looks scaled by comparing the initial point
+            # against scaled vs physical initial vectors.
+            should_unscale = False
+            if hasattr(reactor_model, "build_y0_scaled") and hasattr(reactor_model, "build_y0"):
+                y0_col = state[:, 0]
+                y0_scaled = np.asarray(reactor_model.build_y0_scaled(), dtype=float).ravel()
+                y0_physical = np.asarray(reactor_model.build_y0(), dtype=float).ravel()
+                if y0_col.shape == y0_scaled.shape and y0_col.shape == y0_physical.shape:
+                    err_scaled = np.linalg.norm(y0_col - y0_scaled)
+                    err_physical = np.linalg.norm(y0_col - y0_physical)
+                    should_unscale = err_scaled <= err_physical
+            if should_unscale:
+                n_points = state.shape[1]
+                physical_cols = []
+                for j in range(n_points):
+                    y_scaled = state[:, j]
+                    n, temp = reactor_model._unscale_state(y_scaled)
+                    if getattr(reactor_model, "heat_transfer_mode", "isothermal") == "non-isothermal":
+                        y_physical = np.concatenate([n, np.array([temp], dtype=float)])
+                    else:
+                        y_physical = n
+                    physical_cols.append(y_physical)
+                plot_result = SimpleNamespace(
+                    time=result.time,
+                    state=np.column_stack(physical_cols),
+                    success=result.success,
+                    message=result.message,
+                )
+
     _plot_reactor_result(
-        result=result,
+        result=plot_result,
         components=components,
         save_path=save_path,
         show=show,

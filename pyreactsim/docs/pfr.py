@@ -185,20 +185,20 @@ class PFRReactor:
         # NOTE: define ODE function for PFR simulation
 
         def fun(V, y):
-            if isinstance(self.reactor, (GasPFRReactor, LiquidPFRReactor)):
-                return self.reactor.rhs(V, y)
-            elif isinstance(self.reactor, (GasPFRReactorX, LiquidPFRReactorX)):
+            if isinstance(self.reactor, (GasPFRReactorX, LiquidPFRReactorX)):
                 return self.reactor.rhs_scaled(V, y)
+            elif isinstance(self.reactor, (GasPFRReactor, LiquidPFRReactor)):
+                return self.reactor.rhs(V, y)
             else:
                 raise NotImplementedError(
                     f"ODE function for reactor type '{type(self.reactor)}' is not implemented yet."
                 )
 
         # NOTE: build initial condition vector
-        if isinstance(self.reactor, (GasPFRReactor, LiquidPFRReactor)):
-            y0 = self.reactor.build_y0()
-        elif isinstance(self.reactor, (GasPFRReactorX, LiquidPFRReactorX)):
+        if isinstance(self.reactor, (GasPFRReactorX, LiquidPFRReactorX)):
             y0 = self.reactor.build_y0_scaled()
+        elif isinstance(self.reactor, (GasPFRReactor, LiquidPFRReactor)):
+            y0 = self.reactor.build_y0()
         else:
             raise NotImplementedError(
                 f"Initial condition builder for reactor type '{type(self.reactor)}' is not implemented yet."
