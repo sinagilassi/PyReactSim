@@ -4,6 +4,9 @@ import numpy as np
 from typing import List, Dict, Any, cast
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, CustomProp, ComponentKey
 from pyreactlab_core import build_rxns_stoichiometry
+from pyThermoLinkDB.models import ModelSource
+from pyThermoCalcDB.reactions import build_hsg_reaction
+from pyThermoCalcDB.core import HSGReaction
 # locals
 from ..utils.reaction_tools import stoichiometry_mat
 from ..models.rate_exp import ReactionRateExpression
@@ -20,6 +23,7 @@ class ThermoReaction:
     def __init__(
         self,
         components: List[Component],
+        model_source: ModelSource,
         thermo_inputs: Dict[str, Any],
         reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
@@ -31,6 +35,8 @@ class ThermoReaction:
         ----------
         components : List[Component]
             A list of Component objects representing the chemical components involved in the model source.
+        model_source : ModelSource
+            A ModelSource object containing the source of the model to be used in the simulation.
         model_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
         reactor_inputs : BatchReactorOptions
@@ -42,6 +48,7 @@ class ThermoReaction:
         """
         # NOTE: Set attributes
         self.components = components
+        self.model_source = model_source
         self.thermo_inputs = thermo_inputs
         self.reaction_rates = reaction_rates
         self.component_key = component_key
@@ -52,6 +59,9 @@ class ThermoReaction:
         # NOTE: Build stoichiometry matrix
         # self.stoichiometry_matrix = self.build_stoichiometry_matrix()
         self.stoichiometry_matrix = None
+
+        # SECTION: build hsg reactions
+        self.hsg_reactions = self._config_hsg_reactions()
 
     # SECTION: Reaction and stoichiometry related methods
     # ! Extract all reactions
@@ -87,6 +97,7 @@ class ThermoReaction:
 
         return mat
 
+    # ! Build stoichiometry matrix using pythermolinkdb
     def build_stoichiometry_matrix(self):
         """
         Build the stoichiometry matrix for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
@@ -116,6 +127,7 @@ class ThermoReaction:
         # res
         return np.array(mat, dtype=float)
 
+    # ! Get reaction names and indices
     def get_reaction_names(self) -> List[str]:
         """
         Get the list of reaction names for the reactions in the gas-phase batch reactor using the provided reaction rates.
@@ -131,6 +143,7 @@ class ThermoReaction:
             reaction_names.append(rxn.name)
         return reaction_names
 
+    # ! Get reaction index mapping
     def get_reaction_index(self) -> Dict[str, int]:
         """
         Get the reaction index for the reactions in the reactor using the provided reaction rates.
@@ -144,3 +157,31 @@ class ThermoReaction:
             rxn = rate_exp.reaction
             res[rxn.name] = index
         return res
+
+    # NOTE: build hsg reactions
+    def _config_hsg_reactions(self) -> List[HSGReaction]:
+        """
+        Build the list of Reaction objects for the gas-phase batch reactor using the provided reaction rates and components.
+        """
+        hsg_reactions: list[HSGReaction] = []
+
+        # iterate through reaction rates and build hsg reactions
+        for rate_exp in self.reaction_rates:
+            rxn = rate_exp.reaction
+            hsg_rxn = build_hsg_reaction(
+                reaction=rxn,
+                model_source=self.model_source,
+            )
+
+            # >> check
+            if hsg_rxn is None:
+                logger.warning(
+                    f"Failed to build HSG reaction for reaction: {rxn.name}. Skipping this reaction."
+                )
+                raise ValueError(
+                    f"Failed to build HSG reaction for reaction: {rxn.name}. Skipping this reaction."
+                )
+
+            # add
+            hsg_reactions.append(hsg_rxn)
+        return hsg_reactions

@@ -76,6 +76,7 @@ def build_thermo_source(
     thermo_source = ThermoSource(
         components=components,
         source=source,
+        model_source=model_source,
         thermo_inputs=thermo_inputs,
         reactor_options=reactor_options,
         heat_transfer_options=heat_transfer_options,

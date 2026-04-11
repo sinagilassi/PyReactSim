@@ -8,7 +8,7 @@ from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pyreactlab_core.models.reaction import Reaction
 from pyThermoCalcDB.reactions.reactions import dH_rxn_STD
-from pyThermoCalcDB.docs.thermo import calc_En_IG_ref, calc_En
+from pyThermoCalcDB.docs.thermo import calc_En_IG_ref, calc_En, calc_En_IG_ref_hsg, calc_En_hsg
 from pyThermoCalcDB.reactions.source import dH_rxn_STD as dH_rxn_reactions
 from pyThermoCalcDB.models import ComponentEnthalpy
 
@@ -76,9 +76,12 @@ class ThermoSourceCore(ThermoCalc):
         self.component_refs = component_refs
         self.component_key = component_key
 
-        # NOTE: set model source, model inputs, and reaction
+        # SECTION: set model source, model inputs, and reaction
+        # ! model source
         self.thermo_model_source = thermo_model_source
+        # ! model inputs
         self.thermo_model_inputs = thermo_model_inputs
+        # ! reaction
         self.thermo_reaction = thermo_reaction
 
         # NOTE: component refs
@@ -97,8 +100,11 @@ class ThermoSourceCore(ThermoCalc):
             )
         self.model_source = model_source
 
-        # NOTE: reactions
+        # # SECTION: reactions
         self.reactions: List[Reaction] = self.thermo_reaction.build_reactions()
+
+        # ! hsg reactions
+        self.hsg_reactions = self.thermo_reaction.hsg_reactions
 
         # SECTION: Process model configuration
         # ! model inputs keys
@@ -564,12 +570,13 @@ class ThermoSourceCore(ThermoCalc):
         dH_rxns = []
 
         # iterate over reactions
-        for rxn in self.reactions:
+        for i, rxn in enumerate(self.reactions):
             # >> calculate reaction enthalpy for the reaction at the specified temperature
             dH_rxn = dH_rxn_STD(
                 reaction=rxn,
                 temperature=temperature,
                 model_source=model_source,
+                hsg_reaction=self.hsg_reactions[i]
             )
 
             # >> check

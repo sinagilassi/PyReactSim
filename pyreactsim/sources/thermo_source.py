@@ -29,6 +29,7 @@ class ThermoSource(ThermoSourceCore):
         self,
         components: List[Component],
         source: Source,
+        model_source: ModelSource,
         thermo_inputs: Dict[str, Any],
         reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
@@ -45,6 +46,8 @@ class ThermoSource(ThermoSourceCore):
             A list of Component objects representing the chemical components involved in the model source.
         source : Source
             A Source object containing information about the source of the data or equations used in the model source.
+        model_source : ModelSource
+            A ModelSource object containing the source of the model to be used in the simulation.
         model_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
         reactor_inputs : BatchReactorOptions
@@ -64,6 +67,7 @@ class ThermoSource(ThermoSourceCore):
         t_start = time.perf_counter()
         ThermoReaction_ = ThermoReaction(
             components=components,
+            model_source=model_source,
             thermo_inputs=thermo_inputs,
             reaction_rates=reaction_rates,
             component_key=component_key
