@@ -847,12 +847,12 @@ class ThermoSourceCore(ThermoCalc):
 
     # SECTION: Liquid Enthalpy
     # ! Calculate liquid phase enthalpy (En_LIQ)
-    def calc_En_LIQ(
+    def calc_En_LIQ_ref(
             self,
             temperature: Temperature,
     ) -> Tuple[Dict[str, CustomProp], np.ndarray]:
         """
-        Calculate the liquid phase enthalpy (En_LIQ) in J/mol for the components in the batch reactor at the specified temperature.
+        Calculate the liquid phase enthalpy (En_LIQ) in J/mol for the components in the reactor at the specified temperature using the ideal gas reference state.
 
         Parameters
         ----------
@@ -951,7 +951,7 @@ class ThermoSourceCore(ThermoCalc):
 
         # NOTE: calculate liquid phase enthalpy for the components at reference temperature (e.g., 298 K)
         # ! in J/mol
-        En_LIQ_comp, _ = self.calc_En_LIQ(temperature=temperature)
+        En_LIQ_comp, _ = self.calc_En_LIQ_ref(temperature=temperature)
 
         # NOTE: calculate reaction enthalpy for each reaction using the ideal gas reference state
         # iterate over reactions

@@ -319,6 +319,7 @@ class LiquidPBRReactor:
         delta_h = self.thermo_source.calc_dH_rxns_IG_ref(
             temperature=temperature
         )
+
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
             rates=rates_v,

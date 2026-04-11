@@ -129,7 +129,7 @@ class LiquidCSTRReactor:
         )
 
         # ! Cp_LIQ_in: inlet liquid enthalpy [J/mol]
-        _, self.En_LIQ_values_in = self.thermo_source.calc_En_LIQ(
+        _, self.En_LIQ_values_in = self.thermo_source.calc_En_LIQ_ref(
             temperature=self.temperature_inlet
         )
 
@@ -436,7 +436,7 @@ class LiquidCSTRReactor:
         # NOTE: sensible enthalpy stream term [W]
         # ? use ideal gas enthalpy for liquid enthalpy estimation
         # ! En = sum_i(F_in,i * (h_i^L(Tin) - h_i^L(T)))
-        _, En_LIQ_values_out = self.thermo_source.calc_En_LIQ(
+        _, En_LIQ_values_out = self.thermo_source.calc_En_LIQ_ref(
             temperature=temperature
         )
 
