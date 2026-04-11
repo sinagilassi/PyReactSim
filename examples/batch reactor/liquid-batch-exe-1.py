@@ -12,9 +12,9 @@ from pyreactsim import create_batch_reactor, BatchReactor
 
 # NOTE: Batch reactor settings
 # ! model sources for liquid phase batch reactor
-from examples.source.liquid_model_source_exp_1 import model_source
+# from examples.source.liquid_model_source_exp_1 import model_source
 # ! rate expressions & components
-from examples.rates.rate_exp_6 import reaction_rates, components
+from examples.rates.rate_exp_8 import reaction_rates, components, model_source
 # ! plot function
 from examples.plot.plot_res import plot_batch_reactor_result
 
@@ -23,9 +23,9 @@ print(ptdb.__version__)
 print(ptdblink.__version__)
 
 # NOTE: silence library warnings/errors for this example run
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
-for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactsim", "pyreactlab_core"):
+for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
 
 # ====================================================
@@ -53,11 +53,12 @@ heat_transfer_area = CustomProp(
 
 # ! batch reactor options
 batch_reactor_options = BatchReactorOptions(
+    modeling_type='scale',
     phase='liquid',
     operation_mode='variable_volume',
     gas_model='ideal',
-    gas_heat_capacity_mode='temperature-dependent',
-    liquid_heat_capacity_mode='temperature-dependent',
+    gas_heat_capacity_mode='constant',
+    liquid_heat_capacity_mode='constant',
     liquid_density_mode='constant',
 )
 
@@ -68,6 +69,40 @@ heat_transfer_options = HeatTransferOptions(
     heat_transfer_area=None,
     jacket_temperature=None,
 )
+
+# ====================================================
+# SECTION: thermo inputs
+# ====================================================
+# NOTE: optional constant gas heat capacities [J/mol.K]
+constant_gas_heat_capacity = {
+    "CH3OH-l": CustomProp(value=75.3, unit="J/mol.K"),  # methanol
+    "H2O-l": CustomProp(value=75.3, unit="J/mol.K"),   # water
+    "CH3COOH-l": CustomProp(value=75.3, unit="J/mol.K"),  # acetic acid
+    "C3H6O2-l": CustomProp(value=75.3, unit="J/mol.K"),  # methyl acetate
+}
+
+# NOTE: optional constant liquid heat capacities [J/mol.K]
+constant_liquid_heat_capacity = {
+    "CH3OH-l": CustomProp(value=81.1, unit="J/mol.K"),  # methanol
+    "H2O-l": CustomProp(value=75.3, unit="J/mol.K"),   # water
+    "CH3COOH-l": CustomProp(value=138.0, unit="J/mol.K"),  # acetic acid
+    "C3H6O2-l": CustomProp(value=120.0, unit="J/mol.K"),  # methyl acetate
+}
+
+# NOTE: constant liquid density (rho_LIQ) for the system in kg/m3
+constant_liquid_density = {
+    "CH3OH-l": CustomProp(value=786.6, unit="kg/m3"),  # methanol
+    "H2O-l": CustomProp(value=997.0, unit="kg/m3"),   # water
+    "CH3COOH-l": CustomProp(value=1049.0, unit="kg/m3"),  # acetic acid
+    "C3H6O2-l": CustomProp(value=932.0, unit="kg/m3"),  # methyl acetate
+}
+
+# ! thermo inputs
+thermo_inputs = {
+    "gas_heat_capacity": constant_gas_heat_capacity,
+    "liquid_heat_capacity": constant_liquid_heat_capacity,
+    "liquid_density": constant_liquid_density,
+}
 
 # ====================================================
 # SECTION: model inputs
@@ -98,22 +133,6 @@ initial_mole = {
     "H2O-l": CustomProp(value=0.0, unit="mol"),  # water
 }
 
-# NOTE: constant heat capacity (Cp) for the system in J/mol.K
-constant_gas_heat_capacity = {}
-
-# NOTE: constant liquid density (rho_LIQ) for the system in kg/m3
-constant_liquid_density = {
-    "CH3OH-l": CustomProp(value=786.6, unit="kg/m3"),  # methanol
-    "H2O-l": CustomProp(value=997.0, unit="kg/m3"),   # water
-    "CH3COOH-l": CustomProp(value=1049.0, unit="kg/m3"),  # acetic acid
-    "C3H6O2-l": CustomProp(value=932.0, unit="kg/m3"),  # methyl acetate
-}
-
-# ! thermo inputs
-thermo_inputs = {
-    "liquid_density": constant_liquid_density,
-}
-
 # ! model inputs
 model_inputs = {
     "mole": initial_mole,
@@ -121,6 +140,8 @@ model_inputs = {
     "pressure": initial_pressure,
     'reactor_volume': reactor_volume,
 }
+
+print("[bold green]Model inputs successfully defined![/bold green]")
 
 # ====================================================
 # SECTION: build thermo source
@@ -142,7 +163,6 @@ print(thermo_source)
 # SECTION: create batch reactor
 # ====================================================
 batch_reactor: BatchReactor = create_batch_reactor(
-    components=components,
     model_inputs=model_inputs,
     thermo_source=thermo_source,
 )
@@ -151,9 +171,19 @@ print(batch_reactor)
 
 
 # NOTE: simulate batch reactor
-simulation_results = batch_reactor.simulate()
+simulation_results = batch_reactor.simulate(
+    time_span=(0, 50),
+    solver_options={
+        "method": "Radau",
+        "rtol": 1e-5,
+        "atol": 1e-8,
+        # "first_step": 1e-8,
+        # "max_step": 1e-3,
+    },
+    mode='log'
+)
 print("[bold green]Batch reactor simulation completed![/bold green]")
-print(simulation_results)
+# print(simulation_results)
 
 if simulation_results is not None:
     plot_batch_reactor_result(
