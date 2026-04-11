@@ -316,7 +316,7 @@ class LiquidPBRReactor:
             )
 
         # NOTE: reaction heat source term [W/m3] uses converted r_V rates
-        delta_h = self.thermo_source.calc_dH_rxns_IG_ref(
+        delta_h = self.thermo_source.calc_dH_rxns_LIQ(
             temperature=temperature
         )
 

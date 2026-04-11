@@ -322,7 +322,7 @@ class LiquidPFRReactor:
         # NOTE: reaction heat source term [W/m3]
         # ! Q_rxn = sum_k((-dH_k) * r_k)
         # ??? ΔH_k [J/mol]
-        delta_h = self.thermo_source.calc_dH_rxns_IG_ref(
+        delta_h = self.thermo_source.calc_dH_rxns_LIQ(
             temperature=temperature
         )
 

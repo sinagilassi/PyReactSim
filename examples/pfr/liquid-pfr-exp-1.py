@@ -13,7 +13,7 @@ from pyreactsim.models import PFRReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 # NOTE: example-specific imports
 # from examples.source.liquid_model_source_exp_1 import model_source
-from examples.rates.rate_exp_6 import components, reaction_rates, model_source
+from examples.rates.rate_exp_8 import components, reaction_rates, model_source
 from examples.plot.plot_res import plot_pfr_reactor_result
 
 # NOTE: example source and kinetics
@@ -30,7 +30,7 @@ print(ptdb.__version__)
 print(ptdblink.__version__)
 
 # NOTE: silence library warnings/errors for this example run
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
 for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
@@ -193,7 +193,7 @@ print(_reactor)
 simulation_results = _reactor.simulate(
     volume_span=(0, reactor_volume.value),
     solver_options={
-        "method": "BDF",
+        "method": "Radau",
         "rtol": 1e-6,
         "atol": 1e-9,
         # "max_step": 0.1,

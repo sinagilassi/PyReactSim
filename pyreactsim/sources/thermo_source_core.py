@@ -119,6 +119,12 @@ class ThermoSourceCore(ThermoCalc):
         self.phase = reactor_options.phase
         # ! density mode
         self.liquid_density_mode = reactor_options.liquid_density_mode
+        # ! ideal gas enthalpy of formation mode
+        self.ideal_gas_formation_enthalpy_mode = reactor_options.ideal_gas_formation_enthalpy_mode
+        # ! molecular weight mode
+        self.molecular_weight_mode = reactor_options.molecular_weight_mode
+        # ! reaction enthalpy mode
+        self.reaction_enthalpy_mode = reactor_options.reaction_enthalpy_mode
 
         # SECTION: heat transfer options
         # ! heat transfer mode
@@ -928,7 +934,47 @@ class ThermoSourceCore(ThermoCalc):
 
         return res, res_array
 
+    # SECTION: Reaction Enthalpy calculations (liquid phase)
+    def calc_dH_rxns_LIQ(
+            self,
+            temperature: Temperature,
+    ):
+        """
+        Calculate the reaction enthalpies (ΔH) for the reactions in the liquid phase reactor.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            The temperature at which to calculate the reaction enthalpies (ΔH) for the reactions in the liquid phase  reactor.
+
+        Returns
+        -------
+        np.ndarray
+            An array of reaction enthalpies (ΔH) for the reactions in the liquid phase reactor, calculated at the specified temperature.
+        """
+        # NOTE: calculate based on reaction enthalpy mode
+        if self.reaction_enthalpy_mode == "ideal_gas":
+            # NOTE: calculate reaction enthalpies using ideal gas reference state
+            dH_rxns = self.calc_dH_rxns_IG_ref(
+                temperature=temperature
+            )
+        elif self.reaction_enthalpy_mode == "liquid":
+            # NOTE: calculate reaction enthalpies using liquid phase enthalpy
+            # dH_rxns = self.calc_dH_rxns_LIQ_real(
+            #     temperature=temperature
+            # )
+            raise NotImplementedError(
+                "Calculation of reaction enthalpies using liquid phase enthalpy is not implemented yet."
+            )
+        else:
+            raise ValueError(
+                f"Invalid reaction_enthalpy_mode '{self.reaction_enthalpy_mode}'. Must be 'ideal_gas' or 'liquid'."
+            )
+
+        return dH_rxns
+
     # ! Calculate reaction enthalpies (ΔH) for reactions at temperature T using ideal gas reference state
+
     def calc_dH_rxns_IG_ref(
             self,
             temperature: Temperature,

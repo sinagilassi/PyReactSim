@@ -67,3 +67,7 @@ class ReactorOptions(BaseModel):
         default="model_source",
         description="Source of molecular weight as model_inputs or model_source."
     )
+    reaction_enthalpy_mode: Optional[Literal['ideal_gas', 'liquid']] = Field(
+        default="ideal_gas",
+        description="Mode for reaction enthalpy calculation as ideal_gas or liquid."
+    )
