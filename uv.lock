@@ -903,7 +903,7 @@ requires-dist = [
 
 [[package]]
 name = "pythermocalcdb"
-version = "0.8.0"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pycuc" },
@@ -916,9 +916,9 @@ dependencies = [
     { name = "rich" },
     { name = "scipy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b9/11/42cecd295aba50a22cd3a09a3e576989fc6c4cc3ac801c9a3fb82689039f/pythermocalcdb-0.8.0.tar.gz", hash = "sha256:9143eaadc5909cf6195819017750c6070cc2b7e9996f3e1a767ef156e8262231", size = 62125, upload-time = "2026-04-01T06:07:29.316Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ac/4a/a7db7b3f32a205bbd0d499b26f5e77813e04fcd7eb7963787d5188f66bc7/pythermocalcdb-0.9.0.tar.gz", hash = "sha256:e84bf8d45780c82e6bc95a58da1921ac6562e8af186eef5eca47ac1dc4571046", size = 63454, upload-time = "2026-04-11T01:55:27.957Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ab/d8/c0d41c56760c01bd45322386cbc59c8b43d1d7f6a6e79d5542adc93e017f/pythermocalcdb-0.8.0-py3-none-any.whl", hash = "sha256:30849b60ab0933aa377df7779106bb3fbd73452b8c728fa44093d94382a968af", size = 77447, upload-time = "2026-04-01T06:07:28.368Z" },
+    { url = "https://files.pythonhosted.org/packages/fa/18/391365395745b06ddaec4763ee766a334d43174b2149a3980e3c29d0c701/pythermocalcdb-0.9.0-py3-none-any.whl", hash = "sha256:c1d81bb0652b9cd4695654404bd37fe5631ff60f2eb0a939cc54449510d812c3", size = 78801, upload-time = "2026-04-11T01:55:27.034Z" },
 ]
 
 [[package]]
