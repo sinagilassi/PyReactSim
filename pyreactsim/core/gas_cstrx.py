@@ -20,8 +20,8 @@ class GasCSTRReactorX(GasCSTRReactor):
         # Species scales based on initial moles with protective floor.
         self.N_scale = np.maximum(self.N0.astype(float), 1e-8)
 
-        # Temperature deviation scale.
-        self.T_ref = float(self._T0)
+        # T_scale_ref is the numerical scaling center, not thermodynamic reference state.
+        self.T_scale_ref = float(self._T0)
         self.T_scale = 100.0  # K
 
     def build_y0_scaled(self) -> np.ndarray:
@@ -32,7 +32,7 @@ class GasCSTRReactorX(GasCSTRReactor):
         y0_parts = [n0_scaled]
 
         if self.heat_transfer_mode == "non-isothermal":
-            theta0 = (float(self._T0) - self.T_ref) / self.T_scale
+            theta0 = (float(self._T0) - self.T_scale_ref) / self.T_scale
             y0_parts.append(np.array([theta0], dtype=float))
 
         if len(y0_parts) == 1:
@@ -52,7 +52,7 @@ class GasCSTRReactorX(GasCSTRReactor):
 
         if self.heat_transfer_mode == "non-isothermal":
             theta = float(y_scaled[ns])
-            temp = self.T_ref + self.T_scale * theta
+            temp = self.T_scale_ref + self.T_scale * theta
             temp = float(smooth_floor(temp, xmin=1.0, s=1e-3))
         else:
             temp = float(self._T0)

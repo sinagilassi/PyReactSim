@@ -20,8 +20,8 @@ class LiquidPFRReactorX(LiquidPFRReactor):
         # Species scaling from inlet component molar flows.
         self.F_scale = np.maximum(self.F_in.astype(float), 1e-8)
 
-        # Temperature scaling as deviation from inlet temperature.
-        self.T_ref = float(self._T_in)
+        # T_scale_ref is the numerical scaling center, not thermodynamic reference state.
+        self.T_scale_ref = float(self._T_in)
         self.T_scale = 100.0  # K
 
     def build_y0_scaled(self) -> np.ndarray:
@@ -32,7 +32,7 @@ class LiquidPFRReactorX(LiquidPFRReactor):
         y0_parts = [f0_scaled]
 
         if self.heat_transfer_mode == "non-isothermal":
-            theta0 = (float(self._T_in) - self.T_ref) / self.T_scale
+            theta0 = (float(self._T_in) - self.T_scale_ref) / self.T_scale
             y0_parts.append(np.array([theta0], dtype=float))
 
         if len(y0_parts) == 1:
@@ -52,7 +52,7 @@ class LiquidPFRReactorX(LiquidPFRReactor):
 
         if self.heat_transfer_mode == "non-isothermal":
             theta = float(y_scaled[ns])
-            temp = self.T_ref + self.T_scale * theta
+            temp = self.T_scale_ref + self.T_scale * theta
             temp = float(smooth_floor(temp, xmin=1.0, s=1e-3))
         else:
             temp = float(self._T_in)
