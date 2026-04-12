@@ -31,6 +31,7 @@ class PBRReactor:
     ):
         self.model_inputs = model_inputs
         self.thermo_source = thermo_source
+        self.reactor_kwargs = kwargs
 
         self.components = thermo_source.components
         self.component_refs = thermo_source.component_refs
@@ -97,6 +98,7 @@ class PBRReactor:
                 thermo_source=self.thermo_source,
                 pbr_reactor_core=self.pbr_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
+                **self.reactor_kwargs,
             )
         elif (
             self.phase == "gas" and
@@ -108,6 +110,7 @@ class PBRReactor:
                 thermo_source=self.thermo_source,
                 pbr_reactor_core=self.pbr_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
+                **self.reactor_kwargs,
             )
         elif (
             self.phase == "liquid" and
@@ -119,6 +122,7 @@ class PBRReactor:
                 thermo_source=self.thermo_source,
                 pbr_reactor_core=self.pbr_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
+                **self.reactor_kwargs,
             )
         elif (
             self.phase == "liquid" and
@@ -130,6 +134,7 @@ class PBRReactor:
                 thermo_source=self.thermo_source,
                 pbr_reactor_core=self.pbr_reactor_core,
                 component_key=cast(ComponentKey, self.component_key),
+                **self.reactor_kwargs,
             )
 
         raise NotImplementedError(

@@ -1,4 +1,5 @@
 import logging
+import time
 import numpy as np
 from typing import Dict, List, Optional
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Temperature
@@ -6,7 +7,7 @@ from pythermodb_settings.models import Component, ComponentKey, CustomProperty, 
 from ..models.rate_exp import ReactionRateExpression
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
-from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
+from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key, calc_residence_time
 from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity
 from .pbrc import PBRReactorCore
 
@@ -76,22 +77,66 @@ class LiquidPBRReactor:
         self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: inlet and reactor geometry
+        # ! feed flow rate [mol/s]
         self._F_in = pbr_reactor_core._F_in
+
+        # ! inlet temperature [K]
         self.temperature_in = pbr_reactor_core.temperature_inlet
         self._T_in = pbr_reactor_core._T_in
+
+        # ! reactor volume [m3]
         self._Vr = pbr_reactor_core.reactor_volume_value
 
+        # ! inlet liquid density [g/m3]
         self._rho_LIQ_in = self.thermo_source.calc_rho_LIQ(
             temperature=self.temperature_in
         )
+
+        # ! inlet volumetric flow rate [m3/s] from closure
         self._q_in = self.thermo_source.calc_liquid_volumetric_flow_rate(
             molar_flow_rates=self._F_in,
             molecular_weights=self.thermo_source.MW,
             density=self._rho_LIQ_in
         )
 
+        # ! inlet concentration [mol/m3] from closure
+        self._C_in = self._F_in / self._q_in
+
+        # NOTE: residence time
+        self.residence_time = calc_residence_time(
+            volume=self._Vr,
+            volumetric_flow_rate=self._q_in
+        )
+
         # SECTION: final configuration checks
         self.pbr_reactor_core.config_model()
+
+        # SECTION: rhs logging configuration
+        # Use `rhs_log_interval` (or `log_v_interval`) to log once every X in V.
+        log_interval = kwargs.get(
+            "rhs_log_interval", kwargs.get("log_v_interval"))
+        if log_interval is None:
+            self.rhs_log_interval: Optional[float] = None
+        else:
+            self.rhs_log_interval = float(log_interval)
+            if self.rhs_log_interval < 0.0:
+                raise ValueError("rhs_log_interval must be >= 0.")
+
+        enabled_default = self.rhs_log_interval is not None
+        self.rhs_log_enabled = bool(
+            kwargs.get("rhs_log_enabled", kwargs.get(
+                "enable_rhs_logging", enabled_default))
+        )
+        self.rhs_log_level = int(kwargs.get("rhs_log_level", logging.INFO))
+        self.rhs_log_timing_enabled = bool(
+            kwargs.get("rhs_log_timing_enabled", True)
+        )
+        self._rhs_next_log_v: Optional[float] = None
+        self._rhs_last_v: Optional[float] = None
+        self._rhs_log_active = False
+        self._rhs_log_v: Optional[float] = None
+        self._rhs_wall_t0: Optional[float] = None
+        self._rhs_last_log_wall: Optional[float] = None
 
     @property
     def F_in(self) -> np.ndarray:
@@ -113,6 +158,102 @@ class LiquidPBRReactor:
             return f0
         return np.concatenate([f0, np.array([float(self._T_in)], dtype=float)])
 
+    def configure_rhs_logging(
+        self,
+        interval: Optional[float],
+        enabled: bool = True,
+        level: int = logging.INFO,
+        timing_enabled: bool = True
+    ) -> None:
+        """
+        Configure rhs logging cadence.
+
+        Parameters
+        ----------
+        interval : Optional[float]
+            Log cadence in solver volume units. If None, logging is disabled.
+            If 0.0, log every rhs call.
+        enabled : bool
+            Enable/disable logging.
+        level : int
+            Python logging level.
+        timing_enabled : bool
+            Include wall-clock timing fields in each rhs log line.
+        """
+        if interval is None:
+            self.rhs_log_interval = None
+            self.rhs_log_enabled = False
+        else:
+            interval = float(interval)
+            if interval < 0.0:
+                raise ValueError("interval must be >= 0.")
+            self.rhs_log_interval = interval
+            self.rhs_log_enabled = bool(enabled)
+
+        self.rhs_log_level = int(level)
+        self.rhs_log_timing_enabled = bool(timing_enabled)
+        self._rhs_next_log_v = None
+        self._rhs_last_v = None
+        self._rhs_log_active = False
+        self._rhs_log_v = None
+        self._rhs_wall_t0 = None
+        self._rhs_last_log_wall = None
+
+    def _should_log_rhs(self, v: float) -> bool:
+        if not self.rhs_log_enabled:
+            return False
+
+        interval = self.rhs_log_interval
+        if interval is None:
+            return False
+
+        v = float(v)
+        tol = 1e-12
+
+        # Some solvers can revisit lower V values (rejected/restarted step).
+        if self._rhs_last_v is not None and v < (self._rhs_last_v - tol):
+            self._rhs_next_log_v = None
+        self._rhs_last_v = v
+
+        if interval == 0.0:
+            return True
+
+        if self._rhs_next_log_v is None:
+            self._rhs_next_log_v = v
+
+        if v + tol < self._rhs_next_log_v:
+            return False
+
+        while self._rhs_next_log_v is not None and self._rhs_next_log_v <= (v + tol):
+            self._rhs_next_log_v += interval
+
+        return True
+
+    def _log_rhs(self, section: str, **fields: object) -> None:
+        if not self._rhs_log_active:
+            return
+        v_now = 0.0 if self._rhs_log_v is None else self._rhs_log_v
+        if self.rhs_log_timing_enabled:
+            now = time.perf_counter()
+            if self._rhs_wall_t0 is None:
+                self._rhs_wall_t0 = now
+            if self._rhs_last_log_wall is None:
+                self._rhs_last_log_wall = self._rhs_wall_t0
+
+            elapsed_ms = (now - self._rhs_wall_t0) * 1e3
+            step_ms = (now - self._rhs_last_log_wall) * 1e3
+            self._rhs_last_log_wall = now
+            fields = {"step_ms": step_ms, "elapsed_ms": elapsed_ms, **fields}
+
+        if fields:
+            details = ", ".join(f"{k}={v}" for k, v in fields.items())
+            logger.log(
+                self.rhs_log_level,
+                "rhs[V=%.6g] %s | %s", v_now, section, details
+            )
+        else:
+            logger.log(self.rhs_log_level, "rhs[V=%.6g] %s", v_now, section)
+
     def rhs(
             self,
             V: float,
@@ -132,6 +273,14 @@ class LiquidPBRReactor:
         - Converted reactor-volume rate: r_V = rho_B * r' [mol/m3.s]
         """
         ns = self.component_num
+        self._rhs_log_active = self._should_log_rhs(V)
+        self._rhs_log_v = float(V) if self._rhs_log_active else None
+        if self._rhs_log_active:
+            self._rhs_wall_t0 = time.perf_counter()
+            self._rhs_last_log_wall = self._rhs_wall_t0
+        else:
+            self._rhs_wall_t0 = None
+            self._rhs_last_log_wall = None
 
         # SECTION: unpack state vector
         # ! species states: component molar flows [mol/s]
@@ -144,11 +293,14 @@ class LiquidPBRReactor:
             temp = float(self._T_in)
         # >>> set
         temperature = Temperature(value=temp, unit="K")
+        self._log_rhs(
+            "rhs.start", heat_transfer_mode=self.heat_transfer_mode, ns=ns, temp=temp)
 
         # NOTE: density
         rho_LIQ = self.thermo_source.calc_rho_LIQ(
             temperature=temperature
         )
+        self._log_rhs("rhs.density")
 
         # NOTE: volumetric flow rate from closure
         # ! volumetric flow from selected liquid closure [m3/s]
@@ -158,6 +310,7 @@ class LiquidPBRReactor:
         )
         # >> avoid zero or negative volumetric flow for concentration calculation
         q_vol = max(q_vol, 1e-30)
+        self._log_rhs("rhs.flow", q_vol=float(q_vol))
 
         # ! concentration from flow form: C_i = F_i / Q [mol/m3]
         concentration = F / q_vol
@@ -168,6 +321,7 @@ class LiquidPBRReactor:
                 value=concentration[i], unit="mol/m3", symbol="C")
             for i, sp in enumerate(self.component_formula_state)
         }
+        self._log_rhs("rhs.concentration")
 
         # SECTION: kinetics evaluation
         # NOTE: raw rates are catalyst-mass basis r' [mol/kg.s]
@@ -177,11 +331,20 @@ class LiquidPBRReactor:
             temperature=temperature,
             args=self.rho_B_arg
         )
+        self._log_rhs("rhs.rates", rates=np.asarray(
+            rates_v, dtype=float).tolist())
 
         # SECTION: species balance
         dF_dV = self._build_dF_dV(rates=rates_v)
+        self._log_rhs("rhs.dF_dV", dF_dV=np.asarray(
+            dF_dV, dtype=float).tolist())
 
         if self.heat_transfer_mode == "isothermal":
+            self._log_rhs("rhs.end_isothermal")
+            self._rhs_log_active = False
+            self._rhs_log_v = None
+            self._rhs_wall_t0 = None
+            self._rhs_last_log_wall = None
             return dF_dV
 
         # SECTION: energy balance (optional)
@@ -190,8 +353,15 @@ class LiquidPBRReactor:
             rates_v=rates_v,
             temp=temp
         )
+        self._log_rhs("rhs.dT_dV", dT_dV=float(dT_dV))
         # NOTE: concatenate species and thermal derivatives for non-isothermal mode
-        return np.concatenate([dF_dV, np.array([dT_dV], dtype=float)])
+        out = np.concatenate([dF_dV, np.array([dT_dV], dtype=float)])
+        self._log_rhs("rhs.end_nonisothermal")
+        self._rhs_log_active = False
+        self._rhs_log_v = None
+        self._rhs_wall_t0 = None
+        self._rhs_last_log_wall = None
+        return out
 
     def _calc_q_liquid(
             self,
@@ -225,9 +395,12 @@ class LiquidPBRReactor:
         - constant_pressure: Q = Q(F, T) from density/molecular-weight mixing
         """
         if self.operation_mode == "constant_volume":
+            self._log_rhs("_calc_q_vol.constant_volume")
             return float(self._q_in)
         if self.operation_mode == "constant_pressure":
-            return float(self._calc_q_liquid(flow=F, rho_LIQ=rho_LIQ))
+            q = float(self._calc_q_liquid(flow=F, rho_LIQ=rho_LIQ))
+            self._log_rhs("_calc_q_vol.constant_pressure", q=float(q))
+            return q
         raise ValueError(
             f"Invalid operation_mode '{self.operation_mode}' for liquid PBR."
         )
@@ -268,7 +441,9 @@ class LiquidPBRReactor:
             # set converted rate on reactor-volume basis r_V [mol/m3.s]
             rates.append(float(r_k.value))
 
-        return np.array(rates, dtype=float)
+        rates_array = np.array(rates, dtype=float)
+        self._log_rhs("_calc_rates", n_reactions=len(rates_array))
+        return rates_array
 
     def _build_dF_dV(self, rates: np.ndarray) -> np.ndarray:
         """
@@ -287,6 +462,7 @@ class LiquidPBRReactor:
                 i = self.component_id_to_index[sp_name]
                 dF_dV[i] += nu_ik * r_k
 
+        self._log_rhs("_build_dF_dV")
         return dF_dV
 
     def _build_dT_dV(
@@ -310,6 +486,9 @@ class LiquidPBRReactor:
             temperature=temperature
         )
         cp_flow = calc_total_heat_capacity(x=F, cp=cp_liq_values)
+        self._log_rhs("_build_dT_dV.Cp", cp_liq_values=np.asarray(
+            cp_liq_values, dtype=float).tolist())
+        self._log_rhs("_build_dT_dV.Cp_flow", cp_flow=float(cp_flow))
         if cp_flow <= 1e-16:
             raise ValueError(
                 "Total flowing liquid heat capacity is too small or zero."
@@ -319,12 +498,17 @@ class LiquidPBRReactor:
         delta_h = self.thermo_source.calc_dH_rxns_LIQ(
             temperature=temperature
         )
+        self._log_rhs(
+            "_build_dT_dV.delta_h",
+            delta_h=np.asarray(delta_h, dtype=float).tolist()
+        )
 
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
             rates=rates_v,
             reactor_volume=1.0
         )
+        self._log_rhs("_build_dT_dV.q_rxn", q_rxn=float(q_rxn))
 
         # NOTE: jacket/surrounding heat exchange [W/m3]
         # ! Q_exchange = U A (T - T_jacket) / V
@@ -339,10 +523,14 @@ class LiquidPBRReactor:
                 heat_transfer_coefficient=self.heat_transfer_coefficient_value,
                 reactor_volume=self._Vr
             )
+        self._log_rhs("_build_dT_dV.q_exchange", q_exchange=float(q_exchange))
 
         # NOTE: user-defined constant heat source [W/m3]
         q_constant = 0.0
         if self.heat_rate_value:
             q_constant = self.heat_rate_value / self._Vr
+        self._log_rhs("_build_dT_dV.q_constant", q_constant=float(q_constant))
 
-        return (q_rxn + q_exchange + q_constant) / cp_flow
+        dT_dV = (q_rxn + q_exchange + q_constant) / cp_flow
+        self._log_rhs("_build_dT_dV.result", dT_dV=float(dT_dV))
+        return dT_dV

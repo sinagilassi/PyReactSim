@@ -12,8 +12,7 @@ from pyreactsim import PBRReactor, create_pbr_reactor
 from pyreactsim.models import PFRReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 # NOTE: example-specific imports
-# from examples.source.liquid_model_source_exp_1 import model_source
-from examples.rates.esterification_acetic_acid_1 import components, reaction_rates, model_source
+from examples.rates.esterification_acetic_acid_2 import components, reaction_rates, model_source
 from examples.plot.plot_res import plot_pbr_reactor_result
 
 # NOTE: example source and kinetics
@@ -85,6 +84,8 @@ constant_gas_heat_capacity = {
     "H2O-l": CustomProp(value=75.3, unit="J/mol.K"),   # water
     "CH3COOH-l": CustomProp(value=75.3, unit="J/mol.K"),  # acetic acid
     "C3H6O2-l": CustomProp(value=75.3, unit="J/mol.K"),  # methyl acetate
+    "H2": CustomProp(value=28.8, unit="J/mol.K"),  # hydrogen
+    "C2H5OH-l": CustomProp(value=75.3, unit="J/mol.K"),  # ethanol
 }
 
 # NOTE: optional constant liquid heat capacities [J/mol.K]
@@ -93,6 +94,8 @@ constant_liquid_heat_capacity = {
     "H2O-l": CustomProp(value=75.3, unit="J/mol.K"),   # water
     "CH3COOH-l": CustomProp(value=138.0, unit="J/mol.K"),  # acetic acid
     "C3H6O2-l": CustomProp(value=120.0, unit="J/mol.K"),  # methyl acetate
+    "H2": CustomProp(value=28.8, unit="J/mol.K"),  # hydrogen
+    "C2H5OH-l": CustomProp(value=112.4, unit="J/mol.K"),  # ethanol
 }
 
 # NOTE: constant liquid density (rho_LIQ) for the system in kg/m3
@@ -101,6 +104,8 @@ constant_liquid_density = {
     "H2O-l": CustomProp(value=997.0, unit="kg/m3"),   # water
     "CH3COOH-l": CustomProp(value=1049.0, unit="kg/m3"),  # acetic acid
     "C3H6O2-l": CustomProp(value=932.0, unit="kg/m3"),  # methyl acetate
+    "H2": CustomProp(value=0.08988, unit="kg/m3"),  # hydrogen
+    "C2H5OH-l": CustomProp(value=789.0, unit="kg/m3"),  # ethanol
 }
 
 # ! thermo inputs
@@ -143,20 +148,14 @@ inlet_temperature = Temperature(
     unit="K",
 )
 
-# NOTE: initial reactor holdup moles [mol]
-initial_mole = {
-    "CH3COOH-l": CustomProp(value=100.0, unit="mol"),  # acetic acid
-    "CH3OH-l": CustomProp(value=100.0, unit="mol"),  # methanol
-    "C3H6O2-l": CustomProp(value=0.0, unit="mol"),  # methyl acetate
-    "H2O-l": CustomProp(value=0.0, unit="mol"),  # water
-}
-
 # NOTE: feed component molar flow rates [mol/s]
 feed_mole_flow = {
     "CH3COOH-l": CustomProp(value=0.10, unit="mol/s"),  # acetic acid
     "CH3OH-l": CustomProp(value=0.10, unit="mol/s"),  # methanol
     "C3H6O2-l": CustomProp(value=0.0, unit="mol/s"),  # methyl acetate
     "H2O-l": CustomProp(value=0.0, unit="mol/s"),  # water
+    "H2": CustomProp(value=0.02, unit="mol/s"),  # hydrogen
+    "C2H5OH-l": CustomProp(value=0.0, unit="mol/s"),  # ethanol
 }
 
 # NOTE: model inputs for CSTR

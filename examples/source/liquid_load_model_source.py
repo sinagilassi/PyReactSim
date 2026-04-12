@@ -68,6 +68,20 @@ C3H6O2 = Component(
     state='l',
 )
 
+# hydrogen
+H2 = Component(
+    name='hydrogen',
+    formula='H2',
+    state='l',
+)
+
+# ethanol
+C2H5OH = Component(
+    name='ethanol',
+    formula='C2H5OH',
+    state='l',
+)
+
 # =======================================
 # SECTION: 🌍 LOAD THERMODB
 # =======================================
@@ -77,6 +91,8 @@ CH3OH_thermodb_file = os.path.join(thermodb_dir, 'methanol.pkl')
 H2O_thermodb_file = os.path.join(thermodb_dir, 'water.pkl')
 CH3COOH_thermodb_file = os.path.join(thermodb_dir, 'acetic acid.pkl')
 C3H6O2_thermodb_file = os.path.join(thermodb_dir, 'methyl acetate.pkl')
+H2_thermodb_file = os.path.join(thermodb_dir, 'hydrogen.pkl')
+C2H5OH_thermodb_file = os.path.join(thermodb_dir, 'ethanol.pkl')
 
 # =======================================
 # SECTION: create thermodb source
@@ -102,6 +118,16 @@ C3H6O2_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
     source=C3H6O2_thermodb_file
 )
 
+H2_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
+    component=H2,
+    source=H2_thermodb_file
+)
+
+C2H5OH_thermodb: ComponentThermoDBSource = ComponentThermoDBSource(
+    component=C2H5OH,
+    source=C2H5OH_thermodb_file
+)
+
 # ====================================================
 # SECTION: build model source
 # ====================================================
@@ -111,7 +137,9 @@ model_source: ModelSource = load_and_build_model_source(
         CH3OH_thermodb,
         H2O_thermodb,
         CH3COOH_thermodb,
-        C3H6O2_thermodb
+        C3H6O2_thermodb,
+        H2_thermodb,
+        C2H5OH_thermodb,
     ],
     original_equation_label=False
 )

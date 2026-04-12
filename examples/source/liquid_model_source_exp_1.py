@@ -62,9 +62,22 @@ C3H6O2 = Component(
     state='l',
 )
 
+# hydrogen
+H2 = Component(
+    name='hydrogen',
+    formula='H2',
+    state='l',
+)
+
+# ethanol
+C2H5OH = Component(
+    name='ethanol',
+    formula='C2H5OH',
+    state='l',
+)
 
 # components
-components = [CH3OH, H2O, CH3COOH, C3H6O2]
+components = [CH3OH, H2O, CH3COOH, C3H6O2, H2, C2H5OH]
 
 # NOTE: ignore state properties
 ignore_state_props = ['MW', 'VaPr', 'Cp_IG', 'Cp_LIQ', 'rho_LIQ', 'EnVap']

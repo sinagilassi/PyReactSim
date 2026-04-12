@@ -107,3 +107,33 @@ def stoichiometry_mat_key(
     except Exception as e:
         logger.error(f"Error in generating stoichiometry matrix: {e}")
         raise
+
+
+# SECTION: Calculate residence time (space time)
+def calc_residence_time(
+        volume: float,
+        volumetric_flow_rate: float
+) -> float:
+    """
+    Calculate the residence time (space time) for a reactor given its volume and volumetric flow rate.
+
+    Parameters
+    ----------
+    volume : float
+        The volume of the reactor (in cubic meters).
+    volumetric_flow_rate : float
+        The volumetric flow rate of the feed (in cubic meters per second).
+
+    Returns
+    -------
+    float
+        The residence time (space time) in seconds.
+    """
+    try:
+        if volumetric_flow_rate <= 0:
+            raise ValueError("Volumetric flow rate must be greater than zero.")
+        residence_time = volume / volumetric_flow_rate
+        return residence_time
+    except Exception as e:
+        logger.error(f"Error in calculating residence time: {e}")
+        raise
