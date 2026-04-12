@@ -50,6 +50,12 @@ The main reactor workflows follow the same pattern:
 
 If you want to know how each method is configured in practice (options, model inputs, and solver setup), use the example scripts above as the reference.
 
+## Examples
+
+You can also run PyReactSim examples in Google Colab:
+
+- [PyReactSim Colab Examples](https://colab.research.google.com/drive/1_2MVP6EFmcIkqMsNfHG0OybHczuerZVH?usp=sharing)
+
 ## 🤝 Contributing
 
 Contributions are highly welcome — bug fixes, new calculation routines, mixture models, extended unit tests, documentation, etc.
