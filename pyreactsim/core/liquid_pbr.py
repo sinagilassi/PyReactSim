@@ -327,7 +327,10 @@ class LiquidPBRReactor:
         )
 
         # NOTE: jacket/surrounding heat exchange [W/m3]
+        # ! Q_exchange = U A (T - T_jacket) / V
         q_exchange = 0.0
+
+        # >> check
         if self.heat_exchange:
             q_exchange = calc_heat_exchange(
                 temperature=temp,

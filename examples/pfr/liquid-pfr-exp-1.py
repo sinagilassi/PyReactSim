@@ -13,7 +13,7 @@ from pyreactsim.models import PFRReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 # NOTE: example-specific imports
 # from examples.source.liquid_model_source_exp_1 import model_source
-from examples.rates.rate_exp_8_updated import components, reaction_rates, model_source
+from examples.rates.esterification_acetic_acid_1 import components, reaction_rates, model_source
 from examples.plot.plot_res import plot_pfr_reactor_result
 
 # NOTE: example source and kinetics
@@ -115,7 +115,7 @@ thermo_inputs = {
 # ====================================================
 # NOTE: fixed reactor holdup volume [m3]
 reactor_volume = Volume(
-    value=3.0,
+    value=0.05,
     unit="m3",
 )
 
@@ -193,10 +193,10 @@ print(_reactor)
 simulation_results = _reactor.simulate(
     volume_span=(0, reactor_volume.value),
     solver_options={
-        "method": "BDF",
+        "method": "Radau",
         "rtol": 1e-6,
         "atol": 1e-9,
-        "max_step": 0.001,
+        # "max_step": 0.001,
     },
     mode="log"
 )

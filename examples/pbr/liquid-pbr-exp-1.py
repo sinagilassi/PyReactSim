@@ -8,13 +8,13 @@ import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
 from pythermodb_settings.models import CustomProp, Temperature, Volume
 # locals
-from pyreactsim import CSTRReactor, create_cstr_reactor
-from pyreactsim.models import CSTRReactorOptions, HeatTransferOptions
+from pyreactsim import PBRReactor, create_pbr_reactor
+from pyreactsim.models import PFRReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 # NOTE: example-specific imports
-from examples.source.liquid_model_source_exp_1 import model_source
-from examples.rates.rate_exp_6 import components, reaction_rates
-from examples.plot.plot_res import plot_cstr_reactor_result
+# from examples.source.liquid_model_source_exp_1 import model_source
+from examples.rates.esterification_acetic_acid_2 import components, reaction_rates, model_source
+from examples.plot.plot_res import plot_pbr_reactor_result
 
 # NOTE: example source and kinetics
 # ! add project root and examples root to import path for standalone script execution
@@ -30,9 +30,9 @@ print(ptdb.__version__)
 print(ptdblink.__version__)
 
 # NOTE: silence library warnings/errors for this example run
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
-for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactsim", "pyreactlab_core"):
+for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
 
 # ====================================================
@@ -59,11 +59,10 @@ heat_transfer_area = CustomProp(
 )
 
 # NOTE: reactor options for thermo/source compatibility
-cstr_reactor_options = CSTRReactorOptions(
+cstr_reactor_options = PFRReactorOptions(
+    modeling_type="scale",
     phase="liquid",
     operation_mode="constant_volume",
-    holdup_volume_mode="fixed",
-    outlet_flow_mode="calculated",
     gas_heat_capacity_mode="temperature-dependent",
     liquid_heat_capacity_mode='temperature-dependent',
     liquid_density_mode='constant',
@@ -72,16 +71,29 @@ cstr_reactor_options = CSTRReactorOptions(
 # NOTE: heat transfer options
 heat_transfer_options = HeatTransferOptions(
     heat_transfer_mode="non-isothermal",
-    heat_transfer_coefficient=None,
-    heat_transfer_area=None,
-    jacket_temperature=None,
+    heat_transfer_coefficient=heat_transfer_coefficient,
+    heat_transfer_area=heat_transfer_area,
+    jacket_temperature=jacket_temperature,
 )
 
 # ====================================================
 # SECTION: thermo inputs
 # ====================================================
 # NOTE: optional constant gas heat capacities [J/mol.K]
-constant_gas_heat_capacity = {}
+constant_gas_heat_capacity = {
+    "CH3OH-l": CustomProp(value=75.3, unit="J/mol.K"),  # methanol
+    "H2O-l": CustomProp(value=75.3, unit="J/mol.K"),   # water
+    "CH3COOH-l": CustomProp(value=75.3, unit="J/mol.K"),  # acetic acid
+    "C3H6O2-l": CustomProp(value=75.3, unit="J/mol.K"),  # methyl acetate
+}
+
+# NOTE: optional constant liquid heat capacities [J/mol.K]
+constant_liquid_heat_capacity = {
+    "CH3OH-l": CustomProp(value=81.1, unit="J/mol.K"),  # methanol
+    "H2O-l": CustomProp(value=75.3, unit="J/mol.K"),   # water
+    "CH3COOH-l": CustomProp(value=138.0, unit="J/mol.K"),  # acetic acid
+    "C3H6O2-l": CustomProp(value=120.0, unit="J/mol.K"),  # methyl acetate
+}
 
 # NOTE: constant liquid density (rho_LIQ) for the system in kg/m3
 constant_liquid_density = {
@@ -93,7 +105,8 @@ constant_liquid_density = {
 
 # ! thermo inputs
 thermo_inputs = {
-    # "gas_heat_capacity": constant_gas_heat_capacity,
+    "gas_heat_capacity": constant_gas_heat_capacity,
+    "liquid_heat_capacity": constant_liquid_heat_capacity,
     "liquid_density": constant_liquid_density,
 }
 
@@ -102,8 +115,14 @@ thermo_inputs = {
 # ====================================================
 # NOTE: fixed reactor holdup volume [m3]
 reactor_volume = Volume(
-    value=3.0,
+    value=0.05,
     unit="m3",
+)
+
+# NOTE: bulk density for catalyst mass to volume conversion [kg/m3]
+bulk_density = CustomProp(
+    value=650.0,
+    unit="kg/m3",
 )
 
 # NOTE: pressure
@@ -140,22 +159,17 @@ feed_mole_flow = {
     "H2O-l": CustomProp(value=0.0, unit="mol/s"),  # water
 }
 
-# NOTE: outlet total molar flow [mol/s]
-# outlet_mole_flow_total = CustomProp(
-#     value=0.20,
-#     unit="mol/s",
-# )
-
 # NOTE: model inputs for CSTR
 # ! constant volume
 model_inputs = {
-    "initial_mole": initial_mole,
     "inlet_flows": feed_mole_flow,
     "reactor_volume": reactor_volume,
-    "initial_temperature": initial_temperature,
     "inlet_temperature": inlet_temperature,
-    "pressure": pressure,
+    "inlet_pressure": pressure,
+    "bulk_density": bulk_density,
 }
+
+print("[bold green]Model inputs successfully defined![/bold green]")
 
 # ====================================================
 # SECTION: build thermo source
@@ -175,28 +189,30 @@ print(thermo_source)
 # ====================================================
 # SECTION: create cstr reactor
 # ====================================================
-cstr_reactor: CSTRReactor = create_cstr_reactor(
+_reactor: PBRReactor = create_pbr_reactor(
     model_inputs=model_inputs,
     thermo_source=thermo_source,
 )
-print("[bold green]CSTR reactor successfully created![/bold green]")
-print(cstr_reactor)
+print("[bold green]reactor successfully created![/bold green]")
+print(_reactor)
 
 # NOTE: simulate CSTR
-simulation_results = cstr_reactor.simulate(
-    time_span=(0, 150.0),
+simulation_results = _reactor.simulate(
+    volume_span=(0, reactor_volume.value),
     solver_options={
-        "method": "BDF",
-        "rtol": 1e-6,
-        "atol": 1e-9,
-    }
+        "method": "Radau",
+        "rtol": 1e-8,
+        "atol": 1e-8,
+        # "max_step": 0.001,
+    },
+    mode="log"
 )
-print("[bold green]CSTR simulation completed![/bold green]")
-print(simulation_results)
+print("[bold green]simulation completed![/bold green]")
+# print(simulation_results)
 
-# NOTE: plot CSTR results
+# NOTE: plot results
 if simulation_results is not None:
-    plot_cstr_reactor_result(
+    plot_pbr_reactor_result(
         result=simulation_results,
         components=components,
     )
