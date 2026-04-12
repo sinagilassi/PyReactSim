@@ -13,7 +13,7 @@ from pyreactsim.models import PFRReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 # NOTE: example-specific imports
 # from examples.source.liquid_model_source_exp_1 import model_source
-from examples.rates.rate_exp_8 import components, reaction_rates, model_source
+from examples.rates.rate_exp_8_updated import components, reaction_rates, model_source
 from examples.plot.plot_res import plot_pfr_reactor_result
 
 # NOTE: example source and kinetics
@@ -63,8 +63,8 @@ cstr_reactor_options = PFRReactorOptions(
     modeling_type="scale",
     phase="liquid",
     operation_mode="constant_volume",
-    gas_heat_capacity_mode="constant",
-    liquid_heat_capacity_mode='constant',
+    gas_heat_capacity_mode="temperature-dependent",
+    liquid_heat_capacity_mode='temperature-dependent',
     liquid_density_mode='constant',
 )
 
@@ -193,10 +193,10 @@ print(_reactor)
 simulation_results = _reactor.simulate(
     volume_span=(0, reactor_volume.value),
     solver_options={
-        "method": "Radau",
+        "method": "BDF",
         "rtol": 1e-6,
         "atol": 1e-9,
-        # "max_step": 0.1,
+        "max_step": 0.001,
     },
     mode="log"
 )
