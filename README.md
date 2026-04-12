@@ -1,6 +1,52 @@
 # PyReactSim
 
+[![PyPI Downloads](https://static.pepy.tech/badge/pyreactsim/month)](https://pepy.tech/projects/pyreactsim)
+![PyPI Version](https://img.shields.io/pypi/v/pyreactsim)
+![Supported Python Versions](https://img.shields.io/pypi/pyversions/pyreactsim.svg)
+![License](https://img.shields.io/pypi/l/pyreactsim)
+
 **PyReactSim** is a Python package for chemical reactor simulation and design. It enables engineers and researchers to model common reactor types such as batch, CSTR, and plug flow reactors, incorporating reaction kinetics, thermodynamics, and transport effects. The initial version focuses on **steady-state simulations**, allowing users to analyze conversion, selectivity, and temperature profiles under different operating conditions. Designed for flexibility and integration, PyReactSim can be used alongside thermodynamic and phase equilibrium tools to build comprehensive reaction and process models, with dynamic simulation capabilities planned for future releases.
+
+## Available Reactor Methods (from examples)
+
+The main reactor workflows follow the same pattern:
+
+1. Define reactor options (`...ReactorOptions`) and heat transfer options.
+2. Build a thermo source with `build_thermo_source(...)`.
+3. Create a reactor using `create_..._reactor(...)`.
+4. Run simulation with `.simulate(...)`.
+
+- `br` (Batch Reactor)
+  - API: `create_batch_reactor(...)` and `BatchReactor.simulate(time_span=..., solver_options=...)`
+  - Typical use: time-domain simulation for closed systems (no inlet/outlet flow during reaction).
+  - Examples:
+    - `examples/batch reactor/gas-batch-exe-1.py`
+    - `examples/batch reactor/liquid-batch-exe-1.py`
+
+- `cstr` (Continuous Stirred-Tank Reactor)
+  - API: `create_cstr_reactor(...)` and `CSTRReactor.simulate(time_span=..., solver_options=...)`
+  - Typical use: dynamic holdup behavior with inlet/outlet streams and mixing assumptions.
+  - Examples:
+    - `examples/cstr/gas-cstr-exp-1.py`
+    - `examples/cstr/liquid-cstr-exp-1.py`
+
+- `pfr` (Plug Flow Reactor)
+  - API: `create_pfr_reactor(...)` and `PFRReactor.simulate(volume_span=..., solver_options=...)`
+  - Typical use: integration along reactor volume for tubular-reactor behavior.
+  - Examples:
+    - `examples/pfr/gas-pfr-exp-1.py`
+    - `examples/pfr/liquid-pfr-exp-1.py`
+
+- `pbr` (Packed-Bed Reactor)
+  - API: `create_pbr_reactor(...)` and `PBRReactor.simulate(volume_span=..., solver_options=...)`
+  - Typical use: packed-bed modeling with catalyst-bulk effects (for example, `bulk_density` in model inputs).
+  - Examples:
+    - `examples/pbr/gas-pbr-exp-1.py`
+    - `examples/pbr/gas-pbr-exp-2.py`
+    - `examples/pbr/liquid-pbr-exp-1.py`
+    - `examples/pbr/liquid-pbr-exp-2.py`
+
+If you want to know how each method is configured in practice (options, model inputs, and solver setup), use the example scripts above as the reference.
 
 ## 🤝 Contributing
 
@@ -17,4 +63,3 @@ For any question, contact me on [LinkedIn](https://www.linkedin.com/in/sina-gila
 ## 👨‍💻 Authors
 
 - [@sinagilassi](https://www.github.com/sinagilassi)
-
