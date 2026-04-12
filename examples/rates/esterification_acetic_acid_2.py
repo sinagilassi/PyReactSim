@@ -6,25 +6,17 @@ from pyreactlab_core.models.reaction import Reaction
 from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 
 # NOTE: replace with your actual liquid source
-from examples.source.liquid_load_model_source import (
-    CH3COOH,
-    CH3OH,
-    C3H6O2,
-    H2O,
-    H2,
-    C2H5OH,
-    model_source,
-)
+from examples.source.liquid_load_model_source import CH3COOH, CH3OH, C3H6O2, H2O, C2H5OH, model_source
 
 
 # ====================================================
-# SECTION: Reaction Rate Expression
+# SECTION: Reaction Rate Expressions
 # ====================================================
 
-components = [CH3COOH, CH3OH, C3H6O2, H2O, H2, C2H5OH]
+components = [CH3COOH, CH3OH, C3H6O2, H2O, C2H5OH]
 
 # ====================================================
-# Reaction 1
+# Reaction 1: Esterification
 # CH3COOH(l) + CH3OH(l) <=> C3H6O2(l) + H2O(l)
 # ====================================================
 
@@ -43,15 +35,11 @@ states_1: rXs = {
 
 rate_params_1: rParams = {
     # Artificial mild reversible kinetics for debugging
-    "kf": CustomProperty(value=1.0e-10, unit="m3/mol.s", symbol="k_f1"),
-    "kr": CustomProperty(value=2.0e-11, unit="m3/mol.s", symbol="k_r1"),
+    "kf": CustomProperty(value=1.0e-6, unit="m3/mol.s", symbol="k_f"),
+    "kr": CustomProperty(value=2.0e-7, unit="m3/mol.s", symbol="k_r"),
 }
 
-rate_return_1: rRet = CustomProperty(
-    value=0.0,
-    unit="mol/m3.s",
-    symbol="r1",
-)
+rate_return_1: rRet = CustomProperty(value=0.0, unit="mol/m3.s", symbol="r1")
 
 rate_args_1: rArgs = {
     "T": CustomProperty(value=0.0, unit="K", symbol="T"),
@@ -89,13 +77,13 @@ def r1(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     c_h2o = Xs["H2O-l"].value
 
     forward = (
-        (c_acid ** Xs["CH3COOH-l"].order)
-        * (c_meoh ** Xs["CH3OH-l"].order)
+        (c_acid ** Xs["CH3COOH-l"].order) *
+        (c_meoh ** Xs["CH3OH-l"].order)
     )
 
     reverse = (
-        (c_meac ** Xs["C3H6O2-l"].order)
-        * (c_h2o ** Xs["H2O-l"].order)
+        (c_meac ** Xs["C3H6O2-l"].order) *
+        (c_h2o ** Xs["H2O-l"].order)
     )
 
     r_mass = kf * forward - kr * reverse
@@ -124,33 +112,27 @@ rate_expression_1 = ReactionRateExpression(
     component_key="Name-Formula",
 )
 
-
 # ====================================================
-# Reaction 2
-# CH3COOH(l) + 2H2(l) => C2H5OH(l) + H2O(l)
+# Reaction 2: Artificial liquid-phase side reaction
+# 2 CH3OH(l) => C2H5OH(l) + H2O(l)
 # ====================================================
 
 reaction_2 = Reaction(
     name="reaction 2",
-    reaction="CH3COOH(l) + 2H2(l) => C2H5OH(l) + H2O(l)",
+    reaction="2CH3OH(l) => C2H5OH(l) + H2O(l)",
     components=components,
 )
 
 states_2: rXs = {
-    "CH3COOH-l": X(component=CH3COOH, order=1, unit="mol/m3"),
-    "H2-l": X(component=H2, order=2, unit="mol/m3"),
+    "CH3OH-l": X(component=CH3OH, order=2, unit="mol/m3"),
 }
 
 rate_params_2: rParams = {
-    # Artificial mild irreversible liquid-phase side reaction for debugging
-    "k2": CustomProperty(value=1.0e-14, unit="m6/mol2.s", symbol="k_2"),
+    # Artificial mild side-reaction kinetics for debugging
+    "k2": CustomProperty(value=1.0e-7, unit="m3/mol.s", symbol="k_2"),
 }
 
-rate_return_2: rRet = CustomProperty(
-    value=0.0,
-    unit="mol/m3.s",
-    symbol="r2",
-)
+rate_return_2: rRet = CustomProperty(value=0.0, unit="mol/m3.s", symbol="r2")
 
 rate_args_2: rArgs = {
     "T": CustomProperty(value=0.0, unit="K", symbol="T"),
@@ -163,13 +145,13 @@ def r2(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     Artificial irreversible liquid-phase side reaction for debugging.
 
     Reaction:
-        CH3COOH(l) + 2H2(l) => C2H5OH(l) + H2O(l)
+        2 CH3OH(l) => C2H5OH(l) + H2O(l)
 
     Incoming states:
         Xs[...] are concentrations in mol/m3
 
     Intrinsic artificial rate:
-        r' = k2*C_acid*(C_h2^2)
+        r' = k2 * C_meoh^2
 
     Reactor-volume rate:
         r = rho_B * r'
@@ -181,15 +163,15 @@ def r2(Xs: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     k2 = params["k2"].value
     rho_B = args["rho_B"].value
 
-    c_acid = Xs["CH3COOH-l"].value
-    c_h2 = Xs["H2-l"].value
+    c_meoh = Xs["CH3OH-l"].value
+    order_meoh = Xs["CH3OH-l"].order
 
-    r_mass = k2 * (c_acid ** Xs["CH3COOH-l"].order) * (c_h2 ** Xs["H2-l"].order)
+    r_mass = k2 * (c_meoh ** order_meoh)
     r_volume = rho_B * r_mass
 
     return CustomProperty(
         name="r2",
-        description="Artificial mild irreversible side reaction for debugging liquid PBR behavior",
+        description="Artificial mild methanol side reaction for debugging liquid PBR behavior",
         value=r_volume,
         unit="mol/m3.s",
         symbol="r2",
@@ -210,8 +192,5 @@ rate_expression_2 = ReactionRateExpression(
     component_key="Name-Formula",
 )
 
-
 reaction_rates: List[ReactionRateExpression] = [
-    rate_expression_1,
-    rate_expression_2,
-]
+    rate_expression_1, rate_expression_2]

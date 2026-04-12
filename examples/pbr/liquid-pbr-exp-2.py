@@ -84,7 +84,6 @@ constant_gas_heat_capacity = {
     "H2O-l": CustomProp(value=75.3, unit="J/mol.K"),   # water
     "CH3COOH-l": CustomProp(value=75.3, unit="J/mol.K"),  # acetic acid
     "C3H6O2-l": CustomProp(value=75.3, unit="J/mol.K"),  # methyl acetate
-    "H2": CustomProp(value=28.8, unit="J/mol.K"),  # hydrogen
     "C2H5OH-l": CustomProp(value=75.3, unit="J/mol.K"),  # ethanol
 }
 
@@ -94,7 +93,6 @@ constant_liquid_heat_capacity = {
     "H2O-l": CustomProp(value=75.3, unit="J/mol.K"),   # water
     "CH3COOH-l": CustomProp(value=138.0, unit="J/mol.K"),  # acetic acid
     "C3H6O2-l": CustomProp(value=120.0, unit="J/mol.K"),  # methyl acetate
-    "H2": CustomProp(value=28.8, unit="J/mol.K"),  # hydrogen
     "C2H5OH-l": CustomProp(value=112.4, unit="J/mol.K"),  # ethanol
 }
 
@@ -104,7 +102,6 @@ constant_liquid_density = {
     "H2O-l": CustomProp(value=997.0, unit="kg/m3"),   # water
     "CH3COOH-l": CustomProp(value=1049.0, unit="kg/m3"),  # acetic acid
     "C3H6O2-l": CustomProp(value=932.0, unit="kg/m3"),  # methyl acetate
-    "H2": CustomProp(value=0.08988, unit="kg/m3"),  # hydrogen
     "C2H5OH-l": CustomProp(value=789.0, unit="kg/m3"),  # ethanol
 }
 
@@ -154,7 +151,6 @@ feed_mole_flow = {
     "CH3OH-l": CustomProp(value=0.10, unit="mol/s"),  # methanol
     "C3H6O2-l": CustomProp(value=0.0, unit="mol/s"),  # methyl acetate
     "H2O-l": CustomProp(value=0.0, unit="mol/s"),  # water
-    "H2": CustomProp(value=0.02, unit="mol/s"),  # hydrogen
     "C2H5OH-l": CustomProp(value=0.0, unit="mol/s"),  # ethanol
 }
 
