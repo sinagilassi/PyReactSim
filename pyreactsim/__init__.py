@@ -1,4 +1,4 @@
-# NOTE: COnfig
+# NOTE: Config
 from .configs import __version__, __author__, __email__, __description__
 
 # NOTE: app
