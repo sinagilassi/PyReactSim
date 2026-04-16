@@ -114,7 +114,9 @@ class GasPFRReactorX(GasPFRReactor):
         if self.heat_transfer_mode == "non-isothermal":
             y_parts.append(np.array([temp], dtype=float))
         if self.pressure_mode == "state_variable":
-            y_parts.append(np.array([float(p_total)], dtype=float))
+            if p_total is None:
+                raise ValueError("State-variable pressure mode requires pressure state.")
+            y_parts.append(np.array([p_total], dtype=float))
         y_physical = y_parts[0] if len(y_parts) == 1 else np.concatenate(y_parts)
 
         dy_physical_dV = self.rhs_physical(V, y_physical)
