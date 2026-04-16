@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyreactsim"
-version = "0.1.0"
+version = "0.1.1"
 description = "PyReactSim is a Python package for steady-state chemical reactor simulation, integrating reaction kinetics, thermodynamics, and reactor design tools."
 readme = "README.md"
 requires-python = ">=3.11"
