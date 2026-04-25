@@ -41,7 +41,7 @@ print(ptdblink.__version__)
 # NOTE: silence library warnings/errors for this example run
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
-for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
+for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pythermocalcdb", "pyreactlab_core"):
     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
 
 # NOTE: debug logging for thermo source initialization timings

@@ -6,8 +6,8 @@ from pythermodb_settings.models import Component, Temperature, Pressure, CustomP
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
-from pyThermoCalcDB.docs.thermo import build_hsg_properties
-from pyThermoCalcDB.core import HSGProperties
+from pythermocalcdb.docs.thermo import build_hsg_properties
+from pythermocalcdb.core import HSGProperties
 # locals
 from ..sources.interface import (
     ext_components_dt,

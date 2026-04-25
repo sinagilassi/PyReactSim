@@ -1,4 +1,13 @@
 # import packages/modules
+from examples.plot.plot_res import plot_cstr_reactor_result
+from examples.rates.rate_exp_1 import reaction_rates, components, model_source
+from pyreactsim.thermo import build_thermo_source
+from pyreactsim.models import CSTRReactorOptions, HeatTransferOptions
+from pyreactsim import CSTRReactor, create_cstr_reactor
+from pythermodb_settings.models import CustomProp, Temperature, Volume
+import pyThermoLinkDB as ptdblink
+import pyThermoDB as ptdb
+from rich import print
 import logging
 import sys
 import warnings
@@ -12,21 +21,12 @@ for path in (PROJECT_DIR, EXAMPLES_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from rich import print
-import pyThermoDB as ptdb
-import pyThermoLinkDB as ptdblink
-from pythermodb_settings.models import CustomProp, Temperature, Volume
 # locals
-from pyreactsim import CSTRReactor, create_cstr_reactor
-from pyreactsim.models import CSTRReactorOptions, HeatTransferOptions
-from pyreactsim.thermo import build_thermo_source
 # NOTE: example-specific imports
 # from examples.source.gas_model_source_exp_1 import model_source
 # from examples.rates.rate_exp_1 import components, reaction_rates
 # ! rate expressions & components
-from examples.rates.rate_exp_1 import reaction_rates, components, model_source
 
-from examples.plot.plot_res import plot_cstr_reactor_result
 
 # NOTE: CSTR plotting helper
 # check version
@@ -36,7 +36,7 @@ print(ptdblink.__version__)
 # NOTE: silence library warnings/errors for this example run
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
-for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pyThermoCalcDB", "pyreactlab_core"):
+for logger_name in ("pyThermoDB", "pyThermoLinkDB", "pythermocalcdb", "pyreactlab_core"):
     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
 
 # ====================================================
