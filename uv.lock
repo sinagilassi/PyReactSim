@@ -311,6 +311,7 @@ dependencies = [
     { name = "pycuc" },
     { name = "pydantic" },
     { name = "pyreactlab-core" },
+    { name = "pyreactsim-core" },
     { name = "pythermocalcdb" },
     { name = "pythermodb" },
     { name = "pythermodb-settings" },
@@ -324,11 +325,28 @@ requires-dist = [
     { name = "pycuc" },
     { name = "pydantic" },
     { name = "pyreactlab-core" },
+    { name = "pyreactsim-core", specifier = ">=0.2.0" },
     { name = "pythermocalcdb" },
     { name = "pythermodb" },
     { name = "pythermodb-settings" },
     { name = "pythermolinkdb" },
     { name = "scipy" },
+]
+
+[[package]]
+name = "pyreactsim-core"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pycuc" },
+    { name = "pydantic" },
+    { name = "pyreactlab-core" },
+    { name = "pythermodb-settings" },
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c3/6a/1e408f3e90335f70d70088180433f22c5b2aa1fff8e563e2db103966d051/pyreactsim_core-0.2.0.tar.gz", hash = "sha256:44725143bbc5ce7196591c847597a92fc4c71db976ddff730d4106a1cc3399e6", size = 27368, upload-time = "2026-05-11T03:52:25.59Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/af/d20d263d27a3eb7778e499d2c415ff90200cc771d1f8840b2bf6fb519617/pyreactsim_core-0.2.0-py3-none-any.whl", hash = "sha256:217f761d11d0bf84c07de9060575cd51d6e9439fb60ef773fba13d762ddc1dea", size = 27428, upload-time = "2026-05-11T03:52:24.603Z" },
 ]
 
 [[package]]
