@@ -57,7 +57,7 @@ components: list[Component] = [A, B, C]
 # NOTE: Reaction
 reaction = Reaction(
     name="reaction 1",
-    reaction="A(l) + B(l) -> C(l)",
+    reaction="A(l) + B(l) <=> C(l)",
     components=components
 )
 

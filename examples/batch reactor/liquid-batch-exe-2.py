@@ -55,12 +55,18 @@ heat_transfer_area = CustomProp(
 # ! batch reactor options
 batch_reactor_options = BatchReactorOptions(
     modeling_type='scale',
-    phase='liquid',
     operation_mode='variable_volume',
+    phase='liquid',
     gas_model='ideal',
+    # mode
     gas_heat_capacity_mode='constant',
     liquid_heat_capacity_mode='constant',
     liquid_density_mode='constant',
+    # source
+    gas_heat_capacity_source='model_inputs',
+    liquid_heat_capacity_source='model_inputs',
+    liquid_density_source='model_inputs',
+    molecular_weight_source='model_inputs',
 )
 
 # ! heat transfer options
@@ -105,8 +111,8 @@ constant_liquid_density = {
 # ! thermo inputs
 thermo_inputs = {
     "molecular_weight": molecular_weight,
+    "gas_heat_capacity": constant_gas_heat_capacity,
     "liquid_density": constant_liquid_density,
-    # "gas_heat_capacity": constant_gas_heat_capacity,
     # "liquid_heat_capacity": constant_liquid_heat_capacity,
 }
 
@@ -153,7 +159,7 @@ print("[bold green]Model inputs successfully defined![/bold green]")
 # SECTION: model source
 # ====================================================
 # NOTE: model source
-model_source = None
+# model_source = None
 
 # ====================================================
 # SECTION: build thermo source
@@ -161,7 +167,7 @@ model_source = None
 # NOTE: build thermo source
 thermo_source = build_thermo_source(
     components=components,
-    model_source=model_source,
+    model_source=None,
     thermo_inputs=thermo_inputs,
     reactor_options=batch_reactor_options,
     heat_transfer_options=heat_transfer_options,
@@ -184,7 +190,7 @@ print(batch_reactor)
 
 # NOTE: simulate batch reactor
 simulation_results = batch_reactor.simulate(
-    time_span=(0, 0.1),
+    time_span=(0, 800),  # seconds
     solver_options={
         "method": "Radau",
         "rtol": 1e-5,

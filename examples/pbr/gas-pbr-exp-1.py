@@ -82,7 +82,7 @@ pfr_reactor_options = PBRReactorOptions(
     pressure_mode="shortcut",
     gas_model="ideal",
     # gas_heat_capacity_mode="constant",
-    # ideal_gas_formation_enthalpy_mode="model_inputs",
+    # ideal_gas_formation_enthalpy_source="model_inputs",
 )
 
 # NOTE: heat transfer options
