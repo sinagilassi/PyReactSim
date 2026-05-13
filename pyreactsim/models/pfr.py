@@ -26,9 +26,9 @@ class PFRReactorOptions(ReactorOptions):
         Liquid heat capacity mode as constant, temperature-dependent, and differential.
     liquid_density_mode : Optional[Literal['constant', 'temperature-dependent']]
         Liquid density mode as constant or temperature-dependent.
-    ideal_gas_formation_enthalpy_mode : Optional[Literal['model_inputs', 'model_source']]
+    ideal_gas_formation_enthalpy_source : Optional[Literal['model_inputs', 'model_source']]
         Source of gas formation enthalpy as model_inputs or model_source.
-    molecular_weight_mode : Optional[Literal['model_inputs', 'model_source']]
+    molecular_weight_source : Optional[Literal['model_inputs', 'model_source']]
         Source of molecular weight as model_inputs or model_source.
     """
     modeling_type: Literal['physical', 'scale'] = Field(

@@ -34,9 +34,9 @@ class ReactorOptions(BaseModel):
         Liquid heat capacity mode as constant, temperature-dependent, and differential.
     liquid_density_mode : Optional[Literal['constant', 'temperature-dependent']]
         Liquid density mode as constant or temperature-dependent.
-    ideal_gas_formation_enthalpy_mode : Optional[Literal['model_inputs', 'model_source']]
+    ideal_gas_formation_enthalpy_source : Optional[Literal['model_inputs', 'model_source']]
         Source of gas formation enthalpy as model_inputs or model_source.
-    molecular_weight_mode : Optional[Literal['model_inputs', 'model_source']]
+    molecular_weight_source : Optional[Literal['model_inputs', 'model_source']]
         Source of molecular weight as model_inputs or model_source.
     """
     phase: ReactorPhase = Field(
@@ -59,15 +59,27 @@ class ReactorOptions(BaseModel):
         default=None,
         description="Density mode as constant or temperature-dependent."
     )
-    ideal_gas_formation_enthalpy_mode: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_source",
-        description="Source of gas formation enthalpy as model_inputs or model_source."
-    )
-    molecular_weight_mode: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_source",
-        description="Source of molecular weight as model_inputs or model_source."
-    )
     reaction_enthalpy_mode: Optional[Literal['ideal_gas', 'liquid']] = Field(
         default="ideal_gas",
         description="Mode for reaction enthalpy calculation as ideal_gas or liquid."
+    )
+    gas_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_source",
+        description="Source of gas heat capacity as model_inputs or model_source."
+    )
+    liquid_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_source",
+        description="Source of liquid heat capacity as model_inputs or model_source."
+    )
+    liquid_density_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_source",
+        description="Source of liquid density as model_inputs or model_source."
+    )
+    ideal_gas_formation_enthalpy_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_source",
+        description="Source of gas formation enthalpy as model_inputs or model_source."
+    )
+    molecular_weight_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_source",
+        description="Source of molecular weight as model_inputs or model_source."
     )
