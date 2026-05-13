@@ -10,6 +10,7 @@ from pythermodb_settings.models import Pressure, Temperature, CustomProp, Volume
 from pyreactsim.models import BatchReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 from pyreactsim import create_batch_reactor, BatchReactor
+from pyreactsim.app import evaluate_batch_reactor
 
 # NOTE: Batch reactor settings
 # ! model sources for liquid phase batch reactor
@@ -18,6 +19,7 @@ from pyreactsim import create_batch_reactor, BatchReactor
 from examples.rates.rate_A_B_to_C import reaction_rates, components
 # ! plot function
 from examples.plot.plot_res import plot_batch_reactor_result
+from examples.plot.plot_xy import plot_xy
 
 # check version
 print(ptdb.__version__)
@@ -204,6 +206,33 @@ print("[bold green]Batch reactor simulation completed![/bold green]")
 # print(simulation_results)
 
 if simulation_results is not None:
+    evaluated_results = evaluate_batch_reactor(
+        batch_reactor=batch_reactor,
+        simulation_results=simulation_results,
+    )
+
+    print("[bold cyan]Evaluated observables:[/bold cyan]")
+    print(f"time points: {len(evaluated_results['time'])}")
+    print(
+        f"total_mole [first,last]: {evaluated_results['total_mole'][0]:.6g}, {evaluated_results['total_mole'][-1]:.6g}")
+    print(
+        f"rho_LIQ [first,last]: {evaluated_results['rho_LIQ'][0]:.6g}, {evaluated_results['rho_LIQ'][-1]:.6g}")
+    print(
+        f"reactor_volume [first,last]: {evaluated_results['reactor_volume'][0]:.6g}, {evaluated_results['reactor_volume'][-1]:.6g}")
+    print(f"concentration shape: {evaluated_results['concentration'].shape}")
+    print(
+        f"concentration_total [first,last]: {evaluated_results['concentration_total'][0]:.6g}, {evaluated_results['concentration_total'][-1]:.6g}")
+    print(f"rate shape: {evaluated_results['rate'].shape}")
+
+    plot_xy(
+        x=evaluated_results["time"],
+        y=evaluated_results["reactor_volume"],
+        legends=["reactor volume"],
+        xlabel="time (s)",
+        ylabel="reactor volume (m3)",
+        title="Liquid Batch Reactor Volume vs Time",
+    )
+
     plot_batch_reactor_result(
         result=simulation_results,
         components=components,
