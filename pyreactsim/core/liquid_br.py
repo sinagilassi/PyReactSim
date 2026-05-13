@@ -139,9 +139,10 @@ class LiquidBatchReactor:
         self._T0 = self.temperature.value
 
         # ! rho: density of liquid phase [g/m3]
-        # FIXME:
+        # used for calculating volume in variable volume mode and for calculating concentration in both modes
         self._rho_LIQ0 = self.thermo_source.calc_rho_LIQ(
-            temperature=self.temperature
+            temperature=self.temperature,
+            operation_mode=self.operation_mode
         )
 
         # ! V: initial volume [m3]
@@ -246,7 +247,8 @@ class LiquidBatchReactor:
 
         # ! calculate density of liquid phase [g/m3]
         rho_LIQ = self.thermo_source.calc_rho_LIQ(
-            temperature=temperature
+            temperature=temperature,
+            operation_mode=self.operation_mode
         )
 
         # ! calculate system volume [m3]
@@ -305,7 +307,7 @@ class LiquidBatchReactor:
         temperature: Temperature,
     ):
         """
-        Calculate reaction rates for each reaction based on the current partial pressures and temperature.
+        Calculate reaction rates in mol/m3.s for each reaction based on the current partial pressures and temperature.
 
         Parameters
         ----------

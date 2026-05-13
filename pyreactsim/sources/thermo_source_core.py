@@ -763,6 +763,7 @@ class ThermoSourceCore(ThermoCalc):
     def calc_rho_LIQ(
             self,
             temperature: Temperature,
+            operation_mode: Optional[str] = None
     ) -> np.ndarray:
         """
         Calculate the density of the liquid either using a constant value from model inputs or using a temperature-dependent equation of state.
@@ -771,13 +772,23 @@ class ThermoSourceCore(ThermoCalc):
         ----------
         temperature : Temperature
             The temperature at which to calculate the liquid density.
+        operation_mode : Optional[str], optional
+            The operation mode of the reactor, which can affect whether the liquid density is calculated or not (e.g., "constant_volume"). If the operation mode is "constant_volume", the liquid density will not be calculated and will be set to None. Default is None.
 
         Returns
         -------
         np.ndarray
             An array of density values for the liquid phase, calculated at the specified temperature.
         """
-        # NOTE: calculate density based on the density mode
+        # SECTION: check operation mode (in case constant volume)
+        if operation_mode == "constant_volume":
+            # log info
+            logger.info(
+                "Operation mode is 'constant_volume'. Liquid density will not be calculated and will be set to None."
+            )
+            return np.array([], dtype=float)
+
+        # SECTION: calculate density based on the density mode
         if self.liquid_density_mode == "temperature-dependent":
             # NOTE: calculate temperature-dependent density
             # ! to g/m3
