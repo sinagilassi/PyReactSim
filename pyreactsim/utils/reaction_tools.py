@@ -138,3 +138,41 @@ def calc_residence_time(
     except Exception as e:
         logger.error(f"Error in calculating residence time: {e}")
         raise
+
+# NOTE: Arrhenius equation
+
+
+def arrhenius_equation(
+        k_ref: float,
+        Ea: float,
+        T: float,
+        T_ref: float,
+        R: float = 8.314
+):
+    """
+    Calculate the rate constant using the Arrhenius equation.
+
+    Parameters
+    ----------
+    k_ref : float
+        The reference rate constant at the reference temperature (in appropriate units).
+    Ea : float
+        The activation energy (in J/mol).
+    T : float
+        The temperature at which to calculate the rate constant (in K).
+    T_ref : float
+        The reference temperature (in K).
+    R : float, optional
+        The universal gas constant (default is 8.314 J/mol.K).
+
+    Returns
+    -------
+    float
+        The calculated rate constant at temperature T.
+    """
+    try:
+        return k_ref * np.exp(-Ea / R * (1/T - 1/T_ref))
+    except Exception as e:
+        logger.error(
+            f"Error in calculating rate constant using Arrhenius equation: {e}")
+        raise
