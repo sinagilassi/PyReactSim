@@ -5,6 +5,9 @@ from typing import Union
 # locals
 from ..models import GasModel
 
+# NOTE: logger setup
+logger = logging.getLogger(__name__)
+
 
 class ThermoCalc:
     # SECTION: EOS related methods
