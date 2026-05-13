@@ -119,9 +119,9 @@ class ThermoSourceCore(ThermoCalc):
         # ! density mode
         self.liquid_density_mode = reactor_options.liquid_density_mode
         # ! ideal gas enthalpy of formation mode
-        self.ideal_gas_formation_enthalpy_mode = reactor_options.ideal_gas_formation_enthalpy_mode
+        self.ideal_gas_formation_enthalpy_source = reactor_options.ideal_gas_formation_enthalpy_source
         # ! molecular weight mode
-        self.molecular_weight_mode = reactor_options.molecular_weight_mode
+        self.molecular_weight_source = reactor_options.molecular_weight_source
         # ! reaction enthalpy mode
         self.reaction_enthalpy_mode = reactor_options.reaction_enthalpy_mode
 

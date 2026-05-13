@@ -18,11 +18,23 @@ from ..utils.unit_tools import to_J_per_mol_K, to_g_per_m3, to_J_per_mol
 
 
 class ThermoModelInputs:
+    """
+    ThermoModelInputs is a class that encapsulates the inputs required for configuring the thermodynamic properties in the reactor models.
+    This class is designed to retrieve the following properties for the components in the system:
+
+    - Ideal gas heat capacity (Cp_IG)
+    - Liquid heat capacity (Cp_LIQ)
+    - Liquid density (rho_LIQ)
+    - Ideal gas formation enthalpy at 298 K (EnFo_IG)
+    """
     # NOTE: Attributes
+    # ! heat capacity of ideal gas
     gas_heat_capacity_constant_values: np.ndarray = np.array([])
     gas_heat_capacity_constant_comp: Dict[str, float] = {}
+    # ! heat capacity of liquid
     liquid_heat_capacity_constant_values: np.ndarray = np.array([])
     liquid_heat_capacity_constant_comp: Dict[str, float] = {}
+    # ! liquid density
     liquid_density_constant_values: np.ndarray = np.array([])
     liquid_density_constant_comp: Dict[str, float] = {}
     # ! ideal gas formation enthalpy at 298 K
@@ -92,7 +104,10 @@ class ThermoModelInputs:
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
         if self.heat_transfer_mode == "non-isothermal":
             # check heat capacity mode
-            if self.gas_heat_capacity_mode == "constant":
+            if (
+                self.gas_heat_capacity_mode == "constant" and
+                self.reactor_options.gas_heat_capacity_source == "model_inputs"  # ! source
+            ):
                 # NOTE: use constant heat capacity from model inputs
                 # >> constant heat capacity
                 # ! to J/mol.K
@@ -102,7 +117,7 @@ class ThermoModelInputs:
                 ) = self._config_constant_gas_heat_capacity()
 
             # NOTE: Enthalpy of formation at 298 K for ideal gas
-            if self.reactor_options.ideal_gas_formation_enthalpy_mode == "model_inputs":
+            if self.reactor_options.ideal_gas_formation_enthalpy_source == "model_inputs":  # ! source
                 # ! to J/mol
                 self.EnFo_IG_298_src: Dict[
                     str, Dict[str, Any]
@@ -121,7 +136,10 @@ class ThermoModelInputs:
         # ! phase
         if self.phase == "liquid":
             # check heat capacity mode
-            if self.liquid_heat_capacity_mode == "constant":
+            if (
+                self.liquid_heat_capacity_mode == "constant" and
+                self.reactor_options.liquid_heat_capacity_source == "model_inputs"  # ! source
+            ):
                 # NOTE: use constant heat capacity from model inputs
                 # >> constant heat capacity
                 # ! to J/mol.K
@@ -131,7 +149,10 @@ class ThermoModelInputs:
                 ) = self._config_constant_liquid_heat_capacity()
 
             # check density mode
-            if self.liquid_density_mode == "constant":
+            if (
+                self.liquid_density_mode == "constant" and
+                self.reactor_options.liquid_density_source == "model_inputs"  # ! source
+            ):
                 # NOTE: use constant density from model inputs
                 # >> constant density
                 # ! to g/m3
@@ -288,7 +309,7 @@ class ThermoModelInputs:
         Configure the ideal gas formation enthalpy at 298 K in [J/mol] for the batch reactor based on the model inputs and reactor configuration.
         """
         # check ideal gas formation enthalpy mode
-        if self.reactor_options.ideal_gas_formation_enthalpy_mode is None:
+        if self.reactor_options.ideal_gas_formation_enthalpy_source is None:
             raise ValueError(
                 "Ideal gas formation enthalpy mode must be specified in reactor_inputs for non-isothermal reactors."
             )

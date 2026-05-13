@@ -28,6 +28,16 @@ logger = logging.getLogger(__name__)
 
 
 class ThermoModelSource:
+    """
+    ThermoModelSource is a class that represents a model source for thermodynamic properties of components in a chemical reaction system. It is designed to extract and configure the necessary thermodynamic property equations and data from a given model source, which can then be used in reactor simulations. This class is designed to retrieve the following properties for the components in the system:
+
+    - Heat capacity for ideal gas (Cp_IG)
+    - Heat capacity for liquid (Cp_LIQ)
+    - Density for liquid (rho_LIQ)
+    - Enthalpy of formation at 298 K for ideal gas (EnFo_IG)
+    - Molecular weight (MW)
+    """
+
     # NOTE: Attributes
     # ! sources
     Cp_IG_src: Dict[str, ComponentEquationSource] = {}
@@ -99,14 +109,17 @@ class ThermoModelSource:
         # SECTION: Extract property equation sources
         if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
             # check heat capacity mode
-            if self.reactor_options.gas_heat_capacity_mode == "temperature-dependent":
+            if (
+                self.reactor_options.gas_heat_capacity_mode == "temperature-dependent" and
+                self.reactor_options.gas_heat_capacity_source == "model_source"  # ! source
+            ):
                 # NOTE: extract heat capacity equation source for the components from the model source
                 self.Cp_IG_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                     prop_name="Cp_IG"
                 )
 
             # NOTE: Enthalpy of formation at 298 K for ideal gas
-            if self.reactor_options.ideal_gas_formation_enthalpy_mode == "model_source":
+            if self.reactor_options.ideal_gas_formation_enthalpy_source == "model_source":  # ! source
                 # extract data
                 self.EnFo_IG_298_src: Dict[str, Dict[str, Any]] = self.prop_dt_src(
                     component_ids=self.component_ids,
@@ -125,23 +138,27 @@ class ThermoModelSource:
 
         if self.phase == "liquid":
             # MW source
-            self.MW_src = self.prop_dt_src(
-                component_ids=self.component_ids,
-                prop_name="MW"
-            )
+            if self.reactor_options.molecular_weight_source == "model_source":  # ! source
+                self.MW_src = self.prop_dt_src(
+                    component_ids=self.component_ids,
+                    prop_name="MW"
+                )
 
-            # ! values in g/mol
-            (
-                self.MW,
-                self.MW_comp
-            ) = config_components_property(
-                component_ids=self.component_ids,
-                prop_source=self.MW_src,
-                unit_conversion_func=to_g_per_mol
-            )
+                # ! values in g/mol
+                (
+                    self.MW,
+                    self.MW_comp
+                ) = config_components_property(
+                    component_ids=self.component_ids,
+                    prop_source=self.MW_src,
+                    unit_conversion_func=to_g_per_mol
+                )
 
             # NOTE: density
-            if self.reactor_options.liquid_density_mode == "temperature-dependent":
+            if (
+                self.reactor_options.liquid_density_mode == "temperature-dependent" and
+                self.reactor_options.liquid_density_source == "model_source"  # ! source
+            ):
                 # NOTE: extract density equation source for the components from the model source
                 self.rho_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                     prop_name="rho_LIQ"
@@ -149,7 +166,10 @@ class ThermoModelSource:
 
             # NOTE: heat capacity
             if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
-                if self.reactor_options.liquid_heat_capacity_mode == "temperature-dependent":
+                if (
+                    self.reactor_options.liquid_heat_capacity_mode == "temperature-dependent" and
+                    self.reactor_options.liquid_heat_capacity_source == "model_source"  # ! source
+                ):
                     # extract heat capacity equation source for the components from the model source
                     self.Cp_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
                         prop_name="Cp_LIQ"
