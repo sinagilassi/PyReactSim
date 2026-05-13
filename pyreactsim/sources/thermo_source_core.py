@@ -23,7 +23,6 @@ from .interface import (
 from ..utils.unit_tools import to_K, to_J_per_mol, to_g_per_mol
 from ..utils.tools import find_components_property, collect_keys
 from ..models.heat import HeatTransferOptions
-from ..models.br import GasModel
 from ..models.br import BatchReactorOptions
 from .thermo_calc import ThermoCalc
 from ..models.cstr import CSTRReactorOptions
@@ -94,8 +93,8 @@ class ThermoSourceCore(ThermoCalc):
         # NOTE: model source
         model_source: ModelSource | None = self.source.model_source
         if model_source is None:
-            raise ValueError(
-                "Model source is required for thermodynamic calculations."
+            logger.info(
+                "No model source provided. Thermodynamic properties will be calculated using model inputs only."
             )
         self.model_source = model_source
 
@@ -170,8 +169,12 @@ class ThermoSourceCore(ThermoCalc):
             Dict[str, Any]
         ] = self.thermo_model_source.MW_src
         # ! values in g/mol
-        self.MW = self.thermo_model_source.MW
-        self.MW_comp = self.thermo_model_source.MW_comp
+        if len(self.MW_src) > 0:
+            self.MW = self.thermo_model_source.MW
+            self.MW_comp = self.thermo_model_source.MW_comp
+        else:
+            self.MW = self.thermo_model_inputs.molecular_weight_values
+            self.MW_comp = self.thermo_model_inputs.molecular_weight_comp
 
         # SECTION: liquid density
         self.rho_LIQ_src: Dict[
@@ -875,6 +878,14 @@ class ThermoSourceCore(ThermoCalc):
         if self.heat_transfer_mode == "isothermal":
             return {}, np.array([])
 
+        # NOTE: check model source
+        if self.model_source is None:
+            # log info
+            logger.info(
+                "No model source provided. Liquid phase enthalpy cannot be calculated without a model source. Returning empty values."
+            )
+            return {}, np.array([])
+
         # NOTE: calculate liquid phase enthalpy for the components based on the heat capacity mode
         res = {}
         res_array = []
@@ -1060,6 +1071,18 @@ class ThermoSourceCore(ThermoCalc):
             - A dictionary where the keys are component IDs and the values are the ideal gas enthalpy values for the components in J/mol, calculated at the specified temperature.
             - An array of ideal gas enthalpy (En_IG) values for the components in the batch reactor, calculated at the specified temperature.
         """
+        # NOTE: check heat transfer mode
+        if self.heat_transfer_mode == "isothermal":
+            return {}, np.array([])
+
+        # NOTE: check model source
+        if self.model_source is None:
+            # log info
+            logger.info(
+                "No model source provided. Ideal gas enthalpy cannot be calculated without a model source. Returning empty values."
+            )
+            return {}, np.array([])
+
         # NOTE: calculate ideal gas enthalpy for the components based on the heat capacity mode
         res = []
         res_comp = {}

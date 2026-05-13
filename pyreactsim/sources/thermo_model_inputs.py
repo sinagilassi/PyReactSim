@@ -2,19 +2,18 @@
 import logging
 import numpy as np
 from typing import Dict, List, Tuple, Any
-from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, CustomProp, ComponentKey
-from pyThermoLinkDB.thermo import Source
-from pyreactsim_core.models import ReactionRateExpression
+from pythermodb_settings.models import Component, CustomProp, ComponentKey
 # locals
 from ..models.br import BatchReactorOptions
 from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
-# from ..models.rate_exp import ReactionRateExpression
 from ..utils.tools import config_components_property
 from ..models.heat import HeatTransferOptions
-from ..models import GasModel
-from ..utils.unit_tools import to_J_per_mol_K, to_g_per_m3, to_J_per_mol
+from ..utils.unit_tools import to_J_per_mol_K, to_g_per_m3, to_J_per_mol, to_g_per_mol
+
+# NOTE: logger
+logger = logging.getLogger(__name__)
 
 
 class ThermoModelInputs:
@@ -26,6 +25,7 @@ class ThermoModelInputs:
     - Liquid heat capacity (Cp_LIQ)
     - Liquid density (rho_LIQ)
     - Ideal gas formation enthalpy at 298 K (EnFo_IG)
+    - Molecular weight (MW)
     """
     # NOTE: Attributes
     # ! heat capacity of ideal gas
@@ -41,6 +41,10 @@ class ThermoModelInputs:
     EnFo_IG_298_src: Dict[str, Dict[str, Any]] = {}
     EnFo_IG_298: np.ndarray = np.array([])
     EnFo_IG_298_comp: Dict[str, float] = {}
+    # ! molecular weight
+    molecular_weight_src: Dict[str, Dict[str, Any]] = {}
+    molecular_weight_values: np.ndarray = np.array([])
+    molecular_weight_comp: Dict[str, float] = {}
 
     def __init__(
         self,
@@ -137,6 +141,7 @@ class ThermoModelInputs:
         if self.phase == "liquid":
             # check heat capacity mode
             if (
+                self.heat_transfer_mode == "non-isothermal" and
                 self.liquid_heat_capacity_mode == "constant" and
                 self.reactor_options.liquid_heat_capacity_source == "model_inputs"  # ! source
             ):
@@ -160,6 +165,24 @@ class ThermoModelInputs:
                     self.liquid_density_constant_values,
                     self.liquid_density_constant_comp
                 ) = self._config_constant_liquid_density()
+
+            # molecular weight
+            if self.reactor_options.molecular_weight_source == "model_inputs":  # ! source
+                # NOTE: use molecular weight from model inputs
+                # ! to g/mol
+                self.molecular_weight_src: Dict[
+                    str, Dict[str, Any]
+                ] = self._config_molecular_weight()
+
+                # ! values in g/mol
+                (
+                    self.molecular_weight_values,
+                    self.molecular_weight_comp
+                ) = config_components_property(
+                    component_ids=self.component_ids,
+                    prop_source=self.molecular_weight_src,
+                    unit_conversion_func=to_g_per_mol
+                )
 
     # SECTION: configuration methods for properties
     # ! gas phase heat capacity configuration
@@ -326,15 +349,10 @@ class ThermoModelInputs:
 
             for id_formula_state, id_name_formula in zip(self.component_formula_state, self.component_ids):
                 if id_formula_state in EnFo_IG_298_:
-                    EnFo_value = to_J_per_mol(
-                        EnFo_IG_298_[id_formula_state].value,
-                        EnFo_IG_298_[id_formula_state].unit
-                    )
-
                     # add
                     EnFo_IG_298_src[id_name_formula] = {
-                        "value": EnFo_value,
-                        "unit": "J/mol"
+                        "value": EnFo_IG_298_[id_formula_state].value,
+                        "unit": EnFo_IG_298_[id_formula_state].unit
                     }
                 else:
                     raise ValueError(
@@ -346,4 +364,46 @@ class ThermoModelInputs:
         else:
             raise ValueError(
                 "Ideal gas formation enthalpy must be provided in model_inputs for constant ideal gas formation enthalpy mode."
+            )
+
+    # ! molecular weight
+    def _config_molecular_weight(
+            self
+    ):
+        """
+        Configure the molecular weight in [g/mol] for the batch reactor based on the model inputs and reactor configuration.
+        """
+        # check molecular weight source
+        if self.reactor_options.molecular_weight_source is None:
+            raise ValueError(
+                "Molecular weight source must be specified in reactor_inputs."
+            )
+
+        # molecular weight
+        if "molecular_weight" in self.thermo_inputs_keys:
+            molecular_weight_: dict[
+                str,
+                CustomProp
+            ] = self.thermo_inputs["molecular_weight"]
+
+            # iterate through components and extract molecular weight values
+            molecular_weight_src = {}
+
+            for id_formula_state, id_name_formula in zip(self.component_formula_state, self.component_ids):
+                if id_formula_state in molecular_weight_:
+                    # add
+                    molecular_weight_src[id_name_formula] = {
+                        "value": molecular_weight_[id_formula_state].value,
+                        "unit": molecular_weight_[id_formula_state].unit
+                    }
+                else:
+                    raise ValueError(
+                        f"Molecular weight value for component '{id_formula_state}' not found in model_inputs."
+                    )
+
+            # res
+            return molecular_weight_src
+        else:
+            raise ValueError(
+                "Molecular weight must be provided in model_inputs for molecular weight source mode."
             )
