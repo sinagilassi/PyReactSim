@@ -47,21 +47,21 @@ class ReactorOptions(BaseModel):
         default="ideal",
         description="Gas model to use (required if phase is gas)."
     )
-    gas_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
+    gas_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential", "mixture"]] = Field(
         default="temperature-dependent",
-        description="Gas heat capacity mode as constant, temperature-dependent, and differential."
+        description="Gas heat capacity mode as constant, temperature-dependent, differential, and mixture."
     )
-    liquid_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
+    liquid_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential", "mixture"]] = Field(
         default="temperature-dependent",
-        description="Liquid heat capacity mode as constant, temperature-dependent, and differential."
+        description="Liquid heat capacity mode as constant, temperature-dependent, differential, and mixture."
     )
-    liquid_density_mode: Optional[Literal["constant", "temperature-dependent"]] = Field(
+    liquid_density_mode: Optional[Literal["constant", "temperature-dependent", "mixture"]] = Field(
         default=None,
-        description="Density mode as constant or temperature-dependent."
+        description="Density mode as constant, temperature-dependent, and mixture."
     )
-    reaction_enthalpy_mode: Optional[Literal['ideal_gas', 'liquid']] = Field(
+    reaction_enthalpy_mode: Optional[Literal['ideal_gas', 'liquid', 'reaction']] = Field(
         default="ideal_gas",
-        description="Mode for reaction enthalpy calculation as ideal_gas or liquid."
+        description="Mode for reaction enthalpy calculation as ideal_gas, liquid, and reaction."
     )
     gas_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
         default="model_source",
@@ -82,4 +82,8 @@ class ReactorOptions(BaseModel):
     molecular_weight_source: Optional[Literal['model_inputs', 'model_source']] = Field(
         default="model_source",
         description="Source of molecular weight as model_inputs or model_source."
+    )
+    reaction_enthalpy_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_source",
+        description="Source of reaction enthalpy as model_inputs or model_source."
     )
