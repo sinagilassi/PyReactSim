@@ -3,7 +3,7 @@ from typing import Dict, List
 from pythermodb_settings.models import CustomProperty
 from pyreactlab_core.models.reaction import Reaction
 
-from pyreactsim.models import (
+from pyreactsim_core.models import (
     rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 )
 

@@ -8,6 +8,7 @@ from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pythermocalcdb.docs.thermo import build_hsg_properties
 from pythermocalcdb.core import HSGProperties
+from pyreactsim_core.models import ReactionRateExpression
 # locals
 from ..sources.interface import (
     ext_components_dt,
@@ -16,7 +17,6 @@ from ..sources.interface import (
 )
 from ..models.br import BatchReactorOptions
 from ..models.heat import HeatTransferOptions
-from ..models.rate_exp import ReactionRateExpression
 from ..utils.tools import config_components_property
 from ..utils.unit_tools import to_J_per_mol, to_g_per_mol
 from ..models.cstr import CSTRReactorOptions
@@ -45,7 +45,7 @@ class ThermoModelSource:
         self,
         components: List[Component],
         source: Source,
-        model_source: ModelSource,
+        model_source: ModelSource | None,
         thermo_inputs: Dict[str, Any],
         reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
@@ -62,7 +62,7 @@ class ThermoModelSource:
             A list of Component objects representing the chemical components involved in the model source.
         source : Source
             A Source object containing information about the source of the data or equations used in the model source.
-        model_source : ModelSource
+        model_source : ModelSource | None
             A ModelSource object containing information about the model source, including its name, description, and other relevant details.
         thermo_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
@@ -282,6 +282,13 @@ class ThermoModelSource:
             self,
             temperature: float
     ) -> Dict[str, HSGProperties]:
+        # NOTE: check model source
+        if self.model_source is None:
+            logger.warning(
+                "No model source provided. Cannot build HSG properties without a valid model source."
+            )
+            return {}
+
         # build properties
         component_hsg_properties = {}
 

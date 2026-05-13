@@ -5,10 +5,8 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, Pressure, Temperature, CustomProperty
 from pythermodb_settings.utils import set_component_id
 from pyreactlab_core.models.reaction import Reaction
+from pyreactsim_core.models import ReactionRateExpression
 # locals
-from ..models.rate_exp import ReactionRateExpression
-from ..models.rate_exp_refs import rArgs, rParams, rRet, rXs
-from .unit_tools import to_m3, to_K
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)

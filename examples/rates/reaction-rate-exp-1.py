@@ -14,9 +14,9 @@ from pythermodb_settings.models import Component, Pressure, Temperature, CustomP
 from pyThermoDB import ComponentThermoDB
 from pyThermoDB import build_component_thermodb_from_reference
 from pyreactlab_core.models.reaction import Reaction
+from pyreactsim_core.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 # locals
 from pyreactsim.models.br import BatchReactorOptions
-from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 
 # check version
 print(ptdb.__version__)

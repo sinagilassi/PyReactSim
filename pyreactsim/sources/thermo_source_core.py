@@ -11,7 +11,7 @@ from pythermocalcdb.reactions.reactions import dH_rxn_STD
 from pythermocalcdb.docs.thermo import calc_En_IG_ref, calc_En, calc_En_IG_ref_hsg, calc_En_hsg
 from pythermocalcdb.reactions.source import dH_rxn_STD as dH_rxn_reactions
 from pythermocalcdb.models import ComponentEnthalpy
-
+from pyreactsim_core.models import ReactionRateExpression
 # locals
 from .thermo_model_inputs import ThermoModelInputs
 from .thermo_model_source import ThermoModelSource
@@ -22,7 +22,6 @@ from .interface import (
 
 from ..utils.unit_tools import to_K, to_J_per_mol, to_g_per_mol
 from ..utils.tools import find_components_property, collect_keys
-from ..models.rate_exp import ReactionRateExpression
 from ..models.heat import HeatTransferOptions
 from ..models.br import GasModel
 from ..models.br import BatchReactorOptions

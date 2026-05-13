@@ -2,9 +2,10 @@ import logging
 import numpy as np
 from typing import Dict, List, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Pressure, Temperature
+from pyreactsim_core.models import ReactionRateExpression
 # locals
 from ..configs.constants import R_J_per_mol_K
-from ..models.rate_exp import ReactionRateExpression
+# from ..models.rate_exp import ReactionRateExpression
 from ..models.ref import GasModel
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange

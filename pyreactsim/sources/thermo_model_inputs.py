@@ -4,12 +4,13 @@ import numpy as np
 from typing import Dict, List, Tuple, Any
 from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, CustomProp, ComponentKey
 from pyThermoLinkDB.thermo import Source
+from pyreactsim_core.models import ReactionRateExpression
 # locals
 from ..models.br import BatchReactorOptions
 from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
-from ..models.rate_exp import ReactionRateExpression
+# from ..models.rate_exp import ReactionRateExpression
 from ..utils.tools import config_components_property
 from ..models.heat import HeatTransferOptions
 from ..models import GasModel

@@ -5,9 +5,9 @@ from rich import print
 from typing import Callable, Dict, Optional, Union, List, Any
 from pythermodb_settings.models import CustomProperty
 from pyreactlab_core.models.reaction import Reaction
+from pyreactsim_core.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 
 # locals
-from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 
 # NOTE: Replace these imports with the exact component objects from your liquid reference module.
 from examples.source.liquid_load_model_source import CH3COOH, CH3OH, C3H6O2, H2O, model_source

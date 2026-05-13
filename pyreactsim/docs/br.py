@@ -6,10 +6,10 @@ from pythermodb_settings.models import Component, ComponentKey
 from pythermodb_settings.utils import measure_time
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
+from pyreactsim_core.models import ReactionRateExpression
 # locals
 from ..models.heat import HeatTransferOptions
 from ..models.br import BatchReactorOptions, BatchReactorResult
-from ..models.rate_exp import ReactionRateExpression
 from ..core.gas_br import GasBatchReactor
 from ..core.gas_brx import GasBatchReactorX
 from ..core.liquid_br import LiquidBatchReactor
@@ -90,7 +90,8 @@ class BatchReactor:
         """
         state_arr = np.asarray(state, dtype=float)
         if state_arr.ndim != 2:
-            raise ValueError("Expected state history with shape (n_states, n_points).")
+            raise ValueError(
+                "Expected state history with shape (n_states, n_points).")
 
         if not isinstance(self.reactor, (GasBatchReactorX, LiquidBatchReactorX)):
             return state_arr
@@ -105,7 +106,8 @@ class BatchReactor:
             if self.reactor.heat_transfer_mode == "non-isothermal":
                 y_parts.append(np.array([temp], dtype=float))
 
-            y_physical = y_parts[0] if len(y_parts) == 1 else np.concatenate(y_parts)
+            y_physical = y_parts[0] if len(
+                y_parts) == 1 else np.concatenate(y_parts)
             physical_cols.append(y_physical)
 
         return np.column_stack(physical_cols)

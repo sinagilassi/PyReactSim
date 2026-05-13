@@ -5,8 +5,8 @@ from rich import print
 from typing import Callable, Dict, Optional, Union, List, Any
 from pythermodb_settings.models import CustomProperty
 from pyreactlab_core.models.reaction import Reaction
+from pyreactsim_core.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 # locals
-from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 # ! model source
 from examples.source.gas_model_source_exp_1 import C2H4, H2, C2H6
 

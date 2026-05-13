@@ -6,7 +6,7 @@ from pythermodb_settings.models import CustomProperty
 from pyreactlab_core.models.reaction import Reaction
 
 # locals
-from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
+from pyreactsim_core.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 
 # ! model source
 # from examples.source.gas_model_source_exp_1 import components, CO2, H2, CH3OH, H2O

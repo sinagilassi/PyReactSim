@@ -1,19 +1,17 @@
 # import libs
 import logging
 import time
-from typing import List, Dict, Any, cast
-from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, ComponentKey
-from pythermodb_settings.utils import set_component_id, build_components_mapper
+from typing import List, Dict, Any
+from pythermodb_settings.models import Component, ComponentKey
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.thermo import Source
-from pyThermoLinkDB.models.component_models import ComponentEquationSource
+from pyreactsim_core.models import ReactionRateExpression
 # locals
 from ..sources.thermo_model_source import ThermoModelSource
 from ..sources.thermo_model_inputs import ThermoModelInputs
 from ..sources.thermo_reaction import ThermoReaction
 from ..models.br import BatchReactorOptions
 from ..models.heat import HeatTransferOptions
-from ..models.rate_exp import ReactionRateExpression
 from .thermo_source_core import ThermoSourceCore
 from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
@@ -29,7 +27,7 @@ class ThermoSource(ThermoSourceCore):
         self,
         components: List[Component],
         source: Source,
-        model_source: ModelSource,
+        model_source: ModelSource | None,
         thermo_inputs: Dict[str, Any],
         reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
         heat_transfer_options: HeatTransferOptions,

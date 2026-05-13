@@ -4,7 +4,7 @@ from typing import Dict
 from pythermodb_settings.models import CustomProperty
 from pyreactlab_core.models.reaction import Reaction
 
-from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
+from pyreactsim_core.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 from pyreactsim.utils.tools import smooth_floor
 from examples.source.gas_load_model_source import CO2, H2, CH3OH, H2O, CO, model_source
 

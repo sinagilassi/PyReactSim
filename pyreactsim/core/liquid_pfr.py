@@ -2,8 +2,8 @@ import logging
 import numpy as np
 from typing import Dict, List
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Temperature
+from pyreactsim_core.models import ReactionRateExpression
 # locals
-from ..models.rate_exp import ReactionRateExpression
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
 from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
@@ -72,7 +72,8 @@ class LiquidPFRReactor:
         # SECTION: Component references
         self.component_num = self.thermo_source.component_refs["component_num"]
         self.component_formula_state = self.thermo_source.component_refs[
-            "component_formula_state"]
+            "component_formula_state"
+        ]
         self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: Inlet and reactor geometry

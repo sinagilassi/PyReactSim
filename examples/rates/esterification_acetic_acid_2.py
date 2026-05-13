@@ -2,8 +2,7 @@
 from typing import Dict, List
 from pythermodb_settings.models import CustomProperty
 from pyreactlab_core.models.reaction import Reaction
-
-from pyreactsim.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
+from pyreactsim_core.models import rArgs, rParams, rRet, X, rXs, ReactionRateExpression
 
 # NOTE: replace with your actual liquid source
 from examples.source.liquid_load_model_source import CH3COOH, CH3OH, C3H6O2, H2O, C2H5OH, model_source

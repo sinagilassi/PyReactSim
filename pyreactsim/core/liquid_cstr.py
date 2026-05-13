@@ -2,9 +2,10 @@ import logging
 import numpy as np
 from typing import Dict, List, Tuple
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, CustomProperty, Temperature
+from pyreactsim_core.models import ReactionRateExpression
 # locals
 from .cstrc import CSTRReactorCore
-from ..models.rate_exp import ReactionRateExpression
+# from ..models.rate_exp import ReactionRateExpression
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
 from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key

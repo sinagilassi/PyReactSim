@@ -7,9 +7,9 @@ from pyreactlab_core import build_rxns_stoichiometry
 from pyThermoLinkDB.models import ModelSource
 from pythermocalcdb.reactions import build_hsg_reaction
 from pythermocalcdb.core import HSGReaction
+from pyreactsim_core.models import ReactionRateExpression
 # locals
 from ..utils.reaction_tools import stoichiometry_mat
-from ..models.rate_exp import ReactionRateExpression
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class ThermoReaction:
     def __init__(
         self,
         components: List[Component],
-        model_source: ModelSource,
+        model_source: ModelSource | None,
         thermo_inputs: Dict[str, Any],
         reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
@@ -35,7 +35,7 @@ class ThermoReaction:
         ----------
         components : List[Component]
             A list of Component objects representing the chemical components involved in the model source.
-        model_source : ModelSource
+        model_source : ModelSource | None
             A ModelSource object containing the source of the model to be used in the simulation.
         model_inputs : Dict[str, Any]
             A dictionary of model inputs, where the keys are the names of the inputs and the values are the input values. This can include feed specifications, initial conditions, or any other relevant parameters needed for the simulations.
@@ -163,6 +163,14 @@ class ThermoReaction:
         """
         Build the list of Reaction objects for the gas-phase batch reactor using the provided reaction rates and components.
         """
+        # check model source
+        if self.model_source is None:
+            logger.warning(
+                "No model source provided. Cannot build HSG reactions without a valid model source."
+            )
+            return []
+
+        # init result list
         hsg_reactions: list[HSGReaction] = []
 
         # iterate through reaction rates and build hsg reactions
