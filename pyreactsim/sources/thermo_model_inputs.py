@@ -47,6 +47,8 @@ class ThermoModelInputs:
     MW_src: Dict[str, Dict[str, Any]] = {}
     MW: np.ndarray = np.array([])
     MW_comp: Dict[str, float] = {}
+    # ! enthalpy of reaction
+    dH_rxn_src: Dict[str, CustomProp] = {}
 
     def __init__(
         self,
@@ -138,6 +140,14 @@ class ThermoModelInputs:
                     prop_source=self.EnFo_IG_298_src,
                     unit_conversion_func=to_J_per_mol
                 )
+
+            # NOTE: reaction enthalpy
+            if (
+                self.reactor_options.reaction_enthalpy_mode == "reaction" and
+                self.reactor_options.reaction_enthalpy_source == "model_inputs"
+            ):
+                # ! to J/mol
+                self.dH_rxn_src = self._config_reaction_enthalpy()
 
         # ! phase
         if self.phase == "liquid":
@@ -420,4 +430,43 @@ class ThermoModelInputs:
         else:
             raise ValueError(
                 "Molecular weight must be provided in model_inputs for molecular weight source mode."
+            )
+
+    # ! reaction enthalpy
+    def _config_reaction_enthalpy(
+            self
+    ) -> Dict[str, CustomProp]:
+        """
+        Configure the reaction enthalpy in [J/mol] for the batch reactor based on the model inputs and reactor configuration.
+
+        Notes
+        -----
+        - The reaction enthalpy is given for each reaction in the system by reaction-name in model inputs.
+        """
+        # check reaction enthalpy source
+        if self.reactor_options.reaction_enthalpy_source is None:
+            raise ValueError(
+                "Reaction enthalpy source must be specified in reactor_inputs."
+            )
+
+        # reaction enthalpy
+        if "reaction_enthalpy" in self.thermo_inputs_keys:
+            reaction_enthalpy_src: dict[
+                str,
+                CustomProp
+            ] = self.thermo_inputs["reaction_enthalpy"]
+
+            # iterate through reactions and extract reaction enthalpy values
+            for k, v in reaction_enthalpy_src.items():
+                # convert to J/mol
+                reaction_enthalpy_src[k] = CustomProp(
+                    value=to_J_per_mol(v.value, v.unit),
+                    unit="J/mol"
+                )
+
+            # res
+            return reaction_enthalpy_src
+        else:
+            raise ValueError(
+                "Reaction enthalpy must be provided in model_inputs for reaction enthalpy source mode."
             )
