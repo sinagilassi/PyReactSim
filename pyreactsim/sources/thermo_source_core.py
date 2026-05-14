@@ -137,8 +137,8 @@ class ThermoSourceCore(ThermoCalc):
         ] = self.thermo_model_source.Cp_IG_src
         # >> constant heat capacity
         # ! to J/mol.K
-        self.gas_heat_capacity_constant_values = self.thermo_model_inputs.gas_heat_capacity_constant_values
-        self.gas_heat_capacity_constant_comp = self.thermo_model_inputs.gas_heat_capacity_constant_comp
+        self.gas_heat_capacity_constant_values = self.thermo_model_inputs.Cp_IG
+        self.gas_heat_capacity_constant_comp = self.thermo_model_inputs.Cp_IG_comp
 
         # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
         # ! to J/K
@@ -173,8 +173,8 @@ class ThermoSourceCore(ThermoCalc):
             self.MW = self.thermo_model_source.MW
             self.MW_comp = self.thermo_model_source.MW_comp
         else:
-            self.MW = self.thermo_model_inputs.molecular_weight_values
-            self.MW_comp = self.thermo_model_inputs.molecular_weight_comp
+            self.MW = self.thermo_model_inputs.MW
+            self.MW_comp = self.thermo_model_inputs.MW_comp
 
         # SECTION: liquid density
         self.rho_LIQ_src: Dict[
@@ -182,8 +182,12 @@ class ThermoSourceCore(ThermoCalc):
             ComponentEquationSource
         ] = self.thermo_model_source.rho_LIQ_src
         # ! values in g/m3
-        self.liquid_density_constant_values = self.thermo_model_inputs.liquid_density_constant_values
-        self.liquid_density_constant_comp = self.thermo_model_inputs.liquid_density_constant_comp
+        self.liquid_density_constant_values = self.thermo_model_inputs.rho_LIQ
+        self.liquid_density_constant_comp = self.thermo_model_inputs.rho_LIQ_comp
+
+        # NOTE: mixture liquid density (average)
+        # ! values in g/m3
+        self.rho_LIQ_MIX = self.thermo_model_inputs.rho_LIQ_MIX
 
         # SECTION: heat capacity at liquid phase (Cp_LIQ)
         self.Cp_LIQ_src: Dict[
@@ -191,8 +195,8 @@ class ThermoSourceCore(ThermoCalc):
             ComponentEquationSource
         ] = self.thermo_model_source.Cp_LIQ_src
         # ! values in J/mol.K
-        self.liquid_heat_capacity_constant_values = self.thermo_model_inputs.liquid_heat_capacity_constant_values
-        self.liquid_heat_capacity_constant_comp = self.thermo_model_inputs.liquid_heat_capacity_constant_comp
+        self.liquid_heat_capacity_constant_values = self.thermo_model_inputs.Cp_LIQ
+        self.liquid_heat_capacity_constant_comp = self.thermo_model_inputs.Cp_LIQ_comp
 
     # SECTION: Thermodynamic property calculations
     # ! Calculate heat capacity at ideal gas for the components (Cp_IG)
@@ -296,7 +300,7 @@ class ThermoSourceCore(ThermoCalc):
     def calc_Cp_LIQ(
             self,
             temperature: Temperature,
-    ):
+    ) -> np.ndarray:
         """
         Calculate the liquid phase heat capacity (Cp_LIQ) in J/mol.K for the components in the batch reactor at the specified temperature.
 
@@ -310,8 +314,26 @@ class ThermoSourceCore(ThermoCalc):
         np.ndarray
             An array of liquid phase heat capacity (Cp_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
         """
-        # NOTE: calculate heat capacity at liquid phase for the components based on the heat capacity mode
-        if self.liquid_heat_capacity_mode == "temperature-dependent":
+        # >>> calculate heat capacity at liquid phase for the components based on the heat capacity mode
+        if (
+            self.liquid_heat_capacity_mode == "mixture" and
+            self.reactor_options.liquid_heat_capacity_source == "model_inputs"
+        ):
+            # NOTE: no need to retrieve Cp_LIQ for each component
+            return np.array([], dtype=float)
+
+        elif (
+            self.liquid_heat_capacity_mode == "mixture" and
+            self.reactor_options.liquid_heat_capacity_source == "model_source"
+        ):
+            # NOTE: no need to retrieve Cp_LIQ for each component
+            # FIXME
+            return np.array([], dtype=float)
+
+        elif (
+            self.liquid_heat_capacity_mode == "temperature-dependent" and
+            self.reactor_options.liquid_heat_capacity_source == "model_source"
+        ):
             # NOTE: calculate temperature-dependent heat capacity
             Cp_LIQ_values = self.calc_Cp_LIQ_real(
                 inputs={
@@ -321,7 +343,11 @@ class ThermoSourceCore(ThermoCalc):
                     }
                 },
             )
-        elif self.liquid_heat_capacity_mode == "constant":
+
+        elif (
+            self.liquid_heat_capacity_mode == "constant" and
+            self.reactor_options.liquid_heat_capacity_source == "model_inputs"
+        ):
             # NOTE: use constant heat capacity from model inputs
             # ! J/mol.K
             Cp_LIQ_values = self.liquid_heat_capacity_constant_values
