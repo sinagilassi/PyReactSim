@@ -601,6 +601,22 @@ class GasBatchReactor:
         -------
         float
             The rate of change of temperature (dT/dt) for the non-isothermal gas-phase batch reactor.
+
+        Notes
+        -----
+        The energy balance is given by:
+        (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
+
+        where:
+        - n_i: moles of component i (in mol)
+        - Cp_i: heat capacity of component i (in J/mol.K)
+        - V: reactor volume (in m3)
+        - ΔH_k: enthalpy change of reaction k (in J/mol)
+        - r_k: rate of reaction k (in mol/m3.s)
+        - U: overall heat transfer coefficient (in W/m2.K)
+        - A: heat transfer area (in m2)
+        - T_s: jacket temperature (in K)
+        - T: system temperature (in K)
         """
         # ! temperature
         temperature = Temperature(value=temp, unit="K")
