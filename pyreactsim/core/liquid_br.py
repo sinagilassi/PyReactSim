@@ -432,18 +432,39 @@ class LiquidBatchReactor:
         -------
         float
             The rate of change of temperature (dT/dt) for the non-isothermal gas-phase batch reactor.
+
+        Notes
+        -----
+        The energy balance is given by:
+        (Σ_i c_i Cp_i) dT/dt = Σ_k [(-ΔH_k) r_k] + UA (T_s - T)/V
+
+        where:
+        - c_i: concentration of component i (in mol/m3)
+        - Cp_i: heat capacity of component i (in J/mol.K)
+        - ΔH_k: enthalpy change of reaction k (in J/mol)
+        - r_k: reaction rate of reaction k (in mol/m3.s)
+        - U: heat transfer coefficient (in W/m^2.K)
+        - A: heat transfer area (in m^2)
+        - T_s: jacket temperature (in K)
+        - T: system temperature (in K)
+        - V: reactor volume (in m^3)
         """
         # ! temperature
         temperature = Temperature(value=temp, unit="K")
         temperature_value = temperature.value
 
-        # ! (Σ_i n_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
+        # ! (Σ_i c_i Cp_i) dT/dt = V Σ_k [(-ΔH_k) r_k] + UA (T_s - T)
+
+        # ! calculate total heat capacity of liquid phase (Cp_LIQ) for each component
         # ??? Cp_i(T)
+        # J/mol.K
         Cp_LIQ_values = self.thermo_source.calc_Cp_LIQ(
             temperature=temperature
         )
 
-        # ??? Σ_i n_i Cp_i
+        # ! mixture volumetric heat capacity (Cp_LIQ_total) for the system
+        # ??? Σ_i c_i Cp_i
+        # J/K.m3 = (mol/m3) * (J/mol.K)
         Cp_LIQ_total = calc_total_heat_capacity(c, Cp_LIQ_values)
 
         if Cp_LIQ_total <= 1e-16:
@@ -457,6 +478,7 @@ class LiquidBatchReactor:
         )
 
         # ??? Q_rxn
+        # J/s.m^3 = (J/mol) * (mol/m3.s)
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
             rates=rates,
