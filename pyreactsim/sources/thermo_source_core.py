@@ -123,6 +123,8 @@ class ThermoSourceCore(ThermoCalc):
         self.molecular_weight_source = reactor_options.molecular_weight_source
         # ! reaction enthalpy mode
         self.reaction_enthalpy_mode = reactor_options.reaction_enthalpy_mode
+        # ! reaction enthalpy source
+        self.reaction_enthalpy_source = reactor_options.reaction_enthalpy_source
 
         # SECTION: heat transfer options
         # ! heat transfer mode
@@ -162,6 +164,10 @@ class ThermoSourceCore(ThermoCalc):
         # dH_rxn at 298 K
         # ! values in J/mol
         self.dH_rxns_298 = self.calc_dH_rxns_298()
+
+        # dH_rxn at temperature T
+        # ! values in J/mol
+        self.dH_rxns_src = self.thermo_model_inputs.dH_rxn_src
 
         # SECTION: molecular weight (MW)
         self.MW_src: Dict[
@@ -1042,6 +1048,34 @@ class ThermoSourceCore(ThermoCalc):
         # NOTE: calculate reaction enthalpy using ideal gas reference state
         res = []
 
+        # SECTION: retrieve reaction enthalpy from model inputs
+        if (
+            self.reaction_enthalpy_mode == "reaction" and
+            self.reaction_enthalpy_source == "model_inputs"
+        ):
+            # iterate over reactions
+            for rxn in self.reactions:
+                # name
+                rxn_name = rxn.name
+
+                # >> check
+                if rxn_name not in self.dH_rxns_src.keys():
+                    raise ValueError(
+                        f"No reaction enthalpy source found for reaction: {rxn_name}"
+                    )
+
+                # set
+                value = self.dH_rxns_src[rxn_name].value
+                # add
+                res.append(value)
+
+            # NOTE: convert to numpy array
+            res = np.array(res, dtype=float)
+
+            # res
+            return res
+
+        # SECTION: calculate reaction enthalpy using ideal gas reference state from model source
         # NOTE: calculate liquid phase enthalpy for the components at reference temperature (e.g., 298 K)
         # ! in J/mol
         En_LIQ_comp, _ = self.calc_En_LIQ_ref(temperature=temperature)
