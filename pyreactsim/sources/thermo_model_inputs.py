@@ -1,7 +1,7 @@
 # import libs
 import logging
 import numpy as np
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Literal, Optional
 from pythermodb_settings.models import Component, CustomProp, ComponentKey
 # locals
 from ..models.br import BatchReactorOptions
@@ -29,22 +29,24 @@ class ThermoModelInputs:
     """
     # NOTE: Attributes
     # ! heat capacity of ideal gas
-    gas_heat_capacity_constant_values: np.ndarray = np.array([])
-    gas_heat_capacity_constant_comp: Dict[str, float] = {}
+    Cp_IG: np.ndarray = np.array([])
+    Cp_IG_comp: Dict[str, float] = {}
     # ! heat capacity of liquid
-    liquid_heat_capacity_constant_values: np.ndarray = np.array([])
-    liquid_heat_capacity_constant_comp: Dict[str, float] = {}
+    Cp_LIQ: np.ndarray = np.array([])
+    Cp_LIQ_comp: Dict[str, float] = {}
     # ! liquid density
-    liquid_density_constant_values: np.ndarray = np.array([])
-    liquid_density_constant_comp: Dict[str, float] = {}
+    rho_LIQ: np.ndarray = np.array([])
+    rho_LIQ_comp: Dict[str, float] = {}
+    # ! mixture liquid density
+    rho_LIQ_MIX: float = 0.0
     # ! ideal gas formation enthalpy at 298 K
     EnFo_IG_298_src: Dict[str, Dict[str, Any]] = {}
     EnFo_IG_298: np.ndarray = np.array([])
     EnFo_IG_298_comp: Dict[str, float] = {}
     # ! molecular weight
-    molecular_weight_src: Dict[str, Dict[str, Any]] = {}
-    molecular_weight_values: np.ndarray = np.array([])
-    molecular_weight_comp: Dict[str, float] = {}
+    MW_src: Dict[str, Dict[str, Any]] = {}
+    MW: np.ndarray = np.array([])
+    MW_comp: Dict[str, float] = {}
 
     def __init__(
         self,
@@ -116,8 +118,8 @@ class ThermoModelInputs:
                 # >> constant heat capacity
                 # ! to J/mol.K
                 (
-                    self.gas_heat_capacity_constant_values,
-                    self.gas_heat_capacity_constant_comp
+                    self.Cp_IG,
+                    self.Cp_IG_comp
                 ) = self._config_constant_gas_heat_capacity()
 
             # NOTE: Enthalpy of formation at 298 K for ideal gas
@@ -149,8 +151,8 @@ class ThermoModelInputs:
                 # >> constant heat capacity
                 # ! to J/mol.K
                 (
-                    self.liquid_heat_capacity_constant_values,
-                    self.liquid_heat_capacity_constant_comp
+                    self.Cp_LIQ,
+                    self.Cp_LIQ_comp
                 ) = self._config_constant_liquid_heat_capacity()
 
             # check density mode
@@ -162,25 +164,37 @@ class ThermoModelInputs:
                 # >> constant density
                 # ! to g/m3
                 (
-                    self.liquid_density_constant_values,
-                    self.liquid_density_constant_comp
+                    self.rho_LIQ,
+                    self.rho_LIQ_comp
                 ) = self._config_constant_liquid_density()
+
+            if (
+                self.liquid_density_mode == "mixture" and
+                self.reactor_options.liquid_density_source == "model_inputs"  # ! source
+            ):
+                # NOTE: use mixture density from model inputs
+                # >> mixture density
+                # ! to g/m3
+                self.rho_LIQ_MIX = to_g_per_m3(
+                    self.thermo_inputs["liquid_density_mixture"].value,
+                    self.thermo_inputs["liquid_density_mixture"].unit
+                )
 
             # molecular weight
             if self.reactor_options.molecular_weight_source == "model_inputs":  # ! source
                 # NOTE: use molecular weight from model inputs
                 # ! to g/mol
-                self.molecular_weight_src: Dict[
+                self.MW_src: Dict[
                     str, Dict[str, Any]
                 ] = self._config_molecular_weight()
 
                 # ! values in g/mol
                 (
-                    self.molecular_weight_values,
-                    self.molecular_weight_comp
+                    self.MW,
+                    self.MW_comp
                 ) = config_components_property(
                     component_ids=self.component_ids,
-                    prop_source=self.molecular_weight_src,
+                    prop_source=self.MW_src,
                     unit_conversion_func=to_g_per_mol
                 )
 
