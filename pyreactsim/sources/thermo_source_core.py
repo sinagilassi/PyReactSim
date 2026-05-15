@@ -308,17 +308,17 @@ class ThermoSourceCore(ThermoCalc):
             temperature: Temperature,
     ) -> np.ndarray:
         """
-        Calculate the liquid phase heat capacity (Cp_LIQ) in J/mol.K for the components in the batch reactor at the specified temperature.
+        Calculate the liquid phase heat capacity (Cp_LIQ) in J/mol.K for the components in the reactor at the specified temperature.
 
         Parameters
         ----------
         temperature : Temperature
-            The temperature at which to calculate the liquid phase heat capacity (Cp_LIQ) for the components in the batch reactor.
+            The temperature at which to calculate the liquid phase heat capacity (Cp_LIQ) for the components in the reactor.
 
         Returns
         -------
         np.ndarray
-            An array of liquid phase heat capacity (Cp_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
+            An array of liquid phase heat capacity (Cp_LIQ) values for the components in the reactor, calculated at the specified temperature.
         """
         if (
             self.liquid_heat_capacity_mode == "temperature-dependent" and
