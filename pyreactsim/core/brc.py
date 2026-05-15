@@ -65,6 +65,7 @@ class BatchReactorCore(ReactorCore):
         self.liquid_density_mode = batch_reactor_options.liquid_density_mode
         self.use_gas_mixture_total_heat_capacity = batch_reactor_options.use_gas_mixture_total_heat_capacity
         self.use_liquid_mixture_volumetric_heat_capacity = batch_reactor_options.use_liquid_mixture_volumetric_heat_capacity
+        self.reaction_enthalpy_mode = batch_reactor_options.reaction_enthalpy_mode
 
         # SECTION: Process model configuration
         # >> temperature
