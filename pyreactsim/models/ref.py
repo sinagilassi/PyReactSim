@@ -71,6 +71,14 @@ class ReactorOptions(BaseModel):
             "Cp_IG_MIX_TOTAL = sum(n_i * Cp_i), where Cp_i is in J/mol.K and n_i is in mol."
         )
     )
+    use_liquid_mixture_total_heat_capacity: bool = Field(
+        default=False,
+        description=(
+            "If True, use liquid mixture total heat capacity directly (J/K). "
+            "If False, calculate it from species contributions: "
+            "Cp_LIQ_MIX_TOTAL = sum(n_i * Cp_i), where Cp_i is in J/mol.K and n_i is in mol."
+        )
+    )
     use_liquid_mixture_volumetric_heat_capacity: bool = Field(
         default=False,
         description=(
@@ -106,6 +114,10 @@ class ReactorOptions(BaseModel):
     gas_mixture_total_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
         default="model_inputs",
         description="Source of gas mixture total heat capacity as model_inputs or model_source."
+    )
+    liquid_mixture_total_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_inputs",
+        description="Source of liquid mixture total heat capacity as model_inputs or model_source."
     )
     liquid_mixture_volumetric_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
         default="model_inputs",
