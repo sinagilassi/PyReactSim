@@ -47,11 +47,11 @@ class ReactorOptions(BaseModel):
         default="ideal",
         description="Gas model to use (required if phase is gas)."
     )
-    gas_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential", "mixture"]] = Field(
+    gas_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
         default="temperature-dependent",
         description="Gas heat capacity mode as constant, temperature-dependent, differential, and mixture."
     )
-    liquid_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential", "mixture"]] = Field(
+    liquid_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
         default="temperature-dependent",
         description="Liquid heat capacity mode as constant, temperature-dependent, differential, and mixture."
     )
