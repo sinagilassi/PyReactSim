@@ -320,23 +320,7 @@ class ThermoSourceCore(ThermoCalc):
         np.ndarray
             An array of liquid phase heat capacity (Cp_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
         """
-        # >>> calculate heat capacity at liquid phase for the components based on the heat capacity mode
         if (
-            self.liquid_heat_capacity_mode == "mixture" and
-            self.reactor_options.liquid_heat_capacity_source == "model_inputs"
-        ):
-            # NOTE: no need to retrieve Cp_LIQ for each component
-            return np.array([], dtype=float)
-
-        elif (
-            self.liquid_heat_capacity_mode == "mixture" and
-            self.reactor_options.liquid_heat_capacity_source == "model_source"
-        ):
-            # NOTE: no need to retrieve Cp_LIQ for each component
-            # FIXME
-            return np.array([], dtype=float)
-
-        elif (
             self.liquid_heat_capacity_mode == "temperature-dependent" and
             self.reactor_options.liquid_heat_capacity_source == "model_source"
         ):
@@ -548,7 +532,7 @@ class ThermoSourceCore(ThermoCalc):
     def calc_dH_rxns(
             self,
             temperature: Temperature,
-    ):
+    ) -> np.ndarray:
         """
         Calculate the reaction enthalpies (ΔH) for the reactions in the reactor.
 
@@ -1048,33 +1032,6 @@ class ThermoSourceCore(ThermoCalc):
         # NOTE: calculate reaction enthalpy using ideal gas reference state
         res = []
 
-        # SECTION: retrieve reaction enthalpy from model inputs
-        if (
-            self.reaction_enthalpy_mode == "reaction" and
-            self.reaction_enthalpy_source == "model_inputs"
-        ):
-            # iterate over reactions
-            for rxn in self.reactions:
-                # name
-                rxn_name = rxn.name
-
-                # >> check
-                if rxn_name not in self.dH_rxns_src.keys():
-                    raise ValueError(
-                        f"No reaction enthalpy source found for reaction: {rxn_name}"
-                    )
-
-                # set
-                value = self.dH_rxns_src[rxn_name].value
-                # add
-                res.append(value)
-
-            # NOTE: convert to numpy array
-            res = np.array(res, dtype=float)
-
-            # res
-            return res
-
         # SECTION: calculate reaction enthalpy using ideal gas reference state from model source
         # NOTE: calculate liquid phase enthalpy for the components at reference temperature (e.g., 298 K)
         # ! in J/mol
@@ -1121,6 +1078,58 @@ class ThermoSourceCore(ThermoCalc):
         res = np.array(res, dtype=float)
 
         return res
+
+    # ! set reaction enthalpy (ΔH) for reactions at temperature T using ideal gas reference state from model inputs
+    def set_dH_rxns(
+            self,
+    ) -> np.ndarray:
+        """
+        Set the reaction enthalpy (ΔH) in J/mol for the reactions in the batch reactor using values from model inputs.
+
+        Returns
+        -------
+        np.ndarray
+            An array of reaction enthalpy (ΔH) values for the reactions in the batch reactor, set using values from model inputs.
+
+        Notes
+        -----
+        - dH_rxns_src contains the reaction enthalpy values for each reaction, the value are already converted to J/mol.
+        """
+        # res
+        res = []
+
+        # SECTION: retrieve reaction enthalpy from model inputs
+        if (
+            self.reaction_enthalpy_mode == "reaction" and
+            self.reaction_enthalpy_source == "model_inputs" and
+            self.dH_rxns_src is not None
+        ):
+            # iterate over reactions
+            for rxn in self.reactions:
+                # name
+                rxn_name = rxn.name
+
+                # >> check
+                if rxn_name not in self.dH_rxns_src.keys():
+                    raise ValueError(
+                        f"No reaction enthalpy source found for reaction: {rxn_name}"
+                    )
+
+                # set
+                value = self.dH_rxns_src[rxn_name].value
+                # add
+                res.append(value)
+
+            # NOTE: convert to numpy array
+            res = np.array(res, dtype=float)
+
+            # res
+            return res
+
+        else:
+            raise ValueError(
+                f"Invalid reaction enthalpy configuration. Cannot set reaction enthalpy values from model inputs."
+            )
 
     # SECTION: Calculate Enthalpy Stream
     def calc_En_IG(
