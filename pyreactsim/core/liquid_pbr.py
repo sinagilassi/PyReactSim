@@ -11,12 +11,16 @@ from ..utils.opt_tools import calc_heat_exchange
 from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key, calc_residence_time
 from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity
 from .pbrc import PBRReactorCore
+# auxiliary
+from .react_aux import ReactorAuxiliary
+# log
+from .react_log import ReactLog
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class LiquidPBRReactor:
+class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
     """
     Liquid-phase packed-bed reactor model.
 
@@ -34,9 +38,17 @@ class LiquidPBRReactor:
         component_key: ComponentKey,
         **kwargs
     ):
-        self.components = components
-        self.component_key = component_key
-        self.thermo_source = thermo_source
+        # LINK: ReactorAuxiliary initialization
+        super().__init__(
+            components=components,
+            reaction_rates=reaction_rates,
+            thermo_source=thermo_source,
+            reactor_core=pbr_reactor_core,
+            component_key=component_key,
+        )
+        ReactLog.__init__(self)
+
+        # section: core model and configuration
         self.pbr_reactor_core = pbr_reactor_core
 
         # SECTION: options and heat-transfer configuration
@@ -56,26 +68,6 @@ class LiquidPBRReactor:
         self.rho_B_arg = {
             "rho_B": self._rho_B
         }
-
-        # SECTION: reaction and stoichiometry mapping
-        self.reaction_rates = reaction_rates
-        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
-        self.reaction_stoichiometry = stoichiometry_mat_key(
-            reactions=self.reactions,
-            component_key=component_key
-        )
-        self.reaction_stoichiometry_matrix = stoichiometry_mat(
-            reactions=self.reactions,
-            components=self.components,
-            component_key=component_key,
-        )
-
-        # SECTION: component references
-        self.component_num = self.thermo_source.component_refs["component_num"]
-        self.component_formula_state = self.thermo_source.component_refs[
-            "component_formula_state"
-        ]
-        self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: inlet and reactor geometry
         # ! feed flow rate [mol/s]
@@ -159,102 +151,6 @@ class LiquidPBRReactor:
             return f0
         return np.concatenate([f0, np.array([float(self._T_in)], dtype=float)])
 
-    def configure_rhs_logging(
-        self,
-        interval: Optional[float],
-        enabled: bool = True,
-        level: int = logging.INFO,
-        timing_enabled: bool = True
-    ) -> None:
-        """
-        Configure rhs logging cadence.
-
-        Parameters
-        ----------
-        interval : Optional[float]
-            Log cadence in solver volume units. If None, logging is disabled.
-            If 0.0, log every rhs call.
-        enabled : bool
-            Enable/disable logging.
-        level : int
-            Python logging level.
-        timing_enabled : bool
-            Include wall-clock timing fields in each rhs log line.
-        """
-        if interval is None:
-            self.rhs_log_interval = None
-            self.rhs_log_enabled = False
-        else:
-            interval = float(interval)
-            if interval < 0.0:
-                raise ValueError("interval must be >= 0.")
-            self.rhs_log_interval = interval
-            self.rhs_log_enabled = bool(enabled)
-
-        self.rhs_log_level = int(level)
-        self.rhs_log_timing_enabled = bool(timing_enabled)
-        self._rhs_next_log_v = None
-        self._rhs_last_v = None
-        self._rhs_log_active = False
-        self._rhs_log_v = None
-        self._rhs_wall_t0 = None
-        self._rhs_last_log_wall = None
-
-    def _should_log_rhs(self, v: float) -> bool:
-        if not self.rhs_log_enabled:
-            return False
-
-        interval = self.rhs_log_interval
-        if interval is None:
-            return False
-
-        v = float(v)
-        tol = 1e-12
-
-        # Some solvers can revisit lower V values (rejected/restarted step).
-        if self._rhs_last_v is not None and v < (self._rhs_last_v - tol):
-            self._rhs_next_log_v = None
-        self._rhs_last_v = v
-
-        if interval == 0.0:
-            return True
-
-        if self._rhs_next_log_v is None:
-            self._rhs_next_log_v = v
-
-        if v + tol < self._rhs_next_log_v:
-            return False
-
-        while self._rhs_next_log_v is not None and self._rhs_next_log_v <= (v + tol):
-            self._rhs_next_log_v += interval
-
-        return True
-
-    def _log_rhs(self, section: str, **fields: object) -> None:
-        if not self._rhs_log_active:
-            return
-        v_now = 0.0 if self._rhs_log_v is None else self._rhs_log_v
-        if self.rhs_log_timing_enabled:
-            now = time.perf_counter()
-            if self._rhs_wall_t0 is None:
-                self._rhs_wall_t0 = now
-            if self._rhs_last_log_wall is None:
-                self._rhs_last_log_wall = self._rhs_wall_t0
-
-            elapsed_ms = (now - self._rhs_wall_t0) * 1e3
-            step_ms = (now - self._rhs_last_log_wall) * 1e3
-            self._rhs_last_log_wall = now
-            fields = {"step_ms": step_ms, "elapsed_ms": elapsed_ms, **fields}
-
-        if fields:
-            details = ", ".join(f"{k}={v}" for k, v in fields.items())
-            logger.log(
-                self.rhs_log_level,
-                "rhs[V=%.6g] %s | %s", v_now, section, details
-            )
-        else:
-            logger.log(self.rhs_log_level, "rhs[V=%.6g] %s", v_now, section)
-
     def rhs(
             self,
             V: float,
@@ -327,7 +223,7 @@ class LiquidPBRReactor:
         # SECTION: kinetics evaluation
         # NOTE: raw rates are catalyst-mass basis r' [mol/kg.s]
         # packed-bed conversion to reactor-volume basis r_V [mol/m3.s]
-        rates_v = self._calc_rates(
+        rates_v = self._calc_rates_concentration_basis(
             concentration=concentration_std,
             temperature=temperature,
             args=self.rho_B_arg
@@ -405,46 +301,6 @@ class LiquidPBRReactor:
         raise ValueError(
             f"Invalid operation_mode '{self.operation_mode}' for liquid PBR."
         )
-
-    def _calc_rates(
-        self,
-        concentration: Dict[str, CustomProperty],
-        temperature: Temperature,
-        args: Optional[Dict[str, CustomProperty]] = None
-    ) -> np.ndarray:
-        """
-        Evaluate raw liquid-phase reaction rates on catalyst-mass basis.
-
-        Notes
-        -----
-        Liquid PBR currently supports concentration-basis kinetics only.
-
-        - The args parameter contains the bulk density rho_B for packed-bed conversion, which is passed to the rate expression calculations.
-        - The final rate unit is mol/m3.s after conversion, which is suitable for the species balance equations in the PBR model.
-        """
-        rates = []
-
-        for rate_exp in self.reaction_rates:
-            basis = rate_exp.basis
-            if basis != "concentration":
-                raise ValueError(
-                    f"Invalid basis '{basis}' for liquid PBR reaction rate expression '{rate_exp.name}'. "
-                    "Liquid PBR supports basis='concentration' only."
-                )
-
-            r_k = rate_exp.calc(
-                xi=concentration,
-                args=args,
-                temperature=temperature,
-                pressure=None
-            )
-
-            # set converted rate on reactor-volume basis r_V [mol/m3.s]
-            rates.append(float(r_k.value))
-
-        rates_array = np.array(rates, dtype=float)
-        self._log_rhs("_calc_rates", n_reactions=len(rates_array))
-        return rates_array
 
     def _build_dF_dV(self, rates: np.ndarray) -> np.ndarray:
         """
