@@ -87,6 +87,7 @@ class ReactorAuxiliary:
         self.component_id_to_index = self.thermo_source.component_refs['component_id_to_index']
 
         # SECTION: Thermo inputs
+        # ! Cp_IG_MIX_TOTAL: total heat capacity of gas mixture (in J/K)
         self.Cp_IG_MIX_TOTAL = self.thermo_source.thermo_model_inputs.Cp_IG_MIX_TOTAL
         self.Cp_IG_MIX_TOTAL_MODE = "constant" if self.Cp_IG_MIX_TOTAL is not None else "calculate"
 
@@ -99,6 +100,7 @@ class ReactorAuxiliary:
 
         # ! Cp_LIQ_MIX_VOLUMETRIC: volumetric heat capacity of liquid mixture (in J/K.m3)
         self.Cp_LIQ_MIX_VOLUMETRIC = self.thermo_source.thermo_model_inputs.Cp_LIQ_MIX_VOLUMETRIC
+        self.Cp_LIQ_MIX_VOLUMETRIC_MODE = "constant" if self.Cp_LIQ_MIX_VOLUMETRIC is not None else "calculate"
 
         # >> check
         if self.reactor_core.use_liquid_mixture_volumetric_heat_capacity:
@@ -106,6 +108,12 @@ class ReactorAuxiliary:
                 raise ValueError(
                     "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
                 )
+
+        # ! dH_rxns
+        if self.reactor_core.reaction_enthalpy_mode == "reaction":
+            self.dH_rxns = self.thermo_source.set_dH_rxns()
+        else:
+            self.dH_rxns = None
 
     # SECTION: Calculate rates
 
@@ -173,6 +181,57 @@ class ReactorAuxiliary:
 
         return rates
 
+    def _calc_rates_concentration_basis(
+        self,
+        concentration: Dict[str, CustomProperty],
+        temperature: Temperature,
+    ):
+        """
+        Calculate reaction rates in mol/m3.s for each reaction based on the current partial pressures and temperature.
+
+        Parameters
+        ----------
+        concentration : Dict[str, CustomProperty]
+            Concentration of the components in the reactor (in mol/m3).
+        temperature : Temperature
+            Current temperature of the system (in K).
+
+        Returns
+        -------
+        np.ndarray
+            An array of reaction rates for each reaction in the reactor, calculated based on the current partial pressures and temperature.
+        """
+        # ! r_k = k(T, P_i) for each reaction k
+        rates = []
+
+        # iterate over reaction rate expressions
+        for rate_exp in self.reaction_rates:
+            # >> check basis
+            basis = rate_exp.basis
+
+            # >> calculate rate for reaction
+            if basis == "concentration":
+                # >> calculate rate based on concentrations
+                r_k = rate_exp.calc(
+                    xi=concentration,
+                    temperature=temperature,
+                    pressure=None
+                )
+            else:
+                raise ValueError(
+                    f"Invalid basis '{basis}' for reaction rate expression '{rate_exp.name}'. Must be 'concentration'."
+                )
+
+            # extract rate value
+            r_k_value = r_k.value
+            # append to rates list
+            rates.append(r_k_value)
+
+        # >> to array
+        rates = np.array(rates, dtype=float)
+
+        return rates
+
     # SECTION: Calculating total heat capacity of gas mixture
     def _calc_total_heat_capacity(
             self,
@@ -223,6 +282,60 @@ class ReactorAuxiliary:
         else:
             raise ValueError(
                 f"Invalid mode '{mode}' for calculating total heat capacity. Must be 'calculate' or 'constant'."
+            )
+
+    # SECTION: Calculate volumetric heat capacity of liquid mixture
+    def _calc_volumetric_heat_capacity(
+            self,
+            c: np.ndarray,
+            temperature: Temperature,
+            mode: Literal['calculate', 'constant']
+    ) -> float:
+        """
+        Calculate the volumetric heat capacity of the liquid mixture based on the concentrations and heat capacities of the individual components.
+
+        Parameters
+        ----------
+        c : np.ndarray
+            Array of concentration of each component in the reactor (in mol/m3).
+        temperature : Temperature
+            Current temperature of the system (in K).
+        mode : Literal['calculate', 'constant']
+            The mode for calculating the volumetric heat capacity. If 'calculate', it will calculate based on individual component heat capacities and concentrations. If 'constant', it will use a constant value provided in the model inputs.
+
+        Returns
+        -------
+        float
+            The calculated volumetric heat capacity of the liquid mixture (in J/K.m3), calculated as the sum of the products of concentration and heat capacity for each component.
+        """
+        if mode == "constant":
+            # NOTE: calculate volumetric heat capacity of liquid mixture
+            if self.Cp_LIQ_MIX_VOLUMETRIC is None:
+                raise ValueError(
+                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
+                )
+
+            return float(self.Cp_LIQ_MIX_VOLUMETRIC.value)
+        elif mode == "calculate":
+            # NOTE: calculate total heat capacity of liquid phase (Cp_LIQ) for each component
+            # ??? Cp_i(T)
+            # J/mol.K
+            Cp_LIQ_values = self.thermo_source.calc_Cp_LIQ(
+                temperature=temperature
+            )
+
+            # ! mixture volumetric heat capacity (Cp_LIQ_total) for the system
+            # ??? Σ_i c_i Cp_i
+            # J/K.m3 = (mol/m3) * (J/mol.K)
+            Cp_LIQ_MIX_VOLUMETRIC = calc_total_heat_capacity(c, Cp_LIQ_values)
+
+            if Cp_LIQ_MIX_VOLUMETRIC <= 1e-16:
+                raise ValueError("Total heat capacity is too small or zero.")
+
+            return Cp_LIQ_MIX_VOLUMETRIC
+        else:
+            raise ValueError(
+                f"Invalid mode '{mode}' for calculating volumetric heat capacity. Must be 'calculate' or 'constant'."
             )
 
     # SECTION: Calculate concentration from moles and reactor volume
