@@ -48,7 +48,7 @@ class ThermoModelInputs:
     MW: np.ndarray = np.array([])
     MW_comp: Dict[str, float] = {}
     # ! enthalpy of reaction
-    dH_rxn_src: Dict[str, CustomProp] = {}
+    dH_rxn_src: Optional[Dict[str, CustomProp]] = None
     # ! total heat capacity of gas mixture
     Cp_IG_MIX_TOTAL: Optional[CustomProp] = None
     # ! volumetric heat capacity of liquid mixture
