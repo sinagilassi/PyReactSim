@@ -51,6 +51,8 @@ class ThermoModelInputs:
     dH_rxn_src: Optional[Dict[str, CustomProp]] = None
     # ! total heat capacity of gas mixture
     Cp_IG_MIX_TOTAL: Optional[CustomProp] = None
+    # ! total heat capacity of liquid mixture
+    Cp_LIQ_MIX_TOTAL: Optional[CustomProp] = None
     # ! volumetric heat capacity of liquid mixture
     Cp_LIQ_MIX_VOLUMETRIC: Optional[CustomProp] = None
 
@@ -219,6 +221,14 @@ class ThermoModelInputs:
                     prop_source=self.MW_src,
                     unit_conversion_func=to_g_per_mol
                 )
+
+            # NOTE: total heat capacity of liquid mixture
+            if (
+                self.reactor_options.use_liquid_mixture_total_heat_capacity and
+                self.reactor_options.liquid_mixture_total_heat_capacity_source == "model_inputs"
+            ):
+                # ! J/K
+                self.Cp_LIQ_MIX_TOTAL = self._config_liquid_mixture_total_heat_capacity()
 
             # NOTE: volumetric heat capacity of liquid mixture
             if (
@@ -521,6 +531,38 @@ class ThermoModelInputs:
         else:
             raise ValueError(
                 "Gas mixture total heat capacity must be provided in model_inputs for gas mixture total heat capacity source mode."
+            )
+
+    # ! mixture total heat capacity of liquid mixture
+    def _config_liquid_mixture_total_heat_capacity(
+            self
+    ) -> CustomProp:
+        """
+        Configure the total heat capacity of liquid mixture.
+        """
+        # check liquid mixture total heat capacity source
+        if self.reactor_options.liquid_mixture_total_heat_capacity_source is None:
+            raise ValueError(
+                "Liquid mixture total heat capacity source must be specified in reactor_inputs."
+            )
+
+        # liquid mixture total heat capacity
+        if "liquid_mixture_total_heat_capacity" in self.thermo_inputs_keys:
+            liquid_mixture_total_heat_capacity: CustomProp = self.thermo_inputs[
+                "liquid_mixture_total_heat_capacity"]
+
+            # NOTE: check unit
+            # ! J/K
+            if liquid_mixture_total_heat_capacity.unit != "J/K":
+                raise ValueError(
+                    "Liquid mixture total heat capacity must be provided in J/K for liquid mixture total heat capacity source mode."
+                )
+
+            # res
+            return liquid_mixture_total_heat_capacity
+        else:
+            raise ValueError(
+                "Liquid mixture total heat capacity must be provided in model_inputs for liquid mixture total heat capacity source mode."
             )
 
     # ! mixture volumetric heat capacity of liquid mixture
