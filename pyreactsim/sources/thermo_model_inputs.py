@@ -49,6 +49,10 @@ class ThermoModelInputs:
     MW_comp: Dict[str, float] = {}
     # ! enthalpy of reaction
     dH_rxn_src: Dict[str, CustomProp] = {}
+    # ! total heat capacity of gas mixture
+    Cp_IG_MIX_TOTAL: Optional[CustomProp] = None
+    # ! volumetric heat capacity of liquid mixture
+    Cp_LIQ_MIX_VOLUMETRIC: Optional[CustomProp] = None
 
     def __init__(
         self,
@@ -149,6 +153,14 @@ class ThermoModelInputs:
                 # ! to J/mol
                 self.dH_rxn_src = self._config_reaction_enthalpy()
 
+            # NOTE: total heat capacity of gas mixture
+            if (
+                self.reactor_options.use_gas_mixture_total_heat_capacity and
+                self.reactor_options.gas_mixture_total_heat_capacity_source == "model_inputs"
+            ):
+                # ! J/K
+                self.Cp_IG_MIX_TOTAL = self._config_gas_mixture_total_heat_capacity()
+
         # ! phase
         if self.phase == "liquid":
             # check heat capacity mode
@@ -190,7 +202,7 @@ class ThermoModelInputs:
                     self.thermo_inputs["liquid_density_mixture"].unit
                 )
 
-            # molecular weight
+            # NOTE: molecular weight
             if self.reactor_options.molecular_weight_source == "model_inputs":  # ! source
                 # NOTE: use molecular weight from model inputs
                 # ! to g/mol
@@ -207,6 +219,14 @@ class ThermoModelInputs:
                     prop_source=self.MW_src,
                     unit_conversion_func=to_g_per_mol
                 )
+
+            # NOTE: volumetric heat capacity of liquid mixture
+            if (
+                self.reactor_options.use_liquid_mixture_volumetric_heat_capacity and
+                self.reactor_options.liquid_mixture_volumetric_heat_capacity_source == "model_inputs"
+            ):
+                # ! J/m3.K
+                self.Cp_LIQ_MIX_VOLUMETRIC = self._config_liquid_mixture_volumetric_heat_capacity()
 
     # SECTION: configuration methods for properties
     # ! gas phase heat capacity configuration
@@ -469,4 +489,68 @@ class ThermoModelInputs:
         else:
             raise ValueError(
                 "Reaction enthalpy must be provided in model_inputs for reaction enthalpy source mode."
+            )
+
+    # ! mixture total heat capacity of gas mixture
+    def _config_gas_mixture_total_heat_capacity(
+            self
+    ) -> CustomProp:
+        """
+        Configure the total heat capacity of gas mixture.
+        """
+        # check gas mixture total heat capacity source
+        if self.reactor_options.gas_mixture_total_heat_capacity_source is None:
+            raise ValueError(
+                "Gas mixture total heat capacity source must be specified in reactor_inputs."
+            )
+
+        # gas mixture total heat capacity
+        if "gas_mixture_total_heat_capacity" in self.thermo_inputs_keys:
+            gas_mixture_total_heat_capacity: CustomProp = self.thermo_inputs[
+                "gas_mixture_total_heat_capacity"]
+
+            # NOTE: check unit
+            # ! J/K
+            if gas_mixture_total_heat_capacity.unit != "J/K":
+                raise ValueError(
+                    "Gas mixture total heat capacity must be provided in J/K for gas mixture total heat capacity source mode."
+                )
+
+            # res
+            return gas_mixture_total_heat_capacity
+        else:
+            raise ValueError(
+                "Gas mixture total heat capacity must be provided in model_inputs for gas mixture total heat capacity source mode."
+            )
+
+    # ! mixture volumetric heat capacity of liquid mixture
+    def _config_liquid_mixture_volumetric_heat_capacity(
+            self
+    ) -> CustomProp:
+        """
+        Configure the volumetric heat capacity of liquid mixture.
+        """
+        # check liquid mixture volumetric heat capacity source
+        if self.reactor_options.liquid_mixture_volumetric_heat_capacity_source is None:
+            raise ValueError(
+                "Liquid mixture volumetric heat capacity source must be specified in reactor_inputs."
+            )
+
+        # liquid mixture volumetric heat capacity
+        if "liquid_mixture_volumetric_heat_capacity" in self.thermo_inputs_keys:
+            liquid_mixture_volumetric_heat_capacity: CustomProp = self.thermo_inputs[
+                "liquid_mixture_volumetric_heat_capacity"]
+
+            # NOTE: check unit
+            # ! J/m3.K
+            if liquid_mixture_volumetric_heat_capacity.unit != "J/m3.K":
+                raise ValueError(
+                    "Liquid mixture volumetric heat capacity must be provided in J/m3.K for liquid mixture volumetric heat capacity source mode."
+                )
+
+            # res
+            return liquid_mixture_volumetric_heat_capacity
+        else:
+            raise ValueError(
+                "Liquid mixture volumetric heat capacity must be provided in model_inputs for liquid mixture volumetric heat capacity source mode."
             )
