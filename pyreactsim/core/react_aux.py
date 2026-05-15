@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple, Literal, cast
 from pythermodb_settings.models import Component, ComponentKey, Pressure, Temperature, Volume, CustomProperty
 from pyreactsim_core.models import ReactionRateExpression
 # ! locals
+from ..configs.constants import R_J_per_mol_K
 from .cstrc import CSTRReactorCore
 from .brc import BatchReactorCore
 from .pfrc import PFRReactorCore
@@ -27,8 +28,8 @@ class ReactorAuxiliary:
     T_ref = Temperature(value=298.15, unit="K")
     # reference pressure
     P_ref = Pressure(value=101325, unit="Pa")
-    # universal gas constant J/mol.K
-    R = 8.314
+    # ! universal gas constant [J/mol.K]
+    R = R_J_per_mol_K
 
     def __init__(
         self,
@@ -76,6 +77,8 @@ class ReactorAuxiliary:
             components=self.components,
             component_key=component_key,
         )
+        # stoichiometry matrix dimensions: rows = reactions, columns = components, values = ν_i,j
+        self.stoichiometry_matrix = self.thermo_source.thermo_reaction.stoichiometry_matrix
 
         # SECTION: component references
         self.component_num = self.thermo_source.component_refs['component_num']
@@ -87,6 +90,9 @@ class ReactorAuxiliary:
         self.component_id_to_index = self.thermo_source.component_refs['component_id_to_index']
 
         # SECTION: Thermo inputs
+        # ! basis
+        self.Cp_LIQ_MIX_TOTAL_BASIS = None
+
         # ! Cp_IG_MIX_TOTAL: total heat capacity of gas mixture (in J/K)
         self.Cp_IG_MIX_TOTAL = self.thermo_source.thermo_model_inputs.Cp_IG_MIX_TOTAL
         self.Cp_IG_MIX_TOTAL_MODE = "constant" if self.Cp_IG_MIX_TOTAL is not None else "calculate"
@@ -98,6 +104,19 @@ class ReactorAuxiliary:
                     "Cp_IG_MIX_TOTAL must be provided in the thermo model inputs when use_gas_mixture_total_heat_capacity is True."
                 )
 
+        # ! Cp_LIQ_MIX_TOTAL: total heat capacity of liquid mixture (in J/K)
+        self.Cp_LIQ_MIX_TOTAL = self.thermo_source.thermo_model_inputs.Cp_LIQ_MIX_TOTAL
+        self.Cp_LIQ_MIX_TOTAL_MODE = "constant" if self.Cp_LIQ_MIX_TOTAL is not None else "calculate"
+
+        # >> check
+        if self.reactor_core.use_liquid_mixture_total_heat_capacity:
+            if self.Cp_LIQ_MIX_TOTAL is None:
+                raise ValueError(
+                    "Cp_LIQ_MIX_TOTAL must be provided in the thermo model inputs when use_liquid_mixture_total_heat_capacity is True."
+                )
+            # set
+            self.Cp_LIQ_MIX_TOTAL_BASIS = "molar"
+
         # ! Cp_LIQ_MIX_VOLUMETRIC: volumetric heat capacity of liquid mixture (in J/K.m3)
         self.Cp_LIQ_MIX_VOLUMETRIC = self.thermo_source.thermo_model_inputs.Cp_LIQ_MIX_VOLUMETRIC
         self.Cp_LIQ_MIX_VOLUMETRIC_MODE = "constant" if self.Cp_LIQ_MIX_VOLUMETRIC is not None else "calculate"
@@ -108,6 +127,8 @@ class ReactorAuxiliary:
                 raise ValueError(
                     "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
                 )
+            # set
+            self.Cp_LIQ_MIX_VOLUMETRIC_BASIS = "volumetric"
 
         # ! dH_rxns
         if self.reactor_core.reaction_enthalpy_mode == "reaction":
@@ -123,7 +144,7 @@ class ReactorAuxiliary:
         concentration: Dict[str, CustomProperty],
         temperature: Temperature,
         pressure: Pressure
-    ):
+    ) -> np.ndarray:
         """
         Calculate reaction rates for each reaction based on the current partial pressures and temperature.
 
@@ -142,6 +163,11 @@ class ReactorAuxiliary:
         -------
         np.ndarray
             An array of reaction rates for each reaction in the reactor, calculated based on the current partial pressures and temperature.
+
+        Notes
+        -----
+        - basis='pressure' -> xi = partial pressures
+        - basis='concentration' -> xi = concentrations
         """
         # ! r_k = k(T, P_i) for each reaction k
         rates = []
@@ -284,7 +310,77 @@ class ReactorAuxiliary:
                 f"Invalid mode '{mode}' for calculating total heat capacity. Must be 'calculate' or 'constant'."
             )
 
+    # NOTE: calculate total heat capacity of liquid mixture
+    def _calc_total_heat_capacity_liquid(
+            self,
+            n: np.ndarray,
+            temperature: Temperature,
+            reactor_volume: float,
+            mode: Literal['calculate', 'constant'],
+    ) -> float:
+        """
+        Calculate the total heat capacity of the liquid mixture based on the moles of each component and the temperature.
+
+        Parameters
+        ----------
+        n : np.ndarray
+            Array of moles of each component in the reactor.
+        temperature : Temperature
+            Current temperature of the system (in K).
+        reactor_volume : float
+            Volume of the reactor (in m3).
+        mode : Literal['calculate', 'constant']
+            The mode for calculating the total heat capacity. If 'calculate', it will calculate based on individual component heat capacities and moles. If 'constant', it will use a constant value provided in the model inputs.
+
+        Returns
+        -------
+        float
+            The total heat capacity of the liquid mixture (in J/K).
+        """
+        if mode == "constant":
+            if self.Cp_LIQ_MIX_TOTAL_BASIS == "molar":
+                # NOTE: if use_gas_mixture_total_heat_capacity is True, use constant heat capacity from model source
+                if self.Cp_LIQ_MIX_TOTAL is None:
+                    raise ValueError(
+                        "Cp_LIQ_MIX_TOTAL must be provided in the thermo model inputs when use_liquid_mixture_total_heat_capacity is True."
+                    )
+
+                return float(self.Cp_LIQ_MIX_TOTAL.value)
+            elif self.Cp_LIQ_MIX_TOTAL_BASIS == "volumetric":
+                # NOTE: if use_liquid_mixture_volumetric_heat_capacity is True, use constant volumetric heat capacity from model source
+                if self.Cp_LIQ_MIX_VOLUMETRIC is None:
+                    raise ValueError(
+                        "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
+                    )
+
+                return float(self.Cp_LIQ_MIX_VOLUMETRIC.value)
+            else:
+                raise ValueError(
+                    f"Invalid basis '{self.Cp_LIQ_MIX_TOTAL_BASIS}' for constant liquid mixture heat capacity. Must be 'molar' or 'volumetric'."
+                )
+
+        elif mode == "calculate":
+            # NOTE: calculate total heat capacity of liquid mixture based on individual component heat capacities and moles
+            # ??? Cp_i(T)
+            Cp_LIQ_values = self.thermo_source.calc_Cp_LIQ(
+                temperature=temperature
+            )
+
+            # ??? Σ_i n_i Cp_i
+            # unit check: n_i [mol], Cp_i [J/mol.K] => n_i * Cp_i [J/K]
+            Cp_LIQ_MIX_TOTAL = calc_total_heat_capacity(n, Cp_LIQ_values)
+
+            if Cp_LIQ_MIX_TOTAL <= 1e-16:
+                raise ValueError("Total heat capacity is too small or zero.")
+
+            return Cp_LIQ_MIX_TOTAL
+        else:
+            raise ValueError(
+                f"Invalid mode '{mode}' for calculating total heat capacity. Must be 'calculate' or 'constant'."
+            )
+
     # SECTION: Calculate volumetric heat capacity of liquid mixture
+
     def _calc_volumetric_heat_capacity(
             self,
             c: np.ndarray,
@@ -362,6 +458,11 @@ class ReactorAuxiliary:
             - A dictionary of concentrations for each component as CustomProperty objects (in mol/m3).
             - The total concentration of the system (in mol/m3).
         """
+        if reactor_volume <= 1e-30:
+            raise ValueError(
+                "Calculated liquid reactor volume is too small or non-positive."
+            )
+
         # ! C_i = n_i / V
         # unit check: n_i [mol], V [m3] => C_i [mol/m3]
         concentration = n / reactor_volume
@@ -478,3 +579,25 @@ class ReactorAuxiliary:
             )
 
         return partial_pressures, partial_pressures_std, p_total, reactor_volume
+
+    # SECTION: Building xi (partial pressure) - simplified version for constant pressure or volume operation
+    def _set_partial_pressure(
+        self,
+        y_mole: np.ndarray,
+        p_total: float
+    ) -> Tuple[Dict[str, float], Dict[str, CustomProperty], float]:
+        """
+        Set component partial pressures from mole fractions.
+
+        Formula
+        -------
+        P_i = y_i * P_total
+        """
+        partial_pressures = {
+            sp: y_mole[i] * p_total for i, sp in enumerate(self.component_formula_state)
+        }
+        partial_pressures_std = {
+            k: CustomProperty(value=v, unit="Pa", symbol="P")
+            for k, v in partial_pressures.items()
+        }
+        return partial_pressures, partial_pressures_std, p_total
