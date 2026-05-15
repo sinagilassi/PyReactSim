@@ -62,7 +62,8 @@ class LiquidBatchReactorObservables:
                 temp = float(y_arr[ns, j])
 
             rho_liq = self.reactor.thermo_source.calc_rho_LIQ(
-                temperature=Temperature(value=temp, unit="K")
+                temperature=Temperature(value=temp, unit="K"),
+                operation_mode=self.reactor.operation_mode,
             )
             volumes[j] = float(
                 self.reactor._calc_system_volume(
@@ -100,8 +101,12 @@ class LiquidBatchReactorObservables:
                 temp = float(y_arr[ns, j])
 
             rho_raw = self.reactor.thermo_source.calc_rho_LIQ(
-                temperature=Temperature(value=temp, unit="K")
+                temperature=Temperature(value=temp, unit="K"),
+                operation_mode=self.reactor.operation_mode,
             )
+            if np.asarray(rho_raw).size == 0:
+                rho[j] = np.nan
+                continue
             rho[j] = self._to_mixture_density(
                 n=y_arr[:ns, j],
                 rho_raw=rho_raw,
