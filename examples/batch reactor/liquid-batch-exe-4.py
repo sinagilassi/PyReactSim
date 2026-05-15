@@ -59,24 +59,22 @@ batch_reactor_options = BatchReactorOptions(
     modeling_type='scale',
     operation_mode='constant_volume',
     phase='liquid',
-    gas_model='ideal',
     # mode
-    gas_heat_capacity_mode='constant',
-    liquid_heat_capacity_mode='constant',
-    liquid_density_mode='constant',
+    reaction_enthalpy_mode='reaction',
+    use_liquid_mixture_volumetric_heat_capacity=True,
     # source
-    gas_heat_capacity_source='model_inputs',
-    liquid_heat_capacity_source='model_inputs',
-    liquid_density_source='model_inputs',
-    molecular_weight_source='model_inputs',
+    ideal_gas_formation_enthalpy_source=None,
+    molecular_weight_source=None,
+    reaction_enthalpy_source='model_inputs',
+    liquid_mixture_volumetric_heat_capacity_source='model_inputs',
 )
 
 # ! heat transfer options
 heat_transfer_options = HeatTransferOptions(
     heat_transfer_mode='non-isothermal',
-    heat_transfer_coefficient=None,
-    heat_transfer_area=None,
-    jacket_temperature=None,
+    heat_transfer_coefficient=heat_transfer_coefficient,
+    heat_transfer_area=heat_transfer_area,
+    jacket_temperature=jacket_temperature,
 )
 
 # ====================================================
@@ -91,53 +89,23 @@ molecular_weight = {
     "E-l": CustomProp(value=0.044, unit="kg/mol"),
 }
 
-# NOTE: optional constant gas heat capacities [J/mol.K]
-constant_gas_heat_capacity = {
-    "A-l": CustomProp(value=75.3, unit="J/mol.K"),
-    "B-l": CustomProp(value=75.3, unit="J/mol.K"),
-    "C-l": CustomProp(value=75.3, unit="J/mol.K"),
-    "D-l": CustomProp(value=75.3, unit="J/mol.K"),
-    "E-l": CustomProp(value=75.3, unit="J/mol.K"),
+# NOTE: reaction enthalpy (dH_rxn) for the reactions in J/mol
+reaction_enthalpies = {
+    "r1": CustomProp(value=-85000, unit="J/mol"),
+    "r2": CustomProp(value=-80000, unit="J/mol"),
 }
 
-# NOTE: optional constant liquid heat capacities [J/mol.K]
-constant_liquid_heat_capacity = {
-    "A-l": CustomProp(value=81.1, unit="J/mol.K"),
-    "B-l": CustomProp(value=75.3, unit="J/mol.K"),
-    "C-l": CustomProp(value=120.5, unit="J/mol.K"),
-    "D-l": CustomProp(value=90.2, unit="J/mol.K"),
-    "E-l": CustomProp(value=110.3, unit="J/mol.K"),
-}
-
-# NOTE: constant liquid density (rho_LIQ) for the system in kg/m3
-constant_liquid_density = {
-    "A-l": CustomProp(value=570, unit="kg/m3"),
-    "B-l": CustomProp(value=1000, unit="kg/m3"),
-    "C-l": CustomProp(value=789, unit="kg/m3"),
-    "D-l": CustomProp(value=850, unit="kg/m3"),
-    "E-l": CustomProp(value=900, unit="kg/m3"),
-}
-
-# NOTE: average density of mixture (rho_LIQ_MIX)
-# ! kg/m3
-constant_liquid_density_mixture = CustomProp(
-    value=1100.0,
-    unit="kg/m3",
-)
-
-# NOTE: average heat capacity of mixture (Cp_LIQ_MIX)
-# ! J/kg.K
-constant_liquid_heat_capacity_mixture = CustomProp(
-    value=4000.0,
-    unit="J/kg.K",
+# NOTE: volumetric heat capacity of liquid mixture in J/m3.K
+liquid_mixture_volumetric_heat_capacity = CustomProp(
+    value=1100*4000,  # J/m3.K
+    unit="J/m3.K",
 )
 
 # ! thermo inputs
 thermo_inputs = {
     "molecular_weight": molecular_weight,
-    "gas_heat_capacity": constant_gas_heat_capacity,
-    "liquid_density": constant_liquid_density,
-    # "liquid_heat_capacity": constant_liquid_heat_capacity,
+    "reaction_enthalpy": reaction_enthalpies,
+    "liquid_mixture_volumetric_heat_capacity": liquid_mixture_volumetric_heat_capacity,
 }
 
 # ====================================================
@@ -215,7 +183,7 @@ print(batch_reactor)
 
 # NOTE: simulate batch reactor
 simulation_results = batch_reactor.simulate(
-    time_span=(0, 1200),  # seconds
+    time_span=(0, 800),  # seconds
     solver_options={
         "method": "Radau",
         "rtol": 1e-5,

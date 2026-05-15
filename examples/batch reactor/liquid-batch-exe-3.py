@@ -59,7 +59,6 @@ batch_reactor_options = BatchReactorOptions(
     modeling_type='scale',
     operation_mode='constant_volume',
     phase='liquid',
-    gas_model='ideal',
     # mode
     gas_heat_capacity_mode='constant',
     liquid_heat_capacity_mode='constant',
