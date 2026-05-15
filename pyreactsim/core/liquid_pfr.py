@@ -6,15 +6,18 @@ from pyreactsim_core.models import ReactionRateExpression
 # locals
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
-from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
 from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity
 from .pfrc import PFRReactorCore
+# auxiliary
+from .react_aux import ReactorAuxiliary
+# log
+from .react_log import ReactLog
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class LiquidPFRReactor:
+class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
     """
     Liquid-phase plug-flow reactor model.
 
@@ -40,9 +43,17 @@ class LiquidPFRReactor:
         component_key: ComponentKey,
         **kwargs
     ):
-        self.components = components
-        self.component_key = component_key
-        self.thermo_source = thermo_source
+        # LINK: ReactorAuxiliary initialization
+        super().__init__(
+            components=components,
+            reaction_rates=reaction_rates,
+            thermo_source=thermo_source,
+            reactor_core=pfr_reactor_core,
+            component_key=component_key,
+        )
+        ReactLog.__init__(self)
+
+        # SECTION: PFR reactor core configuration
         self.pfr_reactor_core = pfr_reactor_core
 
         # SECTION: Options and heat-transfer configuration
@@ -55,26 +66,6 @@ class LiquidPFRReactor:
         self.heat_transfer_area_value = pfr_reactor_core.heat_transfer_area_value
         self.jacket_temperature_value = pfr_reactor_core.jacket_temperature_value
         self.heat_rate_value = pfr_reactor_core.heat_rate_value
-
-        # SECTION: Reaction and stoichiometry mapping
-        self.reaction_rates = reaction_rates
-        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
-        self.reaction_stoichiometry = stoichiometry_mat_key(
-            reactions=self.reactions,
-            component_key=component_key
-        )
-        self.reaction_stoichiometry_matrix = stoichiometry_mat(
-            reactions=self.reactions,
-            components=self.components,
-            component_key=component_key,
-        )
-
-        # SECTION: Component references
-        self.component_num = self.thermo_source.component_refs["component_num"]
-        self.component_formula_state = self.thermo_source.component_refs[
-            "component_formula_state"
-        ]
-        self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: Inlet and reactor geometry
         # ! F_in: inlet component molar flow rates [mol/s]
@@ -173,7 +164,7 @@ class LiquidPFRReactor:
         }
 
         # SECTION: kinetics evaluation
-        rates = self._calc_rates(
+        rates = self._calc_rates_concentration_basis(
             concentration=concentration_std,
             temperature=temperature
         )
@@ -235,38 +226,6 @@ class LiquidPFRReactor:
         raise ValueError(
             f"Invalid operation_mode '{self.operation_mode}' for liquid PFR."
         )
-
-    # NOTE: helper methods for kinetics
-    def _calc_rates(
-        self,
-        concentration: Dict[str, CustomProperty],
-        temperature: Temperature
-    ) -> np.ndarray:
-        """
-        Evaluate liquid-phase reaction rates for all reactions [mol/m3.s].
-
-        Notes
-        -----
-        Liquid PFR currently supports concentration-basis kinetics only.
-        """
-        rates = []
-
-        for rate_exp in self.reaction_rates:
-            basis = rate_exp.basis
-            if basis != "concentration":
-                raise ValueError(
-                    f"Invalid basis '{basis}' for liquid PFR reaction rate expression '{rate_exp.name}'. "
-                    "Liquid PFR supports basis='concentration' only."
-                )
-
-            r_k = rate_exp.calc(
-                xi=concentration,
-                temperature=temperature,
-                pressure=None
-            )
-            rates.append(float(r_k.value))
-
-        return np.array(rates, dtype=float)
 
     # NOTE: species derivative builder for all modes
     def _build_dF_dV(self, rates: np.ndarray) -> np.ndarray:
