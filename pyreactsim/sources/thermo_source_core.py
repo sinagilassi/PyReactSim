@@ -479,12 +479,24 @@ class ThermoSourceCore(ThermoCalc):
         -------
         np.ndarray
             An array of reaction enthalpies (ΔH) for the reactions in the reactor, calculated at 298 K.
+
+        Notes
+        -----
+        - The reaction enthalpy (ΔH) is calculated using the formula:
+            ΔH_rxn = sum(nu_i * EnFo_IG_298_i) for all components i
+        where nu_i is the stoichiometric coefficient of component i in the reaction and EnFo_IG_298_i is the ideal gas enthalpy of formation at 298 K for component i.
+        - The ideal gas enthalpy of formation at 298 K for the components is extracted from the model source or model inputs based on the configuration.
+        - For enthalpy mode 'reaction', the reaction enthalpy is retrieved directly from the provided reaction enthalpy values in the model inputs.
         """
         # res
         dH_rxns = []
 
         # NOTE: isothermal case
         if self.heat_transfer_mode == "isothermal":
+            return np.array(dH_rxns, dtype=float)
+
+        # NOTE: enthalpy mode is reaction
+        if self.reaction_enthalpy_mode == "reaction":
             return np.array(dH_rxns, dtype=float)
 
         # NOTE: non-isothermal case
