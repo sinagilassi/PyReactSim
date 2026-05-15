@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Dict, List, cast
+from typing import Dict, List, cast, Literal, Optional
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Pressure, Temperature
 from pyreactsim_core.models import ReactionRateExpression
 # locals
@@ -281,21 +281,30 @@ class GasPFRReactor(ReactorAuxiliary, ReactLog):
         temperature = Temperature(value=temp, unit="K")
 
         # NOTE: flowing heat-capacity rate denominator [J/s.K]
+        # ! Cp_i^g from thermo source [J/mol.K]
         cp_g_values = self.thermo_source.calc_Cp_IG(temperature=temperature)
+
+        # ! total flowing heat capacity rate: Σ_i(F_i Cp_i^g) [J/s.K]
         cp_flow = calc_total_heat_capacity(x=F, cp=cp_g_values)
+
+        # >> check
         if cp_flow <= 1e-16:
             raise ValueError(
                 "Total flowing gas heat capacity is too small or zero.")
 
-        # NOTE: reaction heat source term [W/m3]
+        # NOTE: reaction heat source term
+        # ! [W/m3]
         delta_h = self.thermo_source.calc_dH_rxns(temperature=temperature)
+
+        # ! reaction heat generation: q_rxn = -Σ_j(ΔH_j r_j) [W/m3]
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
             rates=rates,
             reactor_volume=1.0
         )
 
-        # NOTE: jacket/surrounding heat exchange [W/m3]
+        # NOTE: jacket/surrounding heat exchange
+        # ! [W/m3]
         q_exchange = 0.0
         if self.heat_exchange:
             q_exchange = calc_heat_exchange(
@@ -306,11 +315,13 @@ class GasPFRReactor(ReactorAuxiliary, ReactLog):
                 reactor_volume=self._V_R
             )
 
-        # NOTE: user-defined constant heat source [W/m3]
+        # NOTE: user-defined constant heat source
+        # ! [W/m3]
         q_constant = 0.0
         if self.heat_rate_value:
             q_constant = self.heat_rate_value / self._V_R
 
+        # ! dT/dV = (q_rxn + q_exchange + q_constant) / Σ_i(F_i Cp_i^g) [K/m3]
         return (q_rxn + q_exchange + q_constant) / cp_flow
 
     def _calc_dP_dV(
