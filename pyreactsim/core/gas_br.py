@@ -16,12 +16,14 @@ from ..utils.opt_tools import calc_heat_exchange, set_component_X
 from ..models import GasModel
 # auxiliary
 from .react_aux import ReactorAuxiliary
+# log
+from .react_log import ReactLog
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class GasBatchReactor(ReactorAuxiliary):
+class GasBatchReactor(ReactorAuxiliary, ReactLog):
     """
     GasBatchReactor class for simulating chemical reactions in a gas-phase batch reactor setup. This class inherits from the BatchReactor class and is specifically designed to handle gas-phase reactions, incorporating properties and methods relevant to gas-phase systems.
 
@@ -86,6 +88,7 @@ class GasBatchReactor(ReactorAuxiliary):
             reactor_core=batch_reactor_core,
             component_key=component_key,
         )
+        ReactLog.__init__(self)
 
         # SECTION: batch reactor core
         self.batch_reactor_core = batch_reactor_core
@@ -150,28 +153,19 @@ class GasBatchReactor(ReactorAuxiliary):
         # Use `rhs_log_interval` (or `log_t_interval`) to log once every X in t.
         log_interval = kwargs.get(
             "rhs_log_interval", kwargs.get("log_t_interval"))
-        if log_interval is None:
-            self.rhs_log_interval: Optional[float] = None
-        else:
-            self.rhs_log_interval = float(log_interval)
-            if self.rhs_log_interval < 0.0:
-                raise ValueError("rhs_log_interval must be >= 0.")
-
-        enabled_default = self.rhs_log_interval is not None
-        self.rhs_log_enabled = bool(
-            kwargs.get("rhs_log_enabled", kwargs.get(
-                "enable_rhs_logging", enabled_default))
+        enabled_default = log_interval is not None
+        self.configure_rhs_logging(
+            interval=cast(Optional[float], log_interval),
+            enabled=bool(
+                kwargs.get(
+                    "rhs_log_enabled",
+                    kwargs.get("enable_rhs_logging", enabled_default),
+                )
+            ),
+            level=int(kwargs.get("rhs_log_level", logging.INFO)),
+            timing_enabled=bool(kwargs.get("rhs_log_timing_enabled", True)),
+            axis_label="t",
         )
-        self.rhs_log_level = int(kwargs.get("rhs_log_level", logging.INFO))
-        self.rhs_log_timing_enabled = bool(
-            kwargs.get("rhs_log_timing_enabled", True)
-        )
-        self._rhs_next_log_t: Optional[float] = None
-        self._rhs_last_t: Optional[float] = None
-        self._rhs_log_active = False
-        self._rhs_log_t: Optional[float] = None
-        self._rhs_wall_t0: Optional[float] = None
-        self._rhs_last_log_wall: Optional[float] = None
 
     # SECTION: Properties
     @property
@@ -212,100 +206,6 @@ class GasBatchReactor(ReactorAuxiliary):
 
         return y0
 
-    def configure_rhs_logging(
-        self,
-        interval: Optional[float],
-        enabled: bool = True,
-        level: int = logging.INFO,
-        timing_enabled: bool = True
-    ) -> None:
-        """
-        Configure rhs logging cadence.
-
-        Parameters
-        ----------
-        interval : Optional[float]
-            Log cadence in solver time units. If None, logging is disabled.
-            If 0.0, log every rhs call.
-        enabled : bool
-            Enable/disable logging.
-        level : int
-            Python logging level.
-        timing_enabled : bool
-            Include wall-clock timing fields in each rhs log line.
-        """
-        if interval is None:
-            self.rhs_log_interval = None
-            self.rhs_log_enabled = False
-        else:
-            interval = float(interval)
-            if interval < 0.0:
-                raise ValueError("interval must be >= 0.")
-            self.rhs_log_interval = interval
-            self.rhs_log_enabled = bool(enabled)
-
-        self.rhs_log_level = int(level)
-        self.rhs_log_timing_enabled = bool(timing_enabled)
-        self._rhs_next_log_t = None
-        self._rhs_last_t = None
-        self._rhs_log_active = False
-        self._rhs_log_t = None
-        self._rhs_wall_t0 = None
-        self._rhs_last_log_wall = None
-
-    def _should_log_rhs(self, t: float) -> bool:
-        if not self.rhs_log_enabled:
-            return False
-
-        interval = self.rhs_log_interval
-        if interval is None:
-            return False
-
-        t = float(t)
-        tol = 1e-12
-
-        # Some solvers can revisit lower t values (rejected/restarted step).
-        if self._rhs_last_t is not None and t < (self._rhs_last_t - tol):
-            self._rhs_next_log_t = None
-        self._rhs_last_t = t
-
-        if interval == 0.0:
-            return True
-
-        if self._rhs_next_log_t is None:
-            self._rhs_next_log_t = t
-
-        if t + tol < self._rhs_next_log_t:
-            return False
-
-        while self._rhs_next_log_t is not None and self._rhs_next_log_t <= (t + tol):
-            self._rhs_next_log_t += interval
-
-        return True
-
-    def _log_rhs(self, section: str, **fields: Any) -> None:
-        if not self._rhs_log_active:
-            return
-        t_now = 0.0 if self._rhs_log_t is None else self._rhs_log_t
-        if self.rhs_log_timing_enabled:
-            now = time.perf_counter()
-            if self._rhs_wall_t0 is None:
-                self._rhs_wall_t0 = now
-            if self._rhs_last_log_wall is None:
-                self._rhs_last_log_wall = self._rhs_wall_t0
-
-            elapsed_ms = (now - self._rhs_wall_t0) * 1e3
-            step_ms = (now - self._rhs_last_log_wall) * 1e3
-            self._rhs_last_log_wall = now
-            fields = {"step_ms": step_ms, "elapsed_ms": elapsed_ms, **fields}
-
-        if fields:
-            details = ", ".join(f"{k}={v}" for k, v in fields.items())
-            logger.log(self.rhs_log_level,
-                       "rhs[t=%.6g] %s | %s", t_now, section, details)
-        else:
-            logger.log(self.rhs_log_level, "rhs[t=%.6g] %s", t_now, section)
-
     # SECTION: ODE system for solve_ivp
     def rhs(
             self,
@@ -328,7 +228,7 @@ class GasBatchReactor(ReactorAuxiliary):
         """
         ns = self.component_num
         self._rhs_log_active = self._should_log_rhs(t)
-        self._rhs_log_t = float(t) if self._rhs_log_active else None
+        self._rhs_log_x = float(t) if self._rhs_log_active else None
         if self._rhs_log_active:
             self._rhs_wall_t0 = time.perf_counter()
             self._rhs_last_log_wall = self._rhs_wall_t0
@@ -413,7 +313,7 @@ class GasBatchReactor(ReactorAuxiliary):
         if self.heat_transfer_mode == "isothermal":
             self._log_rhs("rhs.end_isothermal")
             self._rhs_log_active = False
-            self._rhs_log_t = None
+            self._rhs_log_x = None
             self._rhs_wall_t0 = None
             self._rhs_last_log_wall = None
             return dn_dt
@@ -433,7 +333,7 @@ class GasBatchReactor(ReactorAuxiliary):
         out = np.concatenate([dn_dt, np.array([dT_dt], dtype=float)])
         self._log_rhs("rhs.end_nonisothermal")
         self._rhs_log_active = False
-        self._rhs_log_t = None
+        self._rhs_log_x = None
         self._rhs_wall_t0 = None
         self._rhs_last_log_wall = None
         return out

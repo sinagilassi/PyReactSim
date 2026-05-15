@@ -12,12 +12,16 @@ from ..sources.thermo_source import ThermoSource
 from ..utils.reaction_tools import stoichiometry_mat_key, stoichiometry_mat
 from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
 from ..utils.opt_tools import calc_heat_exchange
+# auxiliary
+from .react_aux import ReactorAuxiliary
+# log
+from .react_log import ReactLog
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class LiquidBatchReactor:
+class LiquidBatchReactor(ReactorAuxiliary, ReactLog):
     """
     Liquid Batch Reactor (LBR) class for simulating batch reactions in liquid phase.
 
@@ -64,12 +68,15 @@ class LiquidBatchReactor:
         **kwargs
             Additional keyword arguments that can be passed to the initialization of the GasBatchReactor instance.
         """
-        # NOTE: set
-        self.components = components
-        self.component_key = component_key
-
-        # SECTION: thermo source
-        self.thermo_source = thermo_source
+        # LINK: ReactorAuxiliary initialization
+        super().__init__(
+            components=components,
+            reaction_rates=reaction_rates,
+            thermo_source=thermo_source,
+            reactor_core=batch_reactor_core,
+            component_key=component_key,
+        )
+        ReactLog.__init__(self)
 
         # SECTION: batch reactor core
         self.batch_reactor_core = batch_reactor_core
@@ -103,42 +110,6 @@ class LiquidBatchReactor:
             components=self.components,
             component_key=component_key,
         )
-
-        # SECTION: component references
-        self.component_num = self.thermo_source.component_refs['component_num']
-        self.component_ids = self.thermo_source.component_refs['component_ids']
-        self.component_formula_state = self.thermo_source.component_refs[
-            'component_formula_state'
-        ]
-        self.component_mapper = self.thermo_source.component_refs['component_mapper']
-        self.component_id_to_index = self.thermo_source.component_refs['component_id_to_index']
-
-        # SECTION: Reaction rates
-        self.reaction_rates = reaction_rates
-        # >> build reactions
-        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
-        # >>> build stoichiometry matrix
-        self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
-            reactions=self.reactions,
-            component_key=component_key
-        )
-        # >> matrix
-        self.reaction_stoichiometry_matrix = stoichiometry_mat(
-            reactions=self.reactions,
-            components=self.components,
-            component_key=component_key,
-        )
-
-        # SECTION: Thermo inputs
-        # ! Cp_LIQ_MIX_VOLUMETRIC: volumetric heat capacity of liquid mixture (in J/K.m3)
-        self.Cp_LIQ_MIX_VOLUMETRIC = self.thermo_source.thermo_model_inputs.Cp_LIQ_MIX_VOLUMETRIC
-
-        # >> check
-        if self.batch_reactor_core.use_liquid_mixture_volumetric_heat_capacity:
-            if self.Cp_LIQ_MIX_VOLUMETRIC is None:
-                raise ValueError(
-                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
-                )
 
         # ! dH_rxns
         if self.reaction_enthalpy_mode == "reaction":
@@ -292,6 +263,7 @@ class LiquidBatchReactor:
         rates = self._calc_rates(
             concentration=concentration_std,
             temperature=temperature,
+            pressure=None
         )
 
         # NOTE: Species balances:
@@ -320,56 +292,56 @@ class LiquidBatchReactor:
         return np.concatenate([dn_dt, np.array([dT_dt], dtype=float)])
 
     # SECTION: Calculate rates
-    def _calc_rates(
-        self,
-        concentration: Dict[str, CustomProperty],
-        temperature: Temperature,
-    ):
-        """
-        Calculate reaction rates in mol/m3.s for each reaction based on the current partial pressures and temperature.
+    # def _calc_rates(
+    #     self,
+    #     concentration: Dict[str, CustomProperty],
+    #     temperature: Temperature,
+    # ):
+    #     """
+    #     Calculate reaction rates in mol/m3.s for each reaction based on the current partial pressures and temperature.
 
-        Parameters
-        ----------
-        concentration : Dict[str, CustomProperty]
-            Concentration of the components in the reactor (in mol/m3).
-        temperature : Temperature
-            Current temperature of the system (in K).
+    #     Parameters
+    #     ----------
+    #     concentration : Dict[str, CustomProperty]
+    #         Concentration of the components in the reactor (in mol/m3).
+    #     temperature : Temperature
+    #         Current temperature of the system (in K).
 
-        Returns
-        -------
-        np.ndarray
-            An array of reaction rates for each reaction in the reactor, calculated based on the current partial pressures and temperature.
-        """
-        # ! r_k = k(T, P_i) for each reaction k
-        rates = []
+    #     Returns
+    #     -------
+    #     np.ndarray
+    #         An array of reaction rates for each reaction in the reactor, calculated based on the current partial pressures and temperature.
+    #     """
+    #     # ! r_k = k(T, P_i) for each reaction k
+    #     rates = []
 
-        # iterate over reaction rate expressions
-        for rate_exp in self.reaction_rates:
-            # >> check basis
-            basis = rate_exp.basis
+    #     # iterate over reaction rate expressions
+    #     for rate_exp in self.reaction_rates:
+    #         # >> check basis
+    #         basis = rate_exp.basis
 
-            # >> calculate rate for reaction
-            if basis == "concentration":
-                # >> calculate rate based on concentrations
-                r_k = rate_exp.calc(
-                    xi=concentration,
-                    temperature=temperature,
-                    pressure=None
-                )
-            else:
-                raise ValueError(
-                    f"Invalid basis '{basis}' for reaction rate expression '{rate_exp.name}'. Must be 'concentration'."
-                )
+    #         # >> calculate rate for reaction
+    #         if basis == "concentration":
+    #             # >> calculate rate based on concentrations
+    #             r_k = rate_exp.calc(
+    #                 xi=concentration,
+    #                 temperature=temperature,
+    #                 pressure=None
+    #             )
+    #         else:
+    #             raise ValueError(
+    #                 f"Invalid basis '{basis}' for reaction rate expression '{rate_exp.name}'. Must be 'concentration'."
+    #             )
 
-            # extract rate value
-            r_k_value = r_k.value
-            # append to rates list
-            rates.append(r_k_value)
+    #         # extract rate value
+    #         r_k_value = r_k.value
+    #         # append to rates list
+    #         rates.append(r_k_value)
 
-        # >> to array
-        rates = np.array(rates, dtype=float)
+    #     # >> to array
+    #     rates = np.array(rates, dtype=float)
 
-        return rates
+    #     return rates
 
     # SECTION: Building dn/dt
     def _build_dn_dt(

@@ -97,6 +97,16 @@ class ReactorAuxiliary:
                     "Cp_IG_MIX_TOTAL must be provided in the thermo model inputs when use_gas_mixture_total_heat_capacity is True."
                 )
 
+        # ! Cp_LIQ_MIX_VOLUMETRIC: volumetric heat capacity of liquid mixture (in J/K.m3)
+        self.Cp_LIQ_MIX_VOLUMETRIC = self.thermo_source.thermo_model_inputs.Cp_LIQ_MIX_VOLUMETRIC
+
+        # >> check
+        if self.reactor_core.use_liquid_mixture_volumetric_heat_capacity:
+            if self.Cp_LIQ_MIX_VOLUMETRIC is None:
+                raise ValueError(
+                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
+                )
+
     # SECTION: Calculate rates
 
     def _calc_rates(

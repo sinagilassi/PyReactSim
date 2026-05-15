@@ -1,10 +1,11 @@
 import numpy as np
-from typing import Any, Dict
+from typing import Any, Dict, cast
 from pythermodb_settings.models import Temperature, Pressure
 
 # locals
 from ..core.gas_br import GasBatchReactor
 from ..core.gas_brx import GasBatchReactorX
+from ..models import GasModel
 
 
 class GasBatchReactorObservables:
@@ -48,6 +49,10 @@ class GasBatchReactorObservables:
                 n_total=n_total,
                 y_mole=y_mole,
                 T=temp,
+                _V0=self.reactor._V0,
+                _P0=self.reactor._P0,
+                gas_model=cast(GasModel, self.reactor.gas_model),
+                operation_mode=self.reactor.operation_mode,
             )
             total_pressure[j] = float(p_total)
             reactor_volume[j] = float(v_reactor)
@@ -84,7 +89,8 @@ class GasBatchReactorObservables:
         y_arr = np.asarray(y, dtype=float)
 
         if y_arr.ndim != 2:
-            raise ValueError("State array must be 2D with shape (n_states, n_points).")
+            raise ValueError(
+                "State array must be 2D with shape (n_states, n_points).")
 
         if y_arr.shape[1] != t_arr.size and y_arr.shape[0] == t_arr.size:
             y_arr = y_arr.T
