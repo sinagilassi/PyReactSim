@@ -2,7 +2,7 @@
 import logging
 import time
 import numpy as np
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple, cast, Literal
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, CustomProperty, Volume
 from pyThermoLinkDB.thermo import Source
 from pyreactsim_core.models import ReactionRateExpression
@@ -14,12 +14,14 @@ from ..utils.reaction_tools import stoichiometry_mat_key, stoichiometry_mat
 from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
 from ..utils.opt_tools import calc_heat_exchange, set_component_X
 from ..models import GasModel
+# auxiliary
+from .react_aux import ReactorAuxiliary
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class GasBatchReactor:
+class GasBatchReactor(ReactorAuxiliary):
     """
     GasBatchReactor class for simulating chemical reactions in a gas-phase batch reactor setup. This class inherits from the BatchReactor class and is specifically designed to handle gas-phase reactions, incorporating properties and methods relevant to gas-phase systems.
 
@@ -29,11 +31,11 @@ class GasBatchReactor:
     """
     # NOTE: Properties
     # reference temperature
-    T_ref = Temperature(value=298.15, unit="K")
+    # T_ref = Temperature(value=298.15, unit="K")
     # reference pressure
-    P_ref = Pressure(value=101325, unit="Pa")
+    # P_ref = Pressure(value=101325, unit="Pa")
     # universal gas constant J/mol.K
-    R = 8.314
+    # R = 8.314
 
     # NOTE: Properties
     # ! moles
@@ -76,15 +78,18 @@ class GasBatchReactor:
         **kwargs
             Additional keyword arguments that can be passed to the initialization of the GasBatchReactor instance.
         """
-        # NOTE: set
-        self.components = components
-        self.component_key = component_key
-
-        # SECTION: thermo source
-        self.thermo_source = thermo_source
+        # LINK: ReactorAuxiliary initialization
+        super().__init__(
+            components=components,
+            reaction_rates=reaction_rates,
+            thermo_source=thermo_source,
+            reactor_core=batch_reactor_core,
+            component_key=component_key,
+        )
 
         # SECTION: batch reactor core
         self.batch_reactor_core = batch_reactor_core
+
         # >>>
         self.heat_transfer_mode = batch_reactor_core.heat_transfer_mode
         self.gas_model = batch_reactor_core.gas_model
@@ -97,41 +102,6 @@ class GasBatchReactor:
         # ! heat rate [W]
         self.heat_rate = batch_reactor_core.heat_rate
         self.heat_rate_value = batch_reactor_core.heat_rate_value
-
-        # SECTION: Reaction rates
-        self.reaction_rates = reaction_rates
-        # >> build reactions
-        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
-        # >>> build stoichiometry matrix
-        self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
-            reactions=self.reactions,
-            component_key=component_key
-        )
-        # >> matrix
-        self.reaction_stoichiometry_matrix = stoichiometry_mat(
-            reactions=self.reactions,
-            components=self.components,
-            component_key=component_key,
-        )
-
-        # SECTION: component references
-        self.component_num = self.thermo_source.component_refs['component_num']
-        self.component_ids = self.thermo_source.component_refs['component_ids']
-        self.component_formula_state = self.thermo_source.component_refs[
-            'component_formula_state'
-        ]
-        self.component_mapper = self.thermo_source.component_refs['component_mapper']
-        self.component_id_to_index = self.thermo_source.component_refs['component_id_to_index']
-
-        # SECTION: Thermo inputs
-        self.Cp_IG_MIX_TOTAL = self.thermo_source.thermo_model_inputs.Cp_IG_MIX_TOTAL
-
-        # >> check
-        if self.batch_reactor_core.use_gas_mixture_total_heat_capacity:
-            if self.Cp_IG_MIX_TOTAL is None:
-                raise ValueError(
-                    "Cp_IG_MIX_TOTAL must be provided in the thermo model inputs when use_gas_mixture_total_heat_capacity is True."
-                )
 
         # SECTION: Configuration Input Stream
         # ! N: initial mole [-]
@@ -398,7 +368,11 @@ class GasBatchReactor:
         ) = self._calc_partial_pressure(
             n_total=n_total,
             y_mole=y_mole,
-            T=temp
+            T=temp,
+            _V0=self._V0,
+            _P0=self._P0,
+            gas_model=cast(GasModel, self.gas_model),
+            operation_mode=self.operation_mode
         )
         self._log_rhs("rhs.partial_pressure", p_total=float(
             p_total), reactor_volume=float(reactor_volume))
@@ -465,70 +439,70 @@ class GasBatchReactor:
         return out
 
     # SECTION: Calculate rates
-    def _calc_rates(
-        self,
-        partial_pressures: Dict[str, CustomProperty],
-        concentration: Dict[str, CustomProperty],
-        temperature: Temperature,
-        pressure: Pressure
-    ):
-        """
-        Calculate reaction rates for each reaction based on the current partial pressures and temperature.
+    # def _calc_rates(
+    #     self,
+    #     partial_pressures: Dict[str, CustomProperty],
+    #     concentration: Dict[str, CustomProperty],
+    #     temperature: Temperature,
+    #     pressure: Pressure
+    # ):
+    #     """
+    #     Calculate reaction rates for each reaction based on the current partial pressures and temperature.
 
-        Parameters
-        ----------
-        partial_pressures : Dict[str, CustomProperty]
-            Partial pressure of the components in the reactor (in Pa).
-        concentration : Dict[str, CustomProperty]
-            Concentration of the components in the reactor (in mol/m3).
-        temperature : Temperature
-            Current temperature of the system (in K).
-        pressure : Pressure
-            Total pressure of the system (in Pa).
+    #     Parameters
+    #     ----------
+    #     partial_pressures : Dict[str, CustomProperty]
+    #         Partial pressure of the components in the reactor (in Pa).
+    #     concentration : Dict[str, CustomProperty]
+    #         Concentration of the components in the reactor (in mol/m3).
+    #     temperature : Temperature
+    #         Current temperature of the system (in K).
+    #     pressure : Pressure
+    #         Total pressure of the system (in Pa).
 
-        Returns
-        -------
-        np.ndarray
-            An array of reaction rates for each reaction in the reactor, calculated based on the current partial pressures and temperature.
-        """
-        # ! r_k = k(T, P_i) for each reaction k
-        rates = []
+    #     Returns
+    #     -------
+    #     np.ndarray
+    #         An array of reaction rates for each reaction in the reactor, calculated based on the current partial pressures and temperature.
+    #     """
+    #     # ! r_k = k(T, P_i) for each reaction k
+    #     rates = []
 
-        # iterate over reaction rate expressions
-        for rate_exp in self.reaction_rates:
-            # >> check basis
-            basis = rate_exp.basis
+    #     # iterate over reaction rate expressions
+    #     for rate_exp in self.reaction_rates:
+    #         # >> check basis
+    #         basis = rate_exp.basis
 
-            # >> calculate rate for reaction
-            if basis == "pressure":
-                # >> calculate rate based on partial pressures
-                r_k = rate_exp.calc(
-                    xi=partial_pressures,
-                    temperature=temperature,
-                    pressure=pressure
-                )
-            elif basis == "concentration":
-                # >> calculate rate based on concentrations
-                r_k = rate_exp.calc(
-                    xi=concentration,
-                    temperature=temperature,
-                    pressure=pressure
-                )
-            else:
-                raise ValueError(
-                    f"Invalid basis '{basis}' for reaction rate expression '{rate_exp.name}'. Must be 'pressure' or 'concentration'."
-                )
+    #         # >> calculate rate for reaction
+    #         if basis == "pressure":
+    #             # >> calculate rate based on partial pressures
+    #             r_k = rate_exp.calc(
+    #                 xi=partial_pressures,
+    #                 temperature=temperature,
+    #                 pressure=pressure
+    #             )
+    #         elif basis == "concentration":
+    #             # >> calculate rate based on concentrations
+    #             r_k = rate_exp.calc(
+    #                 xi=concentration,
+    #                 temperature=temperature,
+    #                 pressure=pressure
+    #             )
+    #         else:
+    #             raise ValueError(
+    #                 f"Invalid basis '{basis}' for reaction rate expression '{rate_exp.name}'. Must be 'pressure' or 'concentration'."
+    #             )
 
-            # extract rate value
-            r_k_value = r_k.value
-            # append to rates list
-            rates.append(r_k_value)
+    #         # extract rate value
+    #         r_k_value = r_k.value
+    #         # append to rates list
+    #         rates.append(r_k_value)
 
-        # >> to array
-        rates = np.array(rates, dtype=float)
-        self._log_rhs("_calc_rates", n_reactions=len(rates))
+    #     # >> to array
+    #     rates = np.array(rates, dtype=float)
+    #     self._log_rhs("_calc_rates", n_reactions=len(rates))
 
-        return rates
+    #     return rates
 
     # SECTION: Building dn/dt
     def _build_dn_dt(
@@ -582,7 +556,6 @@ class GasBatchReactor:
             # for i in range(ns):
             #     dn_dt[i] += g_k[i]
 
-        self._log_rhs("_build_dn_dt", reactor_volume=float(reactor_volume))
         return dn_dt
 
     # SECTION: Building dT/dt
@@ -636,7 +609,11 @@ class GasBatchReactor:
         # n_i [mol], Cp_i(T) [J/mol.K] => n_i * Cp_i(T) [J/K], Σ_i n_i Cp_i(T) [J/K]
         Cp_IG_MIX_TOTAL = self._calc_total_heat_capacity(
             n=n,
-            temperature=temperature
+            temperature=temperature,
+            mode=cast(
+                Literal['calculate', 'constant'],
+                self.Cp_IG_MIX_TOTAL_MODE
+            )
         )
 
         # ! calculate heat generated by reactions: Q_rxn = V Σ_k [(-ΔH_k) r_k]
@@ -645,10 +622,6 @@ class GasBatchReactor:
         delta_h = self.thermo_source.calc_dH_rxns(
             temperature=temperature
         )
-        self._log_rhs(
-            "_build_dT_dt.delta_h",
-            delta_h=np.asarray(delta_h, dtype=float).tolist()
-        )
 
         # ??? Q_rxn
         q_rxn = calc_rxn_heat_generation(
@@ -656,7 +629,6 @@ class GasBatchReactor:
             rates=rates,
             reactor_volume=reactor_volume
         )
-        self._log_rhs("_build_dT_dt.q_rxn", q_rxn=float(q_rxn))
 
         # ! calculate heat exchange with surroundings: Q_exchange = UA (T_s - T)
         # U[W/m2.K], A[m2], (T_s - T)[K] => Q_exchange [W] or [J/s]
@@ -672,7 +644,6 @@ class GasBatchReactor:
                 heat_transfer_coefficient=self.heat_transfer_coefficient_value,
                 reactor_volume=1
             )
-        self._log_rhs("_build_dT_dt.q_exchange", q_exchange=float(q_exchange))
 
         # ??? Q_constant: constant heat flux (in W or J/s)
         # W/m^2.K => J/s or W
@@ -681,190 +652,182 @@ class GasBatchReactor:
         # >>> check if constant heat rate is provided
         if self.heat_rate_value:
             q_constant = self.heat_rate_value
-        self._log_rhs("_build_dT_dt.q_constant", q_constant=float(q_constant))
 
         # >>> calculate dT/dt
         dT_dt = (q_rxn + q_exchange + q_constant) / Cp_IG_MIX_TOTAL
-        self._log_rhs("_build_dT_dt.result", dT_dt=float(dT_dt))
 
         return dT_dt
 
     # SECTION: Calculating total heat capacity of gas mixture
-    def _calc_total_heat_capacity(
-            self,
-            n: np.ndarray,
-            temperature: Temperature,
-    ) -> float:
-        """
-        Calculate the total heat capacity of the gas mixture based on the moles of each component and the temperature.
+    # def _calc_total_heat_capacity(
+    #         self,
+    #         n: np.ndarray,
+    #         temperature: Temperature,
+    # ) -> float:
+    #     """
+    #     Calculate the total heat capacity of the gas mixture based on the moles of each component and the temperature.
 
-        Parameters
-        ----------
-        n : np.ndarray
-            Array of moles of each component in the reactor.
-        temperature : Temperature
-            Current temperature of the system (in K).
+    #     Parameters
+    #     ----------
+    #     n : np.ndarray
+    #         Array of moles of each component in the reactor.
+    #     temperature : Temperature
+    #         Current temperature of the system (in K).
 
-        Returns
-        -------
-        float
-            The total heat capacity of the gas mixture (in J/K).
-        """
-        # NOTE: if use_gas_mixture_total_heat_capacity is True, use constant heat capacity from model source
-        if self.batch_reactor_core.use_gas_mixture_total_heat_capacity:
+    #     Returns
+    #     -------
+    #     float
+    #         The total heat capacity of the gas mixture (in J/K).
+    #     """
+    #     # NOTE: if use_gas_mixture_total_heat_capacity is True, use constant heat capacity from model source
+    #     if self.batch_reactor_core.use_gas_mixture_total_heat_capacity:
 
-            if self.Cp_IG_MIX_TOTAL is None:
-                raise ValueError(
-                    "Cp_IG_MIX_TOTAL must be provided in the thermo model inputs when use_gas_mixture_total_heat_capacity is True."
-                )
+    #         if self.Cp_IG_MIX_TOTAL is None:
+    #             raise ValueError(
+    #                 "Cp_IG_MIX_TOTAL must be provided in the thermo model inputs when use_gas_mixture_total_heat_capacity is True."
+    #             )
 
-            return float(self.Cp_IG_MIX_TOTAL.value)
+    #         return float(self.Cp_IG_MIX_TOTAL.value)
 
-        # NOTE: calculate total heat capacity of gas mixture based on individual component heat capacities and moles
-        # ??? Cp_i(T)
-        Cp_IG_values = self.thermo_source.calc_Cp_IG(
-            temperature=temperature
-        )
+    #     # NOTE: calculate total heat capacity of gas mixture based on individual component heat capacities and moles
+    #     # ??? Cp_i(T)
+    #     Cp_IG_values = self.thermo_source.calc_Cp_IG(
+    #         temperature=temperature
+    #     )
 
-        # ??? Σ_i n_i Cp_i
-        # unit check: n_i [mol], Cp_i [J/mol.K] => n_i * Cp_i [J/K]
-        Cp_IG_MIX_TOTAL = calc_total_heat_capacity(n, Cp_IG_values)
+    #     # ??? Σ_i n_i Cp_i
+    #     # unit check: n_i [mol], Cp_i [J/mol.K] => n_i * Cp_i [J/K]
+    #     Cp_IG_MIX_TOTAL = calc_total_heat_capacity(n, Cp_IG_values)
 
-        if Cp_IG_MIX_TOTAL <= 1e-16:
-            raise ValueError("Total heat capacity is too small or zero.")
+    #     if Cp_IG_MIX_TOTAL <= 1e-16:
+    #         raise ValueError("Total heat capacity is too small or zero.")
 
-        return Cp_IG_MIX_TOTAL
+    #     return Cp_IG_MIX_TOTAL
 
     # SECTION: Building xi (partial pressure)
-    def _calc_partial_pressure(
-        self,
-        n_total: float,
-        y_mole: np.ndarray,
-        T: float,
-    ):
-        """
-        Calculate the partial pressures of the components based on the total moles, mole fractions, and temperature.
+    # def _calc_partial_pressure(
+    #     self,
+    #     n_total: float,
+    #     y_mole: np.ndarray,
+    #     T: float,
+    # ):
+    #     """
+    #     Calculate the partial pressures of the components based on the total moles, mole fractions, and temperature.
 
-        Parameters
-        ----------
-        n_total : float
-            Total moles of all components in the reactor.
-        y_mole : np.ndarray
-            Mole fractions of the components in the reactor.
-        T : float
-            Current temperature of the system (in K).
-        component_key : ComponentKey
-            The key to be used for the components in the model source, which is necessary for mapping the component names to their corresponding properties in the model source.
+    #     Parameters
+    #     ----------
+    #     n_total : float
+    #         Total moles of all components in the reactor.
+    #     y_mole : np.ndarray
+    #         Mole fractions of the components in the reactor.
+    #     T : float
+    #         Current temperature of the system (in K).
 
-        Returns
-        -------
-        Tuple[Dict[str, CustomProperty], Dict[str, CustomProperty], float]
-            A tuple containing:
-            - A dictionary of partial pressures for each component (in Pa).
-            - A dictionary of partial pressures for each component as CustomProperty objects (in Pa).
-            - The total pressure of the system (in Pa).
-        """
-        # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
-        # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
-        if self.operation_mode == "constant_volume":
-            # ??? Constant volume assumption: V = V0
-            reactor_volume = self._V0
+    #     Returns
+    #     -------
+    #     Tuple[Dict[str, CustomProperty], Dict[str, CustomProperty], float]
+    #         A tuple containing:
+    #         - A dictionary of partial pressures for each component (in Pa).
+    #         - A dictionary of partial pressures for each component as CustomProperty objects (in Pa).
+    #         - The total pressure of the system (in Pa).
+    #     """
+    #     # ! calculate total pressure using ideal gas law: P = N_total * R * T / V
+    #     # ! unit check: N_total [mol], R [J/mol.K], T [K], V [m3] => P [Pa]
+    #     if self.operation_mode == "constant_volume":
+    #         # ??? Constant volume assumption: V = V0
+    #         reactor_volume = self._V0
 
-            # NOTE: calculate total pressure
-            # ! P_total = f(n_total(t), P(t))
-            p_total = self.thermo_source.calc_tot_pressure(
-                n_total=n_total,
-                temperature=T,
-                reactor_volume_value=reactor_volume,
-                R=self.R,
-                gas_model=cast(GasModel, self.gas_model)
-            )
-        elif self.operation_mode == "constant_pressure":
-            # ??? Constant pressure assumption: P = P0
-            p_total = self._P0
+    #         # NOTE: calculate total pressure
+    #         # ! P_total = f(n_total(t), P(t))
+    #         p_total = self.thermo_source.calc_tot_pressure(
+    #             n_total=n_total,
+    #             temperature=T,
+    #             reactor_volume_value=reactor_volume,
+    #             R=self.R,
+    #             gas_model=cast(GasModel, self.gas_model)
+    #         )
+    #     elif self.operation_mode == "constant_pressure":
+    #         # ??? Constant pressure assumption: P = P0
+    #         p_total = self._P0
 
-            # NOTE: calculate volume
-            # ! V(t) = f(n_total(t), T(t))
-            reactor_volume = self.thermo_source.calc_gas_volume(
-                n_total=n_total,
-                temperature=T,
-                pressure=p_total,
-                R=self.R,
-                gas_model=cast(GasModel, self.gas_model)
-            )
-        else:
-            raise ValueError(
-                f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
-            )
+    #         # NOTE: calculate volume
+    #         # ! V(t) = f(n_total(t), T(t))
+    #         reactor_volume = self.thermo_source.calc_gas_volume(
+    #             n_total=n_total,
+    #             temperature=T,
+    #             pressure=p_total,
+    #             R=self.R,
+    #             gas_model=cast(GasModel, self.gas_model)
+    #         )
+    #     else:
+    #         raise ValueError(
+    #             f"Invalid operation mode '{self.operation_mode}'. Must be constant pressure or volume."
+    #         )
 
-        # NOTE: partial pressures:
-        # ! P_i = y_i * P_total
-        partial_pressures = {
-            sp: y_mole[i] * p_total for i, sp in enumerate(self.component_formula_state)
-        }
+    #     # NOTE: partial pressures:
+    #     # ! P_i = y_i * P_total
+    #     partial_pressures = {
+    #         sp: y_mole[i] * p_total for i, sp in enumerate(self.component_formula_state)
+    #     }
 
-        # NOTE: standardize partial pressures to be used in rate calculations:
-        # ??? r[k] = k(T, P_i) for each reaction k
-        # >> std partial pressures
-        partial_pressures_std = {}
+    #     # NOTE: standardize partial pressures to be used in rate calculations:
+    #     # ??? r[k] = k(T, P_i) for each reaction k
+    #     # >> std partial pressures
+    #     partial_pressures_std = {}
 
-        for k, v in partial_pressures.items():
-            partial_pressures_std[k] = CustomProperty(
-                value=v,
-                unit="Pa",
-                symbol="P"
-            )
+    #     for k, v in partial_pressures.items():
+    #         partial_pressures_std[k] = CustomProperty(
+    #             value=v,
+    #             unit="Pa",
+    #             symbol="P"
+    #         )
 
-        self._log_rhs("_calc_partial_pressure", p_total=float(
-            p_total), reactor_volume=float(reactor_volume))
-        return partial_pressures, partial_pressures_std, p_total, reactor_volume
+    #     return partial_pressures, partial_pressures_std, p_total, reactor_volume
 
-    def _calc_concentration(
-            self,
-            n: np.ndarray,
-            reactor_volume: float
-    ) -> Tuple[np.ndarray, Dict[str, CustomProperty], float]:
-        """
-        Calculate the concentration of each component in the reactor based on the moles and reactor volume.
+    # def _calc_concentration(
+    #         self,
+    #         n: np.ndarray,
+    #         reactor_volume: float
+    # ) -> Tuple[np.ndarray, Dict[str, CustomProperty], float]:
+    #     """
+    #     Calculate the concentration of each component in the reactor based on the moles and reactor volume.
 
-        Parameters
-        ----------
-        n : np.ndarray
-            Array of moles of each component in the reactor.
-        reactor_volume : float
-            Volume of the reactor (in m3).
+    #     Parameters
+    #     ----------
+    #     n : np.ndarray
+    #         Array of moles of each component in the reactor.
+    #     reactor_volume : float
+    #         Volume of the reactor (in m3).
 
-        Returns
-        -------
-        Tuple[np.ndarray, Dict[str, CustomProperty], float]
-            A tuple containing:
-            - An array of concentrations for each component (in mol/m3).
-            - A dictionary of concentrations for each component as CustomProperty objects (in mol/m3).
-            - The total concentration of the system (in mol/m3).
-        """
-        # ! C_i = n_i / V
-        # unit check: n_i [mol], V [m3] => C_i [mol/m3]
-        concentration = n / reactor_volume
+    #     Returns
+    #     -------
+    #     Tuple[np.ndarray, Dict[str, CustomProperty], float]
+    #         A tuple containing:
+    #         - An array of concentrations for each component (in mol/m3).
+    #         - A dictionary of concentrations for each component as CustomProperty objects (in mol/m3).
+    #         - The total concentration of the system (in mol/m3).
+    #     """
+    #     # ! C_i = n_i / V
+    #     # unit check: n_i [mol], V [m3] => C_i [mol/m3]
+    #     concentration = n / reactor_volume
 
-        # total concentration
-        # ! C_total = N_total / V
-        n_total = np.sum(n)
-        concentration_total = n_total / reactor_volume
+    #     # total concentration
+    #     # ! C_total = N_total / V
+    #     n_total = np.sum(n)
+    #     concentration_total = n_total / reactor_volume
 
-        # NOTE: create ids for concentration array
-        conc_ids = [
-            sp for sp in self.component_formula_state
-        ]
+    #     # NOTE: create ids for concentration array
+    #     conc_ids = [
+    #         sp for sp in self.component_formula_state
+    #     ]
 
-        # std concentration as dict
-        concentration_std = {
-            sp: CustomProperty(
-                value=conc,
-                unit="mol/m3",
-                symbol="C"
-            ) for sp, conc in zip(conc_ids, concentration)
-        }
+    #     # std concentration as dict
+    #     concentration_std = {
+    #         sp: CustomProperty(
+    #             value=conc,
+    #             unit="mol/m3",
+    #             symbol="C"
+    #         ) for sp, conc in zip(conc_ids, concentration)
+    #     }
 
-        self._log_rhs("_calc_concentration",
-                      concentration_total=float(concentration_total))
-        return concentration, concentration_std, concentration_total
+    #     return concentration, concentration_std, concentration_total
