@@ -143,7 +143,8 @@ class ReactorAuxiliary:
         partial_pressures: Dict[str, CustomProperty],
         concentration: Dict[str, CustomProperty],
         temperature: Temperature,
-        pressure: Pressure
+        pressure: Pressure,
+        args: Optional[Dict[str, CustomProperty]] = None,
     ) -> np.ndarray:
         """
         Calculate reaction rates for each reaction based on the current partial pressures and temperature.
@@ -168,6 +169,9 @@ class ReactorAuxiliary:
         -----
         - basis='pressure' -> xi = partial pressures
         - basis='concentration' -> xi = concentrations
+        - The args parameter contains the bulk density rho_B for packed-bed conversion, which is passed to the rate expression calculations.
+        - The final rate unit is mol/m3.s after conversion, which is suitable for the species balance equations in the PBR model.
+        - The raw rates are on catalyst-mass basis r' [mol/kg.s] and will be converted to reactor-volume basis r_V [mol/m3.s] via r_V = rho_B * r'.
         """
         # ! r_k = k(T, P_i) for each reaction k
         rates = []
@@ -182,6 +186,7 @@ class ReactorAuxiliary:
                 # >> calculate rate based on partial pressures
                 r_k = rate_exp.calc(
                     xi=partial_pressures,
+                    args=args,
                     temperature=temperature,
                     pressure=pressure
                 )
@@ -189,6 +194,7 @@ class ReactorAuxiliary:
                 # >> calculate rate based on concentrations
                 r_k = rate_exp.calc(
                     xi=concentration,
+                    args=args,
                     temperature=temperature,
                     pressure=pressure
                 )
@@ -211,6 +217,7 @@ class ReactorAuxiliary:
         self,
         concentration: Dict[str, CustomProperty],
         temperature: Temperature,
+        args: Optional[Dict[str, CustomProperty]] = None
     ):
         """
         Calculate reaction rates in mol/m3.s for each reaction based on the current partial pressures and temperature.
@@ -221,6 +228,8 @@ class ReactorAuxiliary:
             Concentration of the components in the reactor (in mol/m3).
         temperature : Temperature
             Current temperature of the system (in K).
+        args : Optional[Dict[str, CustomProperty]], optional
+            Additional arguments that may be needed for rate calculations, such as pressure or any other relevant properties. This is optional and can be used to provide additional information for the rate calculations.
 
         Returns
         -------
@@ -240,6 +249,7 @@ class ReactorAuxiliary:
                 # >> calculate rate based on concentrations
                 r_k = rate_exp.calc(
                     xi=concentration,
+                    args=args,
                     temperature=temperature,
                     pressure=None
                 )
