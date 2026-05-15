@@ -65,6 +65,9 @@ class PBRReactorCore(ReactorCore):
         self.gas_heat_capacity_mode = pbr_reactor_options.gas_heat_capacity_mode
         self.liquid_heat_capacity_mode = pbr_reactor_options.liquid_heat_capacity_mode
         self.liquid_density_mode = pbr_reactor_options.liquid_density_mode
+        self.use_gas_mixture_total_heat_capacity = pbr_reactor_options.use_gas_mixture_total_heat_capacity
+        self.use_liquid_mixture_volumetric_heat_capacity = pbr_reactor_options.use_liquid_mixture_volumetric_heat_capacity
+        self.reaction_enthalpy_mode = pbr_reactor_options.reaction_enthalpy_mode
 
         # SECTION: process model configuration
         self.temperature_inlet: Temperature = self.config_inlet_temperature()
