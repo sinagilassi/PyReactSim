@@ -342,16 +342,21 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
         cp_liq_values = self.thermo_source.calc_Cp_LIQ(
             temperature=temperature
         )
+
+        # ! total flowing liquid heat capacity [J/s.K] = Σ_i(F_i Cp_i^L)
         cp_flow = calc_total_heat_capacity(x=F, cp=cp_liq_values)
         self._log_rhs("_build_dT_dV.Cp", cp_liq_values=np.asarray(
             cp_liq_values, dtype=float).tolist())
         self._log_rhs("_build_dT_dV.Cp_flow", cp_flow=float(cp_flow))
+
+        # >> check for zero or near-zero heat capacity to avoid division issues
         if cp_flow <= 1e-16:
             raise ValueError(
                 "Total flowing liquid heat capacity is too small or zero."
             )
 
         # NOTE: reaction heat source term [W/m3] uses converted r_V rates
+        # ! delta_h is reaction enthalpy change [J/mol] for each reaction, positive for endothermic
         delta_h = self.thermo_source.calc_dH_rxns_LIQ(
             temperature=temperature
         )
@@ -388,6 +393,7 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
             q_constant = self.heat_rate_value / self._Vr
         self._log_rhs("_build_dT_dV.q_constant", q_constant=float(q_constant))
 
+        # ! final dT/dV calculation
         dT_dV = (q_rxn + q_exchange + q_constant) / cp_flow
         self._log_rhs("_build_dT_dV.result", dT_dV=float(dT_dV))
         return dT_dV
