@@ -4,20 +4,21 @@ from typing import Dict, List, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Pressure, Temperature
 from pyreactsim_core.models import ReactionRateExpression
 # locals
-from ..configs.constants import R_J_per_mol_K
-# from ..models.rate_exp import ReactionRateExpression
 from ..models.ref import GasModel
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
-from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
 from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity, calc_pressure_using_PFT
 from .pfrc import PFRReactorCore
+# auxiliary
+from .react_aux import ReactorAuxiliary
+# log
+from .react_log import ReactLog
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class GasPFRReactor:
+class GasPFRReactor(ReactorAuxiliary, ReactLog):
     """
     Gas-phase plug-flow reactor model.
 
@@ -35,7 +36,6 @@ class GasPFRReactor:
     - isothermal + calculated pressure: [F1, ..., FNc, P]
     - non-isothermal + calculated pressure: [F1, ..., FNc, T, P]
     """
-    R = R_J_per_mol_K
 
     def __init__(
         self,
@@ -46,9 +46,17 @@ class GasPFRReactor:
         component_key: ComponentKey,
         **kwargs
     ):
-        self.components = components
-        self.component_key = component_key
-        self.thermo_source = thermo_source
+        # LINK: ReactorAuxiliary initialization
+        super().__init__(
+            components=components,
+            reaction_rates=reaction_rates,
+            thermo_source=thermo_source,
+            reactor_core=pfr_reactor_core,
+            component_key=component_key,
+        )
+        ReactLog.__init__(self)
+
+        # SECTION: core configuration reference
         self.pfr_reactor_core = pfr_reactor_core
 
         # SECTION: Options and heat-transfer configuration
@@ -62,25 +70,6 @@ class GasPFRReactor:
         self.heat_transfer_area_value = pfr_reactor_core.heat_transfer_area_value
         self.jacket_temperature_value = pfr_reactor_core.jacket_temperature_value
         self.heat_rate_value = pfr_reactor_core.heat_rate_value
-
-        # SECTION: Reaction and stoichiometry mapping
-        self.reaction_rates = reaction_rates
-        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
-        self.reaction_stoichiometry = stoichiometry_mat_key(
-            reactions=self.reactions,
-            component_key=component_key
-        )
-        self.reaction_stoichiometry_matrix = stoichiometry_mat(
-            reactions=self.reactions,
-            components=self.components,
-            component_key=component_key,
-        )
-
-        # SECTION: Component references
-        self.component_num = self.thermo_source.component_refs["component_num"]
-        self.component_formula_state = self.thermo_source.component_refs[
-            "component_formula_state"]
-        self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: Inlet and reactor geometry
         # ! F_in: inlet component molar flow rates [mol/s]
@@ -255,45 +244,6 @@ class GasPFRReactor:
             out = np.concatenate([out, np.array([dP_dV], dtype=float)])
 
         return out
-
-    def _calc_rates(
-        self,
-        partial_pressures: Dict[str, CustomProperty],
-        concentration: Dict[str, CustomProperty],
-        temperature: Temperature,
-        pressure: Pressure
-    ) -> np.ndarray:
-        """
-        Evaluate reaction rates for all reactions [mol/m3.s].
-
-        Basis support
-        -------------
-        - basis='pressure': rate uses partial pressures
-        - basis='concentration': rate uses concentrations
-        """
-        rates = []
-
-        for rate_exp in self.reaction_rates:
-            basis = rate_exp.basis
-            if basis == "pressure":
-                r_k = rate_exp.calc(
-                    xi=partial_pressures,
-                    temperature=temperature,
-                    pressure=pressure
-                )
-            elif basis == "concentration":
-                r_k = rate_exp.calc(
-                    xi=concentration,
-                    temperature=temperature,
-                    pressure=pressure
-                )
-            else:
-                raise ValueError(
-                    f"Invalid basis '{basis}' for gas PFR reaction rate expression '{rate_exp.name}'."
-                )
-            rates.append(float(r_k.value))
-
-        return np.array(rates, dtype=float)
 
     def _build_dF_dV(self, rates: np.ndarray) -> np.ndarray:
         """
