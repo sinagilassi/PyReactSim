@@ -69,13 +69,13 @@ components: list[Component] = [A, B, C, D, E]
 
 # NOTE: Reaction
 reaction_1 = Reaction(
-    name="reaction 1",
+    name="r1",
     reaction="A(l) + B(l) => C(l)",
     components=components
 )
 
 reaction_2 = Reaction(
-    name="reaction 2",
+    name="r2",
     reaction="A(l) + 2C(l) => D(l) + E(l)",
     components=components
 )
@@ -146,7 +146,7 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
 
 # execute
 rate_expression_1 = ReactionRateExpression(
-    name="r1",
+    name="reaction rate 1",
     basis='concentration',
     components=components,
     reaction=reaction_1,
@@ -196,7 +196,7 @@ def r2(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
 
 
 rate_expression_2 = ReactionRateExpression(
-    name="r2",
+    name="reaction rate 2",
     basis='concentration',
     components=components,
     reaction=reaction_2,
