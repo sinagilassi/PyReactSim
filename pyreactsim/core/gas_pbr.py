@@ -5,19 +5,22 @@ from pythermodb_settings.models import Component, ComponentKey, CustomProperty, 
 from pyreactsim_core.models import ReactionRateExpression
 # locals
 from ..configs.constants import R_J_per_mol_K
-# from ..models.rate_exp import ReactionRateExpression
 from ..models.ref import GasModel
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
 from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
 from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity, calc_pressure_using_PFT
 from .pbrc import PBRReactorCore
+# auxiliary
+from .react_aux import ReactorAuxiliary
+# log
+from .react_log import ReactLog
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class GasPBRReactor:
+class GasPBRReactor(ReactorAuxiliary, ReactLog):
     """
     Gas-phase packed-bed reactor model.
 
@@ -25,7 +28,6 @@ class GasPBRReactor:
     rates are interpreted on catalyst-mass basis r' [mol/kg.s] and converted to
     reactor-volume basis r_V [mol/m3.s] via r_V = rho_B * r'.
     """
-    R = R_J_per_mol_K
 
     def __init__(
         self,
@@ -36,9 +38,17 @@ class GasPBRReactor:
         component_key: ComponentKey,
         **kwargs
     ):
-        self.components = components
-        self.component_key = component_key
-        self.thermo_source = thermo_source
+        # LINK: ReactorAuxiliary initialization
+        super().__init__(
+            components=components,
+            reaction_rates=reaction_rates,
+            thermo_source=thermo_source,
+            reactor_core=pbr_reactor_core,
+            component_key=component_key,
+        )
+        ReactLog.__init__(self)
+
+        # SECTION: core model and configuration
         self.pbr_reactor_core = pbr_reactor_core
 
         # SECTION: options and heat-transfer configuration
@@ -59,26 +69,6 @@ class GasPBRReactor:
         self.rho_B_arg = {
             "rho_B": self.rho_B
         }
-
-        # SECTION: reaction and stoichiometry mapping
-        self.reaction_rates = reaction_rates
-        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
-        self.reaction_stoichiometry = stoichiometry_mat_key(
-            reactions=self.reactions,
-            component_key=component_key
-        )
-        self.reaction_stoichiometry_matrix = stoichiometry_mat(
-            reactions=self.reactions,
-            components=self.components,
-            component_key=component_key,
-        )
-
-        # SECTION: component references
-        self.component_num = self.thermo_source.component_refs["component_num"]
-        self.component_formula_state = self.thermo_source.component_refs[
-            "component_formula_state"
-        ]
-        self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: inlet and reactor geometry
         self._F_in = pbr_reactor_core._F_in
@@ -231,53 +221,6 @@ class GasPBRReactor:
         # NOTE: energy balance (optional)
         dT_dV = self._build_dT_dV(F=F, rates_v=rates_v, temp=temp)
         return np.concatenate([dF_dV, np.array([dT_dV], dtype=float)])
-
-    def _calc_rates(
-        self,
-        partial_pressures: Dict[str, CustomProperty],
-        concentration: Dict[str, CustomProperty],
-        temperature: Temperature,
-        pressure: Pressure,
-        args: Optional[Dict[str, CustomProperty]] = None,
-    ) -> np.ndarray:
-        """
-        Evaluate raw reaction rates for all reactions based on the provided state and closure properties. The raw rates are on catalyst-mass basis r' [mol/kg.s] and will be converted to reactor-volume basis r_V [mol/m3.s] via r_V = rho_B * r'.
-
-        Notes
-        -----
-        - The args parameter contains the bulk density rho_B for packed-bed conversion, which is passed to the rate expression calculations.
-        - The final rate unit is mol/m3.s after conversion, which is suitable for the species balance equations in the PBR model.
-        """
-        rates = []
-
-        for rate_exp in self.reaction_rates:
-            basis = rate_exp.basis
-
-            # >> check
-            if basis == "pressure":
-                r_k = rate_exp.calc(
-                    xi=partial_pressures,
-                    args=args,
-                    temperature=temperature,
-                    pressure=pressure
-                )
-            elif basis == "concentration":
-                r_k = rate_exp.calc(
-                    xi=concentration,
-                    args=args,
-                    temperature=temperature,
-                    pressure=pressure
-                )
-            else:
-                raise ValueError(
-                    f"Invalid basis '{basis}' for gas PBR reaction rate expression '{rate_exp.name}'."
-                )
-
-            # check unit (already done)
-            # store
-            rates.append(float(r_k.value))
-
-        return np.array(rates, dtype=float)
 
     def _build_dF_dV(self, rates: np.ndarray) -> np.ndarray:
         """
