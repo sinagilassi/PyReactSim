@@ -293,7 +293,8 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
             reactor_volume=1.0
         )
 
-        # NOTE: jacket/surrounding heat exchange [W/m3] or [J/s.m3]
+        # NOTE: jacket/surrounding heat exchange
+        # ! [W/m3] or [J/s.m3]
         # ! Q_exchange = U A (T - T_jacket) / V
         q_exchange = 0.0
 
@@ -307,9 +308,11 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
                 reactor_volume=self._Vr
             )
 
-        # NOTE: user-defined constant heat source [W/m3]
+        # NOTE: user-defined constant heat source
+        # ! [W/m3]
         q_constant = 0.0
         if self.heat_rate_value:
             q_constant = self.heat_rate_value / self._Vr
 
+        # ! dT/dV = (q_rxn + q_exchange + q_constant) / Σ_i(F_i Cp_i^L) [K/m3]
         return (q_rxn + q_exchange + q_constant) / Cp_LIQ_total
