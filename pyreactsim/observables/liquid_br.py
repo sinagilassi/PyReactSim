@@ -31,7 +31,8 @@ class LiquidBatchReactorObservables:
             y=y_arr,
             reactor_volume=reactor_volume,
         )
-        rates = self.evaluate_rates(t=t_arr, y=y_arr, concentration=concentration)
+        rates = self.evaluate_rates(
+            t=t_arr, y=y_arr, concentration=concentration)
 
         return {
             "time": t_arr,
@@ -193,7 +194,7 @@ class LiquidBatchReactorObservables:
                 )
                 for i, sp in enumerate(conc_ids)
             }
-            rates[:, j] = self.reactor._calc_rates(
+            rates[:, j] = self.reactor._calc_rates_concentration_basis(
                 concentration=concentration_std,
                 temperature=temperature,
             )
@@ -208,7 +209,8 @@ class LiquidBatchReactorObservables:
         y_arr = np.asarray(y, dtype=float)
 
         if y_arr.ndim != 2:
-            raise ValueError("State array must be 2D with shape (n_states, n_points).")
+            raise ValueError(
+                "State array must be 2D with shape (n_states, n_points).")
 
         if y_arr.shape[1] != t_arr.size and y_arr.shape[0] == t_arr.size:
             y_arr = y_arr.T
@@ -247,7 +249,8 @@ class LiquidBatchReactorObservables:
         n_arr = np.asarray(n, dtype=float).reshape(-1)
         mw = np.asarray(self.reactor.thermo_source.MW, dtype=float).reshape(-1)
         if mw.size != self.reactor.component_num:
-            raise ValueError("Molecular-weight array size does not match components.")
+            raise ValueError(
+                "Molecular-weight array size does not match components.")
 
         mass = n_arr * mw
         mass_total = float(np.sum(mass))
