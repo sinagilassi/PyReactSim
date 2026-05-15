@@ -63,6 +63,22 @@ class ReactorOptions(BaseModel):
         default="ideal_gas",
         description="Mode for reaction enthalpy calculation as ideal_gas, liquid, and reaction."
     )
+    use_gas_mixture_total_heat_capacity: bool = Field(
+        default=False,
+        description=(
+            "If True, use gas mixture total heat capacity directly (J/K). "
+            "If False, calculate it from species contributions: "
+            "Cp_IG_MIX_TOTAL = sum(n_i * Cp_i), where Cp_i is in J/mol.K and n_i is in mol."
+        )
+    )
+    use_liquid_mixture_volumetric_heat_capacity: bool = Field(
+        default=False,
+        description=(
+            "If True, use liquid mixture volumetric heat capacity directly (J/m3/K). "
+            "If False, calculate it from species contributions: "
+            "Cp_LIQ_MIX_VOL = sum(C_i * Cp_i), where Cp_i is in J/mol.K and C_i is in mol/m3."
+        )
+    )
     gas_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
         default="model_source",
         description="Source of gas heat capacity as model_inputs or model_source."
@@ -86,4 +102,12 @@ class ReactorOptions(BaseModel):
     reaction_enthalpy_source: Optional[Literal['model_inputs', 'model_source']] = Field(
         default="model_source",
         description="Source of reaction enthalpy as model_inputs or model_source."
+    )
+    gas_mixture_total_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_inputs",
+        description="Source of gas mixture total heat capacity as model_inputs or model_source."
+    )
+    liquid_mixture_volumetric_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default="model_inputs",
+        description="Source of liquid mixture volumetric heat capacity as model_inputs or model_source."
     )
