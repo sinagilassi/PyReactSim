@@ -1,27 +1,28 @@
 import logging
 import numpy as np
-from typing import Dict, List, Tuple, cast
+from typing import Dict, List, Tuple, cast, Literal
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Pressure, Temperature
 from pyreactsim_core.models import ReactionRateExpression
 # locals
-from ..configs.constants import R_J_per_mol_K
 from .cstrc import CSTRReactorCore
 from ..models import GasModel
 # from ..models.rate_exp import ReactionRateExpression
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
-from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
 from ..utils.thermo_tools import (
     calc_rxn_heat_generation,
-    calc_total_heat_capacity,
     calc_enthalpy_flow_rate
 )
+# auxiliary
+from .react_aux import ReactorAuxiliary
+# log
+from .react_log import ReactLog
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class GasCSTRReactor:
+class GasCSTRReactor(ReactorAuxiliary, ReactLog):
     """
     Gas-phase CSTR dynamic reactor model.
 
@@ -76,12 +77,6 @@ class GasCSTRReactor:
         F_out_total usually ≈ F_in_total.
         Pressure will rise or fall depending on whether the reaction increases/decreases total moles and on temperature changes.
     """
-    # NOTE: Constants
-    # ! universal gas constant [J/mol.K]
-    R = R_J_per_mol_K
-    # ! reference temperature for reaction enthalpy calculations [K]
-    T_ref = Temperature(value=298.15, unit="K")
-
     # NOTE: Primary state/configuration values
     # ! initial component moles in reactor [mol]
     _N0: np.ndarray = np.array([])
@@ -123,10 +118,15 @@ class GasCSTRReactor:
         component_key : ComponentKey
             Component ID key used to map stoichiometry and states.
         """
-        self.components = components
-        self.component_key = component_key
-        self.thermo_source = thermo_source
-        self.cstr_reactor_core = cstr_reactor_core
+        # LINK: ReactorAuxiliary initialization
+        super().__init__(
+            components=components,
+            reaction_rates=reaction_rates,
+            thermo_source=thermo_source,
+            reactor_core=cstr_reactor_core,
+            component_key=component_key,
+        )
+        ReactLog.__init__(self)
 
         # SECTION: Reactor mode configuration
         self.cstr_reactor_core = cstr_reactor_core
@@ -143,29 +143,6 @@ class GasCSTRReactor:
         # ! heat rate [W]
         self.heat_rate = cstr_reactor_core.heat_rate
         self.heat_rate_value = cstr_reactor_core.heat_rate_value
-
-        # SECTION: Reaction and stoichiometry mapping
-        self.reaction_rates = reaction_rates
-        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
-        self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
-            reactions=self.reactions,
-            component_key=component_key
-        )
-        self.reaction_stoichiometry_matrix = stoichiometry_mat(
-            reactions=self.reactions,
-            components=self.components,
-            component_key=component_key,
-        )
-        # stoichiometry matrix dimensions: rows = reactions, columns = components, values = ν_i,j
-        self.stoichiometry_matrix = self.thermo_source.thermo_reaction.stoichiometry_matrix
-
-        # SECTION: Component references
-        self.component_num = self.thermo_source.component_refs["component_num"]
-        self.component_ids = self.thermo_source.component_refs["component_ids"]
-        self.component_formula_state = self.thermo_source.component_refs[
-            "component_formula_state"]
-        self.component_mapper = self.thermo_source.component_refs["component_mapper"]
-        self.component_id_to_index = self.thermo_source.component_refs["component_id_to_index"]
 
         # SECTION: CSTR input streams and initial holdup
         # ! initial moles [mole]
@@ -351,7 +328,7 @@ class GasCSTRReactor:
             _,
             partial_pressures_std,
             _
-        ) = self._calc_partial_pressure(
+        ) = self._set_partial_pressure(
             y_mole=y_mole,
             p_total=p_total
         )
@@ -474,107 +451,6 @@ class GasCSTRReactor:
             )
 
         return p_total, reactor_volume
-
-    # NOTE: partial pressure and concentration calculations for rate evaluation
-    def _calc_partial_pressure(
-        self,
-        y_mole: np.ndarray,
-        p_total: float
-    ) -> Tuple[Dict[str, float], Dict[str, CustomProperty], float]:
-        """
-        Calculate component partial pressures from mole fractions.
-
-        Formula
-        -------
-        P_i = y_i * P_total
-        """
-        partial_pressures = {
-            sp: y_mole[i] * p_total for i, sp in enumerate(self.component_formula_state)
-        }
-        partial_pressures_std = {
-            k: CustomProperty(value=v, unit="Pa", symbol="P")
-            for k, v in partial_pressures.items()
-        }
-        return partial_pressures, partial_pressures_std, p_total
-
-    def _calc_concentration(
-        self,
-        n: np.ndarray,
-        reactor_volume: float
-    ) -> Tuple[np.ndarray, Dict[str, CustomProperty], float]:
-        """
-        Calculate component concentrations in reactor gas holdup.
-
-        Formula
-        -------
-        C_i = n_i / V
-        """
-        concentration = n / reactor_volume
-        concentration_total = float(np.sum(n)) / reactor_volume
-
-        # standardized concentration dict for rate evaluation
-        concentration_std = {
-            sp: CustomProperty(value=conc, unit="mol/m3", symbol="C")
-            for sp, conc in zip(self.component_formula_state, concentration)
-        }
-        return concentration, concentration_std, concentration_total
-
-    # SECTION: Calculate rates
-    def _calc_rates(
-        self,
-        partial_pressures: Dict[str, CustomProperty],
-        concentration: Dict[str, CustomProperty],
-        temperature: Temperature,
-        pressure: Pressure
-    ) -> np.ndarray:
-        """
-        Evaluate reaction rates for all defined reactions.
-
-        Parameters
-        ----------
-        partial_pressures : Dict[str, CustomProperty]
-            Partial pressure of the components in the reactor (in Pa).
-        concentration : Dict[str, CustomProperty]
-            Concentration of the components in the reactor (in mol/m3).
-        temperature : Temperature
-            Current temperature of the system (in K).
-        pressure : Pressure
-            Total pressure of the system (in Pa).
-
-        Returns
-        -------
-        np.ndarray
-            Array of reaction rates evaluated at the current state (in mol/m3.s or mol/s depending on rate basis).
-
-        Notes
-        -----
-        - basis='pressure' -> xi = partial pressures
-        - basis='concentration' -> xi = concentrations
-        """
-        # ! r_k = k(T, P_i) for each reaction k
-        rates = []
-
-        # iterate over reactions and evaluate rates based on their defined basis
-        for rate_exp in self.reaction_rates:
-            basis = rate_exp.basis
-            if basis == "pressure":
-                r_k = rate_exp.calc(
-                    xi=partial_pressures,
-                    temperature=temperature,
-                    pressure=pressure
-                )
-            elif basis == "concentration":
-                r_k = rate_exp.calc(
-                    xi=concentration,
-                    temperature=temperature,
-                    pressure=pressure
-                )
-            else:
-                raise ValueError(
-                    f"Invalid basis '{basis}' for reaction rate expression '{rate_exp.name}'."
-                )
-            rates.append(float(r_k.value))
-        return np.array(rates, dtype=float)
 
     # NOTE: calculate generation term for each component (without volume factor)
     def _calc_generation_term(
@@ -704,19 +580,16 @@ class GasCSTRReactor:
         # NOTE: outlet flow rates of each component [mol/s]
         F_out = y_mole * F_out_total
 
-        # NOTE: Cp_i(T) in gas phase [J/mol.K]
-        Cp_IG_values_out = self.thermo_source.calc_Cp_IG(
-            temperature=temperature
+        # ! calculate total heat capacity of gas mixture: Cp_IG_MIX_TOTAL = Σ_i n_i Cp_i(T)
+        # n_i [mol], Cp_i(T) [J/mol.K] => n_i * Cp_i(T) [J/K], Σ_i n_i Cp_i(T) [J/K]
+        Cp_IG_MIX_TOTAL = self._calc_total_heat_capacity(
+            n=n,
+            temperature=temperature,
+            mode=cast(
+                Literal['calculate', 'constant'],
+                self.Cp_IG_MIX_TOTAL_MODE
+            )
         )
-
-        # ! thermal inventory coefficient: Σ_i n_i Cp_i [J/K]
-        Cp_IG_total = calc_total_heat_capacity(
-            x=n,
-            cp=Cp_IG_values_out
-        )
-
-        if Cp_IG_total <= 1e-16:
-            raise ValueError("Total gas heat capacity is too small or zero.")
 
         # NOTE: calculate enthalpy stream [W]
         # ! calculate enthalpy flow
@@ -766,7 +639,7 @@ class GasCSTRReactor:
             q_constant = self.heat_rate_value
 
         # ! dT/dt [K/s]
-        return (En + q_rxn + q_exchange + q_constant) / Cp_IG_total
+        return (En + q_rxn + q_exchange + q_constant) / Cp_IG_MIX_TOTAL
 
     # SECTION: Outlet Flow Configuration methods
     def _calc_F_out_total(

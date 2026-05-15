@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, cast, Literal
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, CustomProperty, Temperature
 from pyreactsim_core.models import ReactionRateExpression
 # locals
@@ -9,13 +9,17 @@ from .cstrc import CSTRReactorCore
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
 from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key
-from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity
+from ..utils.thermo_tools import calc_rxn_heat_generation
+# auxiliary
+from .react_aux import ReactorAuxiliary
+# log
+from .react_log import ReactLog
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class LiquidCSTRReactor:
+class LiquidCSTRReactor(ReactorAuxiliary, ReactLog):
     """
     Liquid-phase CSTR dynamic reactor model (mole-based mass and heat balances).
 
@@ -57,9 +61,17 @@ class LiquidCSTRReactor:
         component_key: ComponentKey,
         **kwargs
     ):
-        self.components = components
-        self.component_key = component_key
-        self.thermo_source = thermo_source
+        # LINK: ReactorAuxiliary initialization
+        super().__init__(
+            components=components,
+            reaction_rates=reaction_rates,
+            thermo_source=thermo_source,
+            reactor_core=cstr_reactor_core,
+            component_key=component_key,
+        )
+        ReactLog.__init__(self)
+
+        # SECTION: Core configuration
         self.cstr_reactor_core = cstr_reactor_core
 
         # SECTION: Reactor mode configuration
@@ -238,7 +250,7 @@ class LiquidCSTRReactor:
 
         # NOTE: evaluate reaction rates [mol/m3.s]
         # ! r_k = k(T, P_i) for each reaction k [mol/m3.s]
-        rates = self._calc_rates(
+        rates = self._calc_rates_concentration_basis(
             concentration=concentration_std,
             temperature=temperature
         )
@@ -303,72 +315,6 @@ class LiquidCSTRReactor:
 
         return reactor_volume
 
-    def _calc_concentration(
-        self,
-        n: np.ndarray,
-        reactor_volume: float
-    ) -> Tuple[np.ndarray, Dict[str, CustomProperty], float]:
-        """
-        Calculate liquid concentrations from moles and reactor volume.
-
-        Formula
-        -------
-        C_i = n_i / V_R
-        """
-        if reactor_volume <= 1e-30:
-            raise ValueError(
-                "Calculated liquid reactor volume is too small or non-positive."
-            )
-
-        concentration = n / reactor_volume
-        concentration_total = float(np.sum(n)) / reactor_volume
-
-        concentration_std = {
-            sp: CustomProperty(value=conc, unit="mol/m3", symbol="C")
-            for sp, conc in zip(self.component_formula_state, concentration)
-        }
-
-        # check
-        if concentration_total <= 1e-30:
-            raise ValueError(
-                "Initial total liquid concentration is too small or non-positive. "
-                "Check initial_mole and reactor_volume."
-            )
-
-        # res
-        return concentration, concentration_std, concentration_total
-
-    def _calc_rates(
-        self,
-        concentration: Dict[str, CustomProperty],
-        temperature: Temperature,
-    ) -> np.ndarray:
-        """
-        Evaluate liquid-phase reaction rates for all reactions.
-
-        Notes
-        -----
-        - liquid CSTR currently supports concentration-basis kinetics only.
-        """
-        rates = []
-
-        for rate_exp in self.reaction_rates:
-            basis = rate_exp.basis
-            if basis != "concentration":
-                raise ValueError(
-                    f"Invalid basis '{basis}' for liquid CSTR reaction rate expression '{rate_exp.name}'. "
-                    "Liquid CSTR currently supports basis='concentration' only."
-                )
-
-            r_k = rate_exp.calc(
-                xi=concentration,
-                temperature=temperature,
-                pressure=None
-            )
-            rates.append(float(r_k.value))
-
-        return np.array(rates, dtype=float)
-
     def _build_dn_dt(
         self,
         ns: int,
@@ -418,21 +364,16 @@ class LiquidCSTRReactor:
         """
         temperature = Temperature(value=temp, unit="K")
 
-        # NOTE: Cp_i^L(T) [J/mol.K]
-        Cp_LIQ_values_out = self.thermo_source.calc_Cp_LIQ(
-            temperature=temperature
+        # ! Cp_LIQ_MIX_TOTAL: total heat capacity of liquid mixture (in J/K), either calculated or constant from model source
+        Cp_LIQ_MIX_TOTAL = self._calc_total_heat_capacity_liquid(
+            n=n,
+            temperature=temperature,
+            reactor_volume=reactor_volume,
+            mode=cast(
+                Literal['calculate', 'constant'],
+                self.Cp_LIQ_MIX_TOTAL_MODE
+            ),
         )
-
-        # ! thermal inventory coefficient: sum_i(n_i * Cp_i^L) [J/K]
-        Cp_LIQ_total = calc_total_heat_capacity(
-            x=n,
-            cp=Cp_LIQ_values_out
-        )
-
-        # >> check
-        if Cp_LIQ_total <= 1e-16:
-            raise ValueError(
-                "Total liquid heat capacity is too small or zero.")
 
         # NOTE: sensible enthalpy stream term [W]
         # ? use ideal gas enthalpy for liquid enthalpy estimation
@@ -441,17 +382,19 @@ class LiquidCSTRReactor:
             temperature=temperature
         )
 
-        # calculate sensible enthalpy stream term [W]
+        # calculate sensible enthalpy stream term
+        # [W] En = sum_i(F_in,i * (h_i^L(Tin) - h_i^L(T))) = sum_i(F_in,i * h_i^L(Tin)) - sum_i(F_in,i * h_i^L(T)))
         En = np.sum(self.F_in * (self.En_LIQ_values_in - En_LIQ_values_out))
 
         # NOTE: reaction heat term [W]
         # ! Q_rxn = V_R * sum_k((-dH_k) * r_k)
         # ??? ΔH_k
-        delta_h = self.thermo_source.calc_dH_rxns_IG_ref(
+        delta_h = self.thermo_source.calc_dH_rxns_LIQ(
             temperature=temperature
         )
 
         # ??? Q_rxn
+        # [W] Q_rxn = V_R * sum_k((-dH_k) * r_k)
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
             rates=rates,
@@ -478,8 +421,10 @@ class LiquidCSTRReactor:
         if self.heat_rate_value:
             q_constant = self.heat_rate_value
 
-        return (En + q_rxn + q_exchange + q_constant) / Cp_LIQ_total
+        # ! dT/dt [K/s]
+        return (En + q_rxn + q_exchange + q_constant) / Cp_LIQ_MIX_TOTAL
 
+    # NOTE: flow closure for outlet molar flow rate
     def _calc_F_out_total(
         self,
         concentration_total: float
