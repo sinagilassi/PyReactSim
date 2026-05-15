@@ -260,6 +260,7 @@ class GasPBRReactor(ReactorAuxiliary, ReactLog):
         # NOTE: flowing heat-capacity rate denominator [J/s.K]
         cp_g_values = self.thermo_source.calc_Cp_IG(temperature=temperature)
 
+        # ! total flowing gas heat capacity [J/s.K] = Σ_i(F_i Cp_i^g)
         cp_flow = calc_total_heat_capacity(x=F, cp=cp_g_values)
 
         # check
@@ -293,4 +294,5 @@ class GasPBRReactor(ReactorAuxiliary, ReactLog):
         if self.heat_rate_value:
             q_constant = self.heat_rate_value / self._V_R
 
+        # ! dT/dV = (q_rxn + q_exchange + q_constant) / Σ_i(F_i Cp_i^g)
         return (q_rxn + q_exchange + q_constant) / cp_flow
