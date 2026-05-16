@@ -3,6 +3,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
+import numpy as np
 
 from rich import print
 
@@ -13,12 +14,14 @@ from pythermodb_settings.models import CustomProp, Temperature, Volume
 # locals
 from pyreactsim import PFRReactor, create_pfr_reactor
 from pyreactsim.models import HeatTransferOptions, PFRReactorOptions
+from pyreactsim.app import evaluate_pfr_reactor
 from pyreactsim.thermo import build_thermo_source
 
 # NOTE: example-specific imports
 # ! rate expressions & components
 from examples.rates.rate_A_B_to_C_D import reaction_rates, components
 from examples.plot.plot_res import plot_pfr_reactor_result
+from examples.plot.plot_xy import plot_xy
 
 # NOTE: example source and kinetics
 # ! add project root and examples root to import path for standalone script execution
@@ -186,4 +189,21 @@ if simulation_results is not None:
     plot_pfr_reactor_result(
         result=simulation_results,
         components=components,
+    )
+
+    evaluated_results = evaluate_pfr_reactor(
+        pfr_reactor=pfr_reactor,
+        simulation_results=simulation_results,
+    )
+
+    reactor_volume_profile = np.asarray(
+        evaluated_results["volume"], dtype=float
+    )
+    plot_xy(
+        x=reactor_volume_profile.tolist(),
+        y=evaluated_results["pressure_total"],
+        legends=["reactor volume"],
+        title="Gas PFR Reactor Volume Coordinate",
+        xlabel="Point index (-)",
+        ylabel="Reactor volume (m3)",
     )
