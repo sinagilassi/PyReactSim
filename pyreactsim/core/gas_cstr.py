@@ -230,11 +230,6 @@ class GasCSTRReactor(ReactorAuxiliary, ReactLog):
     def _configure_heat_balance(self):
         # check heat transfer mode
         if self.heat_transfer_mode == "non-isothermal":
-            # ! Cp: initial heat capacity configuration [J/mol.K]
-            self.Cp_IG_values_in = self.thermo_source.calc_Cp_IG(
-                temperature=self.temperature_inlet
-            )
-
             # ! En_IG: ideal gas enthalpy for inlet stream components [J/mol]
             _, self.En_IG_values_in = self.thermo_source.calc_En_IG(
                 temperature=self.temperature_inlet
