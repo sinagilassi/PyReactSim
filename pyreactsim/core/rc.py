@@ -327,3 +327,28 @@ class ReactorCore:
             raise ValueError(
                 "Total inlet mole flow must be provided for flow configuration."
             )
+
+    # NOTE: volumetric flow total configuration
+    # ! [m3/s]
+    def config_volumetric_inlet_flow(
+            self,
+    ) -> Optional[float]:
+        """
+        Configure the total volumetric inlet flow for the reactor based on the model inputs.
+        """
+        if "volumetric_inlet_flow" not in self.model_inputs_keys:
+            return None
+
+        volumetric_inlet_flow = self.model_inputs["volumetric_inlet_flow"]
+
+        if volumetric_inlet_flow is not None:
+            volumetric_inlet_flow_value = to_m3(
+                value=float(volumetric_inlet_flow.value),
+                unit=volumetric_inlet_flow.unit
+            )
+
+            return volumetric_inlet_flow_value
+        else:
+            raise ValueError(
+                "Volumetric inlet flow must be provided for flow configuration."
+            )

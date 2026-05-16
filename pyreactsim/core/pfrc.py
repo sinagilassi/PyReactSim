@@ -84,6 +84,9 @@ class PFRReactorCore(ReactorCore):
         # ! P0: inlet/reference pressure [Pa]
         self._P0 = self._config_pressure_initial()
 
+        # ! q_in: inlet volumetric flow rate [m3/s]
+        self._q_in = self.config_volumetric_inlet_flow()
+
         # SECTION: heat transfer configuration
         (
             self.heat_exchange,
@@ -125,6 +128,7 @@ class PFRReactorCore(ReactorCore):
         - Mapping with {'value', 'unit'}
         - numeric scalar (assumed Kelvin)
         """
+        # ! non-isothermal PFR requires inlet temperature input for initialization.
         if "inlet_temperature" not in self.model_inputs_keys:
             raise ValueError(
                 "inlet_temperature must be provided in model_inputs.")
@@ -168,7 +172,7 @@ class PFRReactorCore(ReactorCore):
             * pressure_mode='shortcut'
             * pressure_mode='state_variable'
         - liquid phase:
-            pressure is optional and defaults to 0.0
+            * pressure is optional and defaults to 0.0
         """
         if self.phase != "gas":
             # NOTE: liquid PFR does not require pressure state/closure in this version.

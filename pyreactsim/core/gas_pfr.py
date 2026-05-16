@@ -168,6 +168,10 @@ class GasPFRReactor(ReactorAuxiliary, ReactLog):
                 T_in=self._T_in,
                 F_out_total=F_total,
                 T_out=temp,
+                heat_transfer_mode=cast(
+                    Literal['isothermal', 'non-isothermal'],
+                    self.heat_transfer_mode
+                )
             )
         elif self.pressure_mode == "constant":
             # set

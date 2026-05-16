@@ -90,6 +90,9 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
             density=self._rho_LIQ_in
         )
 
+    def config_volumetric_inlet_flow(self):
+        pass
+
     @property
     def F_in(self) -> np.ndarray:
         """Inlet component molar-flow vector [mol/s]."""
@@ -139,6 +142,9 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
         temperature = Temperature(value=temp, unit="K")
 
         # NOTE: density
+        # ! rho_LIQ = ρ(T) from selected liquid density model, used for concentration and volumetric flow calculations [g/m3]
+        # ? isothermal PFR -> constant density from inlet conditions;
+        # ? non-isothermal PFR -> temperature-dependent density
         rho_LIQ = self.thermo_source.calc_rho_LIQ(
             temperature=temperature
         )
@@ -198,6 +204,15 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
         Formula
         -------
         Q = Σ_i(F_i MW_i / rho_i)
+
+        where F_i is the molar flow of component i, in mol/s, MW_i is the molecular weight of component i in g/mol, and rho_i is the liquid density of component i in g/m3.
+
+        Parameters
+        ----------
+        flow: np.ndarray
+            Component molar flow rates [mol/s].
+        rho_LIQ: np.ndarray
+            Component liquid densities [g/m3].
         """
         return self.thermo_source.calc_liquid_volumetric_flow_rate(
             molar_flow_rates=flow,
@@ -218,6 +233,13 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
         --------
         - constant_volume: Q = Q_in (fixed)
         - constant_pressure: Q = Q(F, T) from density/molecular-weight mixing
+
+        Parameters
+        ----------
+        F: np.ndarray
+            Component molar flow rates [mol/s].
+        rho_LIQ: np.ndarray
+            Component liquid densities [g/m3].
         """
         if self.operation_mode == "constant_volume":
             return float(self._q_in)
