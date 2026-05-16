@@ -389,8 +389,9 @@ class LiquidCSTRReactor(ReactorAuxiliary, ReactLog):
         # NOTE: reaction heat term [W]
         # ! Q_rxn = V_R * sum_k((-dH_k) * r_k)
         # ??? ΔH_k
-        delta_h = self.thermo_source.calc_dH_rxns_LIQ(
-            temperature=temperature
+        delta_h = self._calc_dH_rxns(
+            temperature=temperature,
+            phase=cast(Literal['gas', 'liquid'], 'liquid')
         )
 
         # ??? Q_rxn

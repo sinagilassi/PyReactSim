@@ -95,22 +95,6 @@ class LiquidBatchReactor(ReactorAuxiliary, ReactLog):
         # ! reaction enthalpy mode
         self.reaction_enthalpy_mode = batch_reactor_core.reaction_enthalpy_mode
 
-        # SECTION: Reaction rates
-        self.reaction_rates = reaction_rates
-        # >> build reactions
-        self.reactions = self.thermo_source.thermo_reaction.build_reactions()
-        # >>> build stoichiometry matrix
-        self.reaction_stoichiometry: List[Dict[str, float]] = stoichiometry_mat_key(
-            reactions=self.reactions,
-            component_key=component_key
-        )
-        # >> matrix
-        self.reaction_stoichiometry_matrix = stoichiometry_mat(
-            reactions=self.reactions,
-            components=self.components,
-            component_key=component_key,
-        )
-
         # SECTION: Configuration Input Stream
         # ! N: initial mole [-]
         (
@@ -402,7 +386,8 @@ class LiquidBatchReactor(ReactorAuxiliary, ReactLog):
         # ΔH[J/mol], r[mol/m3.s] => Q_rxn [J/s.m^3] or [W/m^3]
         # ??? ΔH_k
         delta_h = self._calc_dH_rxns(
-            temperature=temperature
+            temperature=temperature,
+            phase=cast(Literal['gas', 'liquid'], 'liquid')
         )
 
         # ??? Q_rxn
@@ -441,37 +426,6 @@ class LiquidBatchReactor(ReactorAuxiliary, ReactLog):
         dT_dt = (q_rxn + q_exchange + q_constant) / Cp_LIQ_MIX_VOLUMETRIC
 
         return dT_dt
-
-    # SECTION: Calculate enthalpy change of reactions
-    def _calc_dH_rxns(
-            self,
-            temperature: Temperature
-    ) -> np.ndarray:
-        """
-        Calculate the enthalpy change of reactions (ΔH) for the reactions in the reactor based on the current temperature.
-
-        Parameters
-        ----------
-        temperature : Temperature
-            Current temperature of the system (in K).
-
-        Returns
-        -------
-        np.ndarray
-            An array of enthalpy changes for each reaction in the reactor, calculated based on the current temperature.
-        """
-        # NOTE: if reaction enthalpy mode is "reaction", use reaction enthalpies from model inputs
-        if self.dH_rxns is not None:
-            # ΔH_k [J/mol]
-            return self.dH_rxns
-
-        # NOTE: calculate reaction enthalpies ΔH_k for each reaction k at current temperature
-        # ΔH_k [J/mol]
-        delta_h = self.thermo_source.calc_dH_rxns_LIQ(
-            temperature=temperature
-        )
-
-        return delta_h
 
     # SECTION: Calculate system volume
 

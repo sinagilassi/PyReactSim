@@ -293,8 +293,12 @@ class GasPFRReactor(ReactorAuxiliary, ReactLog):
                 "Total flowing gas heat capacity is too small or zero.")
 
         # NOTE: reaction heat source term
+        # ??? ΔH_k
         # ! [W/m3]
-        delta_h = self.thermo_source.calc_dH_rxns(temperature=temperature)
+        delta_h = self._calc_dH_rxns(
+            temperature=temperature,
+            phase=cast(Literal['gas', 'liquid'], 'gas')
+        )
 
         # ! reaction heat generation: q_rxn = -Σ_j(ΔH_j r_j) [W/m3]
         q_rxn = calc_rxn_heat_generation(

@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Dict, List
+from typing import Dict, List, cast, Literal
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Temperature
 from pyreactsim_core.models import ReactionRateExpression
 # locals
@@ -282,8 +282,9 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
         # NOTE: reaction heat source term [W/m3]
         # ! Q_rxn = sum_k((-dH_k) * r_k)
         # ??? ΔH_k [J/mol]
-        delta_h = self.thermo_source.calc_dH_rxns_LIQ(
-            temperature=temperature
+        delta_h = self._calc_dH_rxns(
+            temperature=temperature,
+            phase=cast(Literal['gas', 'liquid'], 'liquid')
         )
 
         # ??? Q_rxn [W/m3] or [J/s.m3] = sum_k((-ΔH_k) * r_k) [J/mol * mol/m3.s]

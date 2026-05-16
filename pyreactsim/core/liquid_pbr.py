@@ -1,14 +1,14 @@
 import logging
 import time
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast, Literal
 from pythermodb_settings.models import Component, ComponentKey, CustomProperty, Temperature
 from pyreactsim_core.models import ReactionRateExpression
 # locals
 # from ..models.rate_exp import ReactionRateExpression
 from ..sources.thermo_source import ThermoSource
 from ..utils.opt_tools import calc_heat_exchange
-from ..utils.reaction_tools import stoichiometry_mat, stoichiometry_mat_key, calc_residence_time
+from ..utils.reaction_tools import calc_residence_time
 from ..utils.thermo_tools import calc_rxn_heat_generation, calc_total_heat_capacity
 from .pbrc import PBRReactorCore
 # auxiliary
@@ -357,9 +357,11 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
 
         # NOTE: reaction heat source term [W/m3] uses converted r_V rates
         # ! delta_h is reaction enthalpy change [J/mol] for each reaction, positive for endothermic
-        delta_h = self.thermo_source.calc_dH_rxns_LIQ(
-            temperature=temperature
+        delta_h = self._calc_dH_rxns(
+            temperature=temperature,
+            phase=cast(Literal['gas', 'liquid'], 'liquid')
         )
+
         self._log_rhs(
             "_build_dT_dV.delta_h",
             delta_h=np.asarray(delta_h, dtype=float).tolist()
