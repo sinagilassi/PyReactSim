@@ -611,3 +611,46 @@ class ReactorAuxiliary:
             for k, v in partial_pressures.items()
         }
         return partial_pressures, partial_pressures_std, p_total
+
+    # SECTION: Calculate enthalpy change of reactions
+    def _calc_dH_rxns(
+            self,
+            temperature: Temperature,
+            phase: Literal['gas', 'liquid']
+    ) -> np.ndarray:
+        """
+        Calculate the enthalpy change of reactions (ΔH) for the reactions in the reactor based on the current temperature.
+
+        Parameters
+        ----------
+        temperature : Temperature
+            Current temperature of the system (in K).
+        phase: Literal['gas', 'liquid']
+            The phase of the system, which determines whether to calculate gas-phase or liquid-phase reaction enthalpies.
+
+        Returns
+        -------
+        np.ndarray
+            An array of enthalpy changes for each reaction in the reactor, calculated based on the current temperature.
+        """
+        # NOTE: if reaction enthalpy mode is "reaction", use reaction enthalpies from model inputs
+        if self.dH_rxns is not None:
+            # ΔH_k [J/mol]
+            return self.dH_rxns
+
+        # NOTE: calculate reaction enthalpies ΔH_k for each reaction k at current temperature
+        # ΔH_k [J/mol]
+        if phase == "liquid":
+            delta_h = self.thermo_source.calc_dH_rxns_LIQ(
+                temperature=temperature
+            )
+        elif phase == "gas":
+            delta_h = self.thermo_source.calc_dH_rxns(
+                temperature=temperature
+            )
+        else:
+            raise ValueError(
+                f"Invalid phase '{phase}' for calculating reaction enthalpies. Must be 'gas' or 'liquid'."
+            )
+
+        return delta_h
