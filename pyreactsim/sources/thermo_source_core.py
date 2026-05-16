@@ -16,10 +16,7 @@ from pyreactsim_core.models import ReactionRateExpression
 from .thermo_model_inputs import ThermoModelInputs
 from .thermo_model_source import ThermoModelSource
 from .thermo_reaction import ThermoReaction
-from .interface import (
-    exec_component_eq
-)
-
+from .interface import exec_component_eq
 from ..utils.unit_tools import to_K, to_J_per_mol, to_g_per_mol
 from ..utils.tools import find_components_property, collect_keys
 from ..models.heat import HeatTransferOptions

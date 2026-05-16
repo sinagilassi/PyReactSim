@@ -1,7 +1,7 @@
 # import libs
 import logging
 import numpy as np
-from typing import Dict, List, Tuple, Any, Literal, Optional
+from typing import Dict, List, Tuple, Any, Optional
 from pythermodb_settings.models import Component, CustomProp, ComponentKey
 # locals
 from ..models.br import BatchReactorOptions
@@ -10,7 +10,12 @@ from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
 from ..utils.tools import config_components_property
 from ..models.heat import HeatTransferOptions
-from ..utils.unit_tools import to_J_per_mol_K, to_g_per_m3, to_J_per_mol, to_g_per_mol
+from ..utils.unit_tools import (
+    to_J_per_mol_K,
+    to_g_per_m3,
+    to_J_per_mol,
+    to_g_per_mol
+)
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
