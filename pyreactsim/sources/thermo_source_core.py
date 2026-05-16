@@ -791,7 +791,7 @@ class ThermoSourceCore(ThermoCalc):
             operation_mode: Optional[str] = None
     ) -> np.ndarray:
         """
-        Calculate the density of the liquid either using a constant value from model inputs or using a temperature-dependent equation of state.
+        Calculate the density of the liquid either using a constant value from model inputs or using a temperature-dependent equation of state. The density unit is in g/m3.
 
         Parameters
         ----------
