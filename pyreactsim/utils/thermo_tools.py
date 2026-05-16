@@ -1,7 +1,11 @@
 # import libs
 import logging
 import numpy as np
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Literal
+
+# NOTE: logger setup
+logger = logging.getLogger(__name__)
+
 
 # SECTION: total heat capacity calculation
 
@@ -131,12 +135,14 @@ def calc_enthalpy_flow_rate(
     return np.sum(flow_rates * En)
 
 
+# SECTION: calculation of outlet pressure using Pressure-Flow-Temperature (PFT) relationship for ideal gases
 def calc_pressure_using_PFT(
         P_in: float,
         F_in_total: float,
         T_in: float,
         F_out_total: float,
         T_out: float,
+        heat_transfer_mode: Literal['isothermal', 'non-isothermal'],
 ):
     """
     Calculate the outlet pressure (P_out) using the Pressure-Flow-Temperature (PFT) relationship for ideal gases.
@@ -153,10 +159,20 @@ def calc_pressure_using_PFT(
         Total outlet molar flow rate in mol/s.
     T_out : float
         Outlet temperature in K.
+    heat_transfer_mode : Literal['isothermal', 'non-isothermal']
+        The mode of heat transfer in the system. If 'isothermal', the temperature is constant (T_in = T_out), and the pressure is calculated based on the flow rates. If 'non-isothermal', the temperature changes, and the pressure is calculated based on both flow rates and temperatures.
 
     Returns
     -------
     float
         Outlet pressure (P_out) in Pa.
     """
-    return P_in * (F_out_total / F_in_total) * (T_out / T_in)
+    if heat_transfer_mode == "isothermal":
+        # isothermal: P_out = P_in * (F_out_total / F_in_total)
+        return P_in * (F_out_total / F_in_total)
+    elif heat_transfer_mode == "non-isothermal":
+        # non-isothermal: P_out = P_in * (F_out_total / F_in_total) * (T_out / T_in)
+        return P_in * (F_out_total / F_in_total) * (T_out / T_in)
+    else:
+        raise ValueError(
+            f"Invalid heat_transfer_mode: {heat_transfer_mode}. Must be 'isothermal' or 'non-isothermal'.")
