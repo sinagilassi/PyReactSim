@@ -1,8 +1,9 @@
 # import libs
 from pydantic import BaseModel, Field
 from typing import Any, Dict, Literal, Optional
+from pythermodb_settings.models import CustomProp
 # locals
-from .ref import GasModel, ReactorPhase, ReactorOptions
+from .ref import ReactorOptions
 
 
 class PFRReactorOptions(ReactorOptions):
@@ -44,6 +45,10 @@ class PFRReactorOptions(ReactorOptions):
     pressure_mode: Optional[Literal["constant", "shortcut", "state_variable"]] = Field(
         default="constant",
         description="Pressure mode as constant, shortcut, and state_variable. The shortcut uses ideal-gas formulation and state_variable considers pressure as a variable computes the pressure drop along the reactor."
+    )
+    reactor_radius: Optional[CustomProp] = Field(
+        default=None,
+        description="Radius of the PFR reactor (required if pressure_mode is state_variable)."
     )
 
 

@@ -136,7 +136,10 @@ class ThermoModelInputs:
                 ) = self._config_constant_gas_heat_capacity()
 
             # NOTE: Enthalpy of formation at 298 K for ideal gas
-            if self.reactor_options.ideal_gas_formation_enthalpy_source == "model_inputs":  # ! source
+            if (
+                self.reactor_options.reaction_enthalpy_mode != "reaction" and
+                self.reactor_options.ideal_gas_formation_enthalpy_source == "model_inputs"
+            ):  # ! source
                 # ! to J/mol
                 self.EnFo_IG_298_src: Dict[
                     str, Dict[str, Any]

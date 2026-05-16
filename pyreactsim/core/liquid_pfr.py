@@ -185,7 +185,8 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
         dT_dV = self._build_dT_dV(
             F=F,
             rates=rates,
-            temp=temp
+            temp=temp,
+            volumetric_flow_rate=q_vol
         )
 
         # NOTE: concatenate species and thermal derivatives for non-isothermal mode
@@ -274,7 +275,8 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
         self,
         F: np.ndarray,
         rates: np.ndarray,
-        temp: float
+        temp: float,
+        volumetric_flow_rate: float
     ) -> float:
         """
         Build thermal derivative dT/dV for non-isothermal liquid PFR.
@@ -286,27 +288,27 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
         # NOTE: temperature wrapper for thermo API
         temperature = Temperature(value=temp, unit="K")
 
-        # NOTE: flowing heat-capacity rate denominator
-        # ! [J/s.K]
-        Cp_LIQ_values_out = self.thermo_source.calc_Cp_LIQ(
-            temperature=temperature
-        )
-
-        # ! total flowing liquid heat capacity [J/s.K]
-        Cp_LIQ_total = calc_total_heat_capacity(x=F, cp=Cp_LIQ_values_out)
-
-        # >> check
-        if Cp_LIQ_total <= 1e-16:
-            raise ValueError(
-                "Total flowing liquid heat capacity is too small or zero."
+        # NOTE: calculate total flowing heat capacity of liquid mixture based on selected mode
+        # ? if use_liquid_mixture_volumetric_heat_capacity is True, Cp_LIQ_MIX_TOTAL = Cp_LIQ_MIX_VOLUMETRIC * Q where Cp_LIQ_MIX_VOLUMETRIC is in J/m3.K and Q is in m3/s, giving J/s.K
+        Cp_LIQ_MIX_TOTAL_FLOWING = self._calc_total_flowing_heat_capacity_liquid(
+            F=F,
+            temperature=temperature,
+            volumetric_flow_rate=volumetric_flow_rate,
+            mode=cast(
+                Literal['calculate', 'constant'],
+                self.Cp_LIQ_MIX_VOLUMETRIC_MODE
             )
+        )
 
         # NOTE: reaction heat source term [W/m3]
         # ! Q_rxn = sum_k((-dH_k) * r_k)
         # ??? ΔH_k [J/mol]
         delta_h = self._calc_dH_rxns(
             temperature=temperature,
-            phase=cast(Literal['gas', 'liquid'], 'liquid')
+            phase=cast(
+                Literal['gas', 'liquid'],
+                'liquid'
+            )
         )
 
         # ??? Q_rxn [W/m3] or [J/s.m3] = sum_k((-ΔH_k) * r_k) [J/mol * mol/m3.s]
@@ -338,4 +340,4 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
             q_constant = self.heat_rate_value / self._Vr
 
         # ! dT/dV = (q_rxn + q_exchange + q_constant) / Σ_i(F_i Cp_i^L) [K/m3]
-        return (q_rxn + q_exchange + q_constant) / Cp_LIQ_total
+        return (q_rxn + q_exchange + q_constant) / Cp_LIQ_MIX_TOTAL_FLOWING

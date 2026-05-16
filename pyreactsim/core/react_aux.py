@@ -363,7 +363,7 @@ class ReactorAuxiliary:
                         "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
                     )
 
-                return float(self.Cp_LIQ_MIX_VOLUMETRIC.value)
+                return float(self.Cp_LIQ_MIX_VOLUMETRIC.value)*reactor_volume
             else:
                 raise ValueError(
                     f"Invalid basis '{self.Cp_LIQ_MIX_TOTAL_BASIS}' for constant liquid mixture heat capacity. Must be 'molar' or 'volumetric'."
@@ -387,6 +387,64 @@ class ReactorAuxiliary:
         else:
             raise ValueError(
                 f"Invalid mode '{mode}' for calculating total heat capacity. Must be 'calculate' or 'constant'."
+            )
+
+    # SECTION: calculate total flowing heat capacity of liquid mixture
+    def _calc_total_flowing_heat_capacity_liquid(
+            self,
+            F: np.ndarray,
+            temperature: Temperature,
+            volumetric_flow_rate: float,
+            mode: Literal['calculate', 'constant']
+    ) -> float:
+        """
+        Calculate the total flowing heat capacity of the liquid mixture based on the molar flow rates of each component and the temperature.
+
+        Parameters
+        ----------
+        F : np.ndarray
+            Array of molar flow rates of each component in the reactor (in mol/s).
+        temperature : Temperature
+            Current temperature of the system (in K).
+        volumetric_flow_rate : float
+            Volumetric flow rate of the liquid mixture (in m3/s).
+        mode : Literal['calculate', 'constant']
+            The mode for calculating the total flowing heat capacity. If 'calculate', it will calculate based on individual component heat capacities and molar flow rates. If 'constant', it will use a constant value provided in the model inputs.
+
+        Returns
+        -------
+        float
+            The total flowing heat capacity of the liquid mixture (in J/s.K).
+        """
+        if mode == "constant":
+            # NOTE: calculate volumetric heat capacity of liquid mixture [J/m3.K]
+            if self.Cp_LIQ_MIX_VOLUMETRIC is None:
+                raise ValueError(
+                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
+                )
+
+            # ! total flowing heat capacity of liquid mixture [J/s.K] = volumetric heat capacity [J/m3.K] * volumetric flow rate [m3/s]
+            return float(self.Cp_LIQ_MIX_VOLUMETRIC.value) * volumetric_flow_rate
+
+        elif mode == "calculate":
+            # NOTE: calculate total flowing heat capacity of liquid mixture based on individual component heat capacities and molar flow rates
+            # ??? Cp_i(T)
+            Cp_LIQ_values = self.thermo_source.calc_Cp_LIQ(
+                temperature=temperature
+            )
+
+            # ??? Σ_i F_i Cp_i
+            # unit check: F_i [mol/s], Cp_i [J/mol.K] => F_i * Cp_i [J/s.K]
+            Cp_LIQ_MIX_FLOWING = calc_total_heat_capacity(F, Cp_LIQ_values)
+
+            if Cp_LIQ_MIX_FLOWING <= 1e-16:
+                raise ValueError(
+                    "Total flowing heat capacity is too small or zero.")
+
+            return Cp_LIQ_MIX_FLOWING
+        else:
+            raise ValueError(
+                f"Invalid mode '{mode}' for calculating total flowing heat capacity. Must be 'calculate' or 'constant'."
             )
 
     # SECTION: Calculate volumetric heat capacity of liquid mixture

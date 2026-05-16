@@ -365,6 +365,7 @@ class LiquidCSTRReactor(ReactorAuxiliary, ReactLog):
         temperature = Temperature(value=temp, unit="K")
 
         # ! Cp_LIQ_MIX_TOTAL: total heat capacity of liquid mixture (in J/K), either calculated or constant from model source
+        # ? Cp_LIQ_MIX_TOTAL = sum_i(n_i * Cp_i^L) where Cp_i^L is in J/mol.K and n_i is in mol => Cp_LIQ_MIX_TOTAL in J/K
         Cp_LIQ_MIX_TOTAL = self._calc_total_heat_capacity_liquid(
             n=n,
             temperature=temperature,

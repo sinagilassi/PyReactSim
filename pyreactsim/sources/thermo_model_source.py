@@ -119,7 +119,10 @@ class ThermoModelSource:
                 )
 
             # NOTE: Enthalpy of formation at 298 K for ideal gas
-            if self.reactor_options.ideal_gas_formation_enthalpy_source == "model_source":  # ! source
+            if (
+                self.reactor_options.reaction_enthalpy_mode != "reaction" and
+                self.reactor_options.ideal_gas_formation_enthalpy_source == "model_source"
+            ):  # ! source
                 # extract data
                 self.EnFo_IG_298_src: Dict[str, Dict[str, Any]] = self.prop_dt_src(
                     component_ids=self.component_ids,
