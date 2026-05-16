@@ -11,8 +11,14 @@ from .core.gas_br import GasBatchReactor
 from .core.gas_brx import GasBatchReactorX
 from .core.liquid_br import LiquidBatchReactor
 from .core.liquid_brx import LiquidBatchReactorX
+from .core.gas_pfr import GasPFRReactor
+from .core.gas_pfrx import GasPFRReactorX
+from .core.liquid_pfr import LiquidPFRReactor
+from .core.liquid_pfrx import LiquidPFRReactorX
 from .observables.gas_br import GasBatchReactorObservables
 from .observables.liquid_br import LiquidBatchReactorObservables
+from .observables.gas_pfr import GasPFRReactorObservables
+from .observables.liquid_pfr import LiquidPFRReactorObservables
 
 
 # NOTE: logger setup
@@ -202,6 +208,55 @@ def evaluate_batch_reactor(
         return GasBatchReactorObservables(reactor).evaluate_all(t=time, y=state)
     if isinstance(reactor, (LiquidBatchReactor, LiquidBatchReactorX)):
         return LiquidBatchReactorObservables(reactor).evaluate_all(t=time, y=state)
+
+    logger.error(
+        f"Unsupported reactor type for observables evaluation: {type(reactor)}"
+    )
+    return {}
+
+
+def evaluate_pfr_reactor(
+    pfr_reactor: PFRReactor,
+    simulation_results: Any,
+) -> Dict[str, Any]:
+    """
+    Evaluate trajectory-aligned observables for a PFR simulation result.
+
+    Parameters
+    ----------
+    pfr_reactor : PFRReactor
+        PFRReactor instance used for simulation.
+    simulation_results : Any
+        Output from `pfr_reactor.simulate(...)` (PFRReactorResult-like).
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary of evaluated observables.
+    """
+    if simulation_results is None:
+        logger.warning("No simulation results provided for evaluation.")
+        return {}
+
+    volume = getattr(simulation_results, "volume", None)
+    state = getattr(simulation_results, "state", None)
+
+    if volume is None and isinstance(simulation_results, dict):
+        volume = simulation_results.get("volume")
+    if state is None and isinstance(simulation_results, dict):
+        state = simulation_results.get("state")
+
+    if volume is None or state is None:
+        logger.error(
+            "Simulation results do not contain 'volume' and 'state' attributes or keys."
+        )
+        return {}
+
+    reactor = pfr_reactor.reactor
+    if isinstance(reactor, (GasPFRReactor, GasPFRReactorX)):
+        return GasPFRReactorObservables(reactor).evaluate_all(t=volume, y=state)
+    if isinstance(reactor, (LiquidPFRReactor, LiquidPFRReactorX)):
+        return LiquidPFRReactorObservables(reactor).evaluate_all(t=volume, y=state)
 
     logger.error(
         f"Unsupported reactor type for observables evaluation: {type(reactor)}"
