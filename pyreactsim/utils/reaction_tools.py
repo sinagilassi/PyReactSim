@@ -171,7 +171,7 @@ def arrhenius_equation(
         The calculated rate constant at temperature T.
     """
     try:
-        return k_ref * np.exp(-Ea / R * (1/T - 1/T_ref))
+        return k_ref * np.exp((-Ea / R) * (1/T - 1/T_ref))
     except Exception as e:
         logger.error(
             f"Error in calculating rate constant using Arrhenius equation: {e}")
