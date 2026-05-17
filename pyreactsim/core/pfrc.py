@@ -67,6 +67,7 @@ class PFRReactorCore(ReactorCore):
         self.use_liquid_mixture_total_heat_capacity = pfr_reactor_options.use_liquid_mixture_total_heat_capacity
         self.use_liquid_mixture_volumetric_heat_capacity = pfr_reactor_options.use_liquid_mixture_volumetric_heat_capacity
         self.reaction_enthalpy_mode = pfr_reactor_options.reaction_enthalpy_mode
+        self.volumetric_inlet_flow_rate_mode = pfr_reactor_options.volumetric_inlet_flow_rate_mode
 
         # SECTION: process model configuration
         # ! T_in: inlet temperature [K]
@@ -85,7 +86,7 @@ class PFRReactorCore(ReactorCore):
         self._P0 = self._config_pressure_initial()
 
         # ! q_in: inlet volumetric flow rate [m3/s]
-        self._q_in = self.config_volumetric_inlet_flow()
+        self._q0 = self.config_volumetric_inlet_flow()
 
         # SECTION: heat transfer configuration
         (
