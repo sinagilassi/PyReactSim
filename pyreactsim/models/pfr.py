@@ -50,6 +50,10 @@ class PFRReactorOptions(ReactorOptions):
         default=None,
         description="Radius of the PFR reactor (required if pressure_mode is state_variable)."
     )
+    volumetric_inlet_flow_rate_mode: Optional[Literal['constant', 'density-dependant']] = Field(
+        default="density-dependant",
+        description="Volumetric inlet flow rate mode as constant or density-dependant. The density-dependant mode computes the volumetric flow rate based on the inlet mass flow rate and the density at the inlet conditions."
+    )
 
 
 class PFRReactorResult(BaseModel):
