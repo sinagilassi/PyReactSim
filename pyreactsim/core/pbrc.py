@@ -69,17 +69,26 @@ class PBRReactorCore(ReactorCore):
         self.use_liquid_mixture_total_heat_capacity = pbr_reactor_options.use_liquid_mixture_total_heat_capacity
         self.use_liquid_mixture_volumetric_heat_capacity = pbr_reactor_options.use_liquid_mixture_volumetric_heat_capacity
         self.reaction_enthalpy_mode = pbr_reactor_options.reaction_enthalpy_mode
+        self.volumetric_inlet_flow_rate_mode = pbr_reactor_options.volumetric_inlet_flow_rate_mode
 
         # SECTION: process model configuration
+        # ! T_in: inlet temperature [K]
         self.temperature_inlet: Temperature = self.config_inlet_temperature()
         self.temperature_inlet_value = self.temperature_inlet.value
         self._T_in = self.temperature_inlet_value
 
+        # ! V_R: reactor volume [m3]
         self.volume = self.config_reactor_volume()
         self.reactor_volume_value = self.volume.value
 
+        # ! F_in: inlet component molar flow rates [mol/s]
         _, self._F_in, self._F_in_total = self.config_inlet_mole_flows()
+
+        # ! P0: inlet/reference pressure [Pa]
         self._P0 = self._config_pressure_initial()
+
+        # ! q_in: inlet volumetric flow rate [m3/s]
+        self._q0 = self.config_volumetric_inlet_flow()
 
         # NOTE: packed-bed specific conversion parameter [kg/m3]
         self._rho_B_value, self.rho_B = self.config_bulk_density()

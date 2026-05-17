@@ -1,6 +1,7 @@
 # import libs
 from pydantic import BaseModel, Field
 from typing import Any, Dict, Literal, Optional
+from pythermodb_settings.models import CustomProp
 # locals
 from .ref import GasModel, ReactorPhase, ReactorOptions
 
@@ -17,6 +18,10 @@ class PBRReactorOptions(ReactorOptions):
         Operating condition of the reactor (constant volume or constant pressure).
     pressure_mode : Optional[Literal["constant", "shortcut", "state_variable"]]
         Pressure mode as constant, shortcut, and state_variable. The shortcut uses ideal-gas formulation and state_variable considers pressure as a variable computes the pressure drop along the reactor.
+    reactor_radius : Optional[CustomProp]
+        Radius of the PBR reactor (required if pressure_mode is state_variable).
+    volumetric_inlet_flow_rate_mode : Optional[Literal['constant', 'density-dependant']]
+        Volumetric inlet flow rate mode as constant or density-dependant. The density-dependant mode computes the volumetric flow rate based on the inlet mass flow rate and the density at the inlet conditions.
     phase : ReactorPhase
         Phase of the reactor (gas or liquid).
     gas_model : GasModel
@@ -46,6 +51,14 @@ class PBRReactorOptions(ReactorOptions):
     pressure_mode: Optional[Literal["constant", "shortcut", "state_variable"]] = Field(
         default="constant",
         description="Pressure mode as constant, shortcut, and state_variable. The shortcut uses ideal-gas formulation and state_variable considers pressure as a variable computes the pressure drop along the reactor."
+    )
+    reactor_radius: Optional[CustomProp] = Field(
+        default=None,
+        description="Radius of the PFR reactor (required if pressure_mode is state_variable)."
+    )
+    volumetric_inlet_flow_rate_mode: Optional[Literal['constant', 'density-dependant']] = Field(
+        default="density-dependant",
+        description="Volumetric inlet flow rate mode as constant or density-dependant. The density-dependant mode computes the volumetric flow rate based on the inlet mass flow rate and the density at the inlet conditions."
     )
 
 
