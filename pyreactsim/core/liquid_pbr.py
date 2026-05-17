@@ -62,6 +62,9 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
         self.jacket_temperature_value = pbr_reactor_core.jacket_temperature_value
         self.heat_rate_value = pbr_reactor_core.heat_rate_value
 
+        # volumetric inlet flow rate mode for liquid PFR closure
+        self.volumetric_inlet_flow_rate_mode = pbr_reactor_core.volumetric_inlet_flow_rate_mode
+
         # NOTE: packed-bed catalyst bulk density (without unit conversion)
         self._rho_B_value = pbr_reactor_core._rho_B_value
         self._rho_B = pbr_reactor_core.rho_B
@@ -85,12 +88,9 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
             temperature=self.temperature_in
         )
 
-        # ! inlet volumetric flow rate [m3/s] from closure
-        self._q_in = self.thermo_source.calc_liquid_volumetric_flow_rate(
-            molar_flow_rates=self._F_in,
-            molecular_weights=self.thermo_source.MW,
-            density=self._rho_LIQ_in
-        )
+        # ! q_in: inlet volumetric flow rate [m3/s]
+        # constant-volume liquid closure uses this fixed value.
+        self._q_in = self.config_volumetric_inlet_flow()
 
         # ! inlet concentration [mol/m3] from closure
         self._C_in = self._F_in / self._q_in
@@ -130,6 +130,40 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
         self._rhs_log_v: Optional[float] = None
         self._rhs_wall_t0: Optional[float] = None
         self._rhs_last_log_wall: Optional[float] = None
+
+    # SECTION: model configuration methods
+    # NOTE: inlet volumetric flow rate configuration for liquid PBR based on selected mode
+    def config_volumetric_inlet_flow(self) -> float:
+        """
+        Configure inlet volumetric flow rate for liquid PBR based on selected mode.
+
+        Modes
+        -----
+        - constant: fixed inlet volumetric flow rate from model inputs.
+        - density-dependant: calculate inlet volumetric flow rate based on inlet mass flow rate and density at inlet conditions.
+        """
+        if self.volumetric_inlet_flow_rate_mode == "constant":
+            # ! q_in is fixed from model inputs [m3/s]
+            q_in = self.pbr_reactor_core._q0
+            # >> check
+            if q_in is None:
+                raise ValueError(
+                    "Inlet volumetric flow rate (q_in) must be provided in model inputs for constant mode."
+                )
+
+            return q_in
+        elif self.volumetric_inlet_flow_rate_mode == "density-dependant":
+            # ! q_in is calculated from inlet molar flow rates and density at inlet conditions [m3/s]
+            q_in = self.thermo_source.calc_liquid_volumetric_flow_rate(
+                molar_flow_rates=self._F_in,
+                molecular_weights=self.thermo_source.MW,
+                density=self._rho_LIQ_in
+            )
+            return q_in
+        else:
+            raise ValueError(
+                f"Invalid volumetric_inlet_flow_rate_mode '{self.volumetric_inlet_flow_rate_mode}' for liquid PFR."
+            )
 
     @property
     def F_in(self) -> np.ndarray:
@@ -190,14 +224,14 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
             temp = float(self._T_in)
         # >>> set
         temperature = Temperature(value=temp, unit="K")
-        self._log_rhs(
-            "rhs.start", heat_transfer_mode=self.heat_transfer_mode, ns=ns, temp=temp)
 
         # NOTE: density
+        # ! rho_LIQ = ρ(T) from selected liquid density model, used for concentration and volumetric flow calculations [g/m3]
+        # ? constant volume -> constant density,
+        # ? variable volume --> variable density
         rho_LIQ = self.thermo_source.calc_rho_LIQ(
             temperature=temperature
         )
-        self._log_rhs("rhs.density")
 
         # NOTE: volumetric flow rate from closure
         # ! volumetric flow from selected liquid closure [m3/s]
@@ -207,9 +241,9 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
         )
         # >> avoid zero or negative volumetric flow for concentration calculation
         q_vol = max(q_vol, 1e-30)
-        self._log_rhs("rhs.flow", q_vol=float(q_vol))
 
         # ! concentration from flow form: C_i = F_i / Q [mol/m3]
+        # ! C_i [mol/m3] = F_i [mol/s] / q_vol [m3/s]
         concentration = F / q_vol
 
         # NOTE: standardized concentration dict for rate interface
@@ -218,7 +252,6 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
                 value=concentration[i], unit="mol/m3", symbol="C")
             for i, sp in enumerate(self.component_formula_state)
         }
-        self._log_rhs("rhs.concentration")
 
         # SECTION: kinetics evaluation
         # NOTE: raw rates are catalyst-mass basis r' [mol/kg.s]
@@ -228,38 +261,27 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
             temperature=temperature,
             args=self.rho_B_arg
         )
-        self._log_rhs("rhs.rates", rates=np.asarray(
-            rates_v, dtype=float).tolist())
 
         # SECTION: species balance
         dF_dV = self._build_dF_dV(rates=rates_v)
-        self._log_rhs("rhs.dF_dV", dF_dV=np.asarray(
-            dF_dV, dtype=float).tolist())
 
         if self.heat_transfer_mode == "isothermal":
-            self._log_rhs("rhs.end_isothermal")
-            self._rhs_log_active = False
-            self._rhs_log_v = None
-            self._rhs_wall_t0 = None
-            self._rhs_last_log_wall = None
             return dF_dV
 
         # SECTION: energy balance (optional)
         dT_dV = self._build_dT_dV(
             F=F,
             rates_v=rates_v,
-            temp=temp
+            temp=temp,
+            volumetric_flow_rate=q_vol
         )
-        self._log_rhs("rhs.dT_dV", dT_dV=float(dT_dV))
+
         # NOTE: concatenate species and thermal derivatives for non-isothermal mode
         out = np.concatenate([dF_dV, np.array([dT_dV], dtype=float)])
-        self._log_rhs("rhs.end_nonisothermal")
-        self._rhs_log_active = False
-        self._rhs_log_v = None
-        self._rhs_wall_t0 = None
-        self._rhs_last_log_wall = None
         return out
 
+    # SECTION: helper methods for balances and closures
+    # ! Calculate liquid volumetric flow rate
     def _calc_q_liquid(
             self,
             flow: np.ndarray,
@@ -271,6 +293,13 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
         Formula
         -------
         Q = Σ_i(F_i MW_i / rho_i)
+
+        Parameters
+        ----------
+        flow: np.ndarray
+            Component molar flow rates [mol/s].
+        rho_LIQ: np.ndarray
+            Component liquid densities [g/m3].
         """
         return self.thermo_source.calc_liquid_volumetric_flow_rate(
             molar_flow_rates=flow,
@@ -278,6 +307,7 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
             density=rho_LIQ
         )
 
+    # ! Calculate volumetric flow rate closure for concentration calculation
     def _calc_q_vol(
             self,
             F: np.ndarray,
@@ -292,16 +322,14 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
         - constant_pressure: Q = Q(F, T) from density/molecular-weight mixing
         """
         if self.operation_mode == "constant_volume":
-            self._log_rhs("_calc_q_vol.constant_volume")
             return float(self._q_in)
         if self.operation_mode == "constant_pressure":
-            q = float(self._calc_q_liquid(flow=F, rho_LIQ=rho_LIQ))
-            self._log_rhs("_calc_q_vol.constant_pressure", q=float(q))
-            return q
+            return float(self._calc_q_liquid(flow=F, rho_LIQ=rho_LIQ))
         raise ValueError(
             f"Invalid operation_mode '{self.operation_mode}' for liquid PBR."
         )
 
+    # NOTE: species derivative builder for all modes
     def _build_dF_dV(self, rates: np.ndarray) -> np.ndarray:
         """
         Build species derivatives dF_i/dV.
@@ -322,11 +350,13 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
         self._log_rhs("_build_dF_dV")
         return dF_dV
 
+    # NOTE: thermal derivative builder for non-isothermal mode
     def _build_dT_dV(
         self,
         F: np.ndarray,
         rates_v: np.ndarray,
-        temp: float
+        temp: float,
+        volumetric_flow_rate: float
     ) -> float:
         """
         Build thermal derivative dT/dV for non-isothermal liquid PBR.
@@ -338,47 +368,43 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
         # NOTE: temperature wrapper for thermo API
         temperature = Temperature(value=temp, unit="K")
 
-        # NOTE: flowing heat-capacity rate denominator [J/s.K]
-        cp_liq_values = self.thermo_source.calc_Cp_LIQ(
-            temperature=temperature
-        )
-
-        # ! total flowing liquid heat capacity [J/s.K] = Σ_i(F_i Cp_i^L)
-        cp_flow = calc_total_heat_capacity(x=F, cp=cp_liq_values)
-        self._log_rhs("_build_dT_dV.Cp", cp_liq_values=np.asarray(
-            cp_liq_values, dtype=float).tolist())
-        self._log_rhs("_build_dT_dV.Cp_flow", cp_flow=float(cp_flow))
-
-        # >> check for zero or near-zero heat capacity to avoid division issues
-        if cp_flow <= 1e-16:
-            raise ValueError(
-                "Total flowing liquid heat capacity is too small or zero."
+        # NOTE: calculate total flowing heat capacity of liquid mixture based on selected mode
+        # ? if use_liquid_mixture_volumetric_heat_capacity is True, Cp_LIQ_MIX_TOTAL = Cp_LIQ_MIX_VOLUMETRIC * Q where Cp_LIQ_MIX_VOLUMETRIC is in J/m3.K and Q is in m3/s, giving J/s.K
+        Cp_LIQ_MIX_TOTAL_FLOWING = self._calc_total_flowing_heat_capacity_liquid(
+            F=F,
+            temperature=temperature,
+            volumetric_flow_rate=volumetric_flow_rate,
+            mode=cast(
+                Literal['calculate', 'constant'],
+                self.Cp_LIQ_MIX_VOLUMETRIC_MODE
             )
+        )
 
         # NOTE: reaction heat source term [W/m3] uses converted r_V rates
-        # ! delta_h is reaction enthalpy change [J/mol] for each reaction, positive for endothermic
+        # ! Q_rxn = sum_k((-dH_k) * r_k)
+        # ??? ΔH_k [J/mol]
+        # delta_h is reaction enthalpy change [J/mol] for each reaction, positive for endothermic
         delta_h = self._calc_dH_rxns(
             temperature=temperature,
-            phase=cast(Literal['gas', 'liquid'], 'liquid')
+            phase=cast(
+                Literal['gas', 'liquid'],
+                'liquid'
+            )
         )
 
-        self._log_rhs(
-            "_build_dT_dV.delta_h",
-            delta_h=np.asarray(delta_h, dtype=float).tolist()
-        )
-
+        # ??? Q_rxn [W/m3] or [J/s.m3] = sum_k((-ΔH_k) * r_k) [J/mol * mol/m3.s]
         q_rxn = calc_rxn_heat_generation(
             delta_h=delta_h,
             rates=rates_v,
             reactor_volume=1.0
         )
-        self._log_rhs("_build_dT_dV.q_rxn", q_rxn=float(q_rxn))
 
         # NOTE: jacket/surrounding heat exchange [W/m3]
+        # ! [W/m3] or [J/s.m3]
         # ! Q_exchange = U A (T - T_jacket) / V
         q_exchange = 0.0
 
-        # >> check
+        # >> check if heat exchange is enabled for this reactor configuration
         if self.heat_exchange:
             q_exchange = calc_heat_exchange(
                 temperature=temp,
@@ -387,15 +413,15 @@ class LiquidPBRReactor(ReactorAuxiliary, ReactLog):
                 heat_transfer_coefficient=self.heat_transfer_coefficient_value,
                 reactor_volume=self._Vr
             )
-        self._log_rhs("_build_dT_dV.q_exchange", q_exchange=float(q_exchange))
 
-        # NOTE: user-defined constant heat source [W/m3]
+        # NOTE: user-defined constant heat source
+        # ! [W/m3]
         q_constant = 0.0
         if self.heat_rate_value:
             q_constant = self.heat_rate_value / self._Vr
-        self._log_rhs("_build_dT_dV.q_constant", q_constant=float(q_constant))
 
         # ! final dT/dV calculation
-        dT_dV = (q_rxn + q_exchange + q_constant) / cp_flow
-        self._log_rhs("_build_dT_dV.result", dT_dV=float(dT_dV))
+        dT_dV = (q_rxn + q_exchange + q_constant) / Cp_LIQ_MIX_TOTAL_FLOWING
+
+        # results in K/m3, since q_rxn, q_exchange, and q_constant are in W/m3 or J/s.m3, and Cp_LIQ_MIX_TOTAL_FLOWING is in J/s.K
         return dT_dV
