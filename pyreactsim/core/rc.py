@@ -4,7 +4,7 @@ import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, Literal
 from pythermodb_settings.models import Component, Temperature, Pressure, ComponentKey, Volume
 # ! locals
-from ..utils.unit_tools import to_m3, to_Pa, to_K, to_W_per_m2_K, to_m2, to_W, to_mol_per_s
+from ..utils.unit_tools import to_m3, to_Pa, to_K, to_W_per_m2_K, to_m2, to_W, to_mol_per_s, to_m3_per_s
 from ..utils.tools import collect_keys
 from ..models.br import BatchReactorOptions
 from ..models.heat import HeatTransferOptions
@@ -342,7 +342,7 @@ class ReactorCore:
         volumetric_inlet_flow = self.model_inputs["volumetric_inlet_flow"]
 
         if volumetric_inlet_flow is not None:
-            volumetric_inlet_flow_value = to_m3(
+            volumetric_inlet_flow_value = to_m3_per_s(
                 value=float(volumetric_inlet_flow.value),
                 unit=volumetric_inlet_flow.unit
             )
