@@ -175,8 +175,8 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
 
         # NOTE: density
         # ! rho_LIQ = ρ(T) from selected liquid density model, used for concentration and volumetric flow calculations [g/m3]
-        # ? isothermal PFR -> constant density from inlet conditions;
-        # ? non-isothermal PFR -> temperature-dependent density
+        # ? constant volume -> constant density,
+        # ? variable volume --> variable density
         rho_LIQ = self.thermo_source.calc_rho_LIQ(
             temperature=temperature
         )
@@ -372,4 +372,7 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
             q_constant = self.heat_rate_value / self._Vr
 
         # ! dT/dV = (q_rxn + q_exchange + q_constant) / Σ_i(F_i Cp_i^L) [K/m3]
-        return (q_rxn + q_exchange + q_constant) / Cp_LIQ_MIX_TOTAL_FLOWING
+        dT_dV = (q_rxn + q_exchange + q_constant) / Cp_LIQ_MIX_TOTAL_FLOWING
+
+        # results in K/m3, since q_rxn, q_exchange, and q_constant are in W/m3 or J/s.m3, and Cp_LIQ_MIX_TOTAL_FLOWING is in J/s.K
+        return dT_dV
