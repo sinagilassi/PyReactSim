@@ -131,7 +131,10 @@ class ReactorAuxiliary:
             self.Cp_LIQ_MIX_VOLUMETRIC_BASIS = "volumetric"
 
         # ! dH_rxns
-        if self.reactor_core.reaction_enthalpy_mode == "reaction":
+        if (
+            self.reactor_core.reaction_enthalpy_mode == "reaction" and
+            self.reactor_core.heat_transfer_mode != "isothermal"
+        ):
             self.dH_rxns = self.thermo_source.set_dH_rxns()
         else:
             self.dH_rxns = None
