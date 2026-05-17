@@ -113,3 +113,61 @@ def set_component_X(
     X_spec_array = np.array(X_spec_list)
 
     return X_spec, X_spec_array
+
+
+# SECTION: interstitial velocity calculation
+def calc_interstitial_velocity(
+    volumetric_flow_rate: float,
+    reactor_diameter: float,
+    bed_porosity: float
+) -> float:
+    """
+    Calculate the interstitial velocity based on the volumetric flow rate and the cross-sectional area of the reactor.
+
+    Parameters
+    ----------
+    volumetric_flow_rate : float
+        Volumetric flow rate of the fluid [m3/s].
+    reactor_diameter : float
+        Diameter of the reactor [m].
+    bed_porosity : Optional[float], optional
+        Porosity of the bed (if applicable), by default None.
+
+    Returns
+    -------
+    float
+        Interstitial velocity of the fluid [m/s].
+    """
+    # NOTE: calculate cross-sectional area of the reactor
+    A = np.pi * (reactor_diameter / 2) ** 2
+
+    # calculate superficial velocity using the formula: u = Q / A
+    return volumetric_flow_rate / (A * bed_porosity)
+
+# SECTION: superficial velocity calculation
+
+
+def calc_superficial_velocity(
+    volumetric_flow_rate: float,
+    reactor_diameter: float
+) -> float:
+    """
+    Calculate the superficial velocity based on the volumetric flow rate and the cross-sectional area of the reactor.
+
+    Parameters
+    ----------
+    volumetric_flow_rate : float
+        Volumetric flow rate of the fluid [m3/s].
+    reactor_diameter : float
+        Diameter of the reactor [m].
+
+    Returns
+    -------
+    float
+        Superficial velocity of the fluid [m/s].
+    """
+    # NOTE: calculate cross-sectional area of the reactor
+    A = np.pi * (reactor_diameter / 2) ** 2
+
+    # calculate superficial velocity using the formula: u = Q / A
+    return volumetric_flow_rate / A
