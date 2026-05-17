@@ -3,6 +3,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
+import numpy as np
 from rich import print
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
@@ -169,7 +170,7 @@ feed_mole_flow = {
 
 # NOTE: volumetric inlet flow rate
 volumetric_inlet_flow = CustomProp(
-    value=0.001,
+    value=100.0,
     unit="m3/s",
 )
 
@@ -212,15 +213,21 @@ _reactor: PFRReactor = create_pfr_reactor(
 print("[bold green]reactor successfully created![/bold green]")
 print(_reactor)
 
+# NOTE: stiff-solver settings for non-isothermal liquid PFR
+# species atol tighter than temperature atol
+n_species = len(components)
+solver_options = {
+    "method": "BDF",
+    "rtol": 1e-6,
+    # "atol": np.concatenate([np.full(n_species, 1e-10), np.array([1e-6])]),
+    "first_step": 1e-8,
+    "max_step": 1e-4,
+}
+
 # NOTE: simulate CSTR
 simulation_results = _reactor.simulate(
     volume_span=volume_span,
-    solver_options={
-        "method": "Radau",
-        "rtol": 1e-8,
-        "atol": 1e-8,
-        # "max_step": 0.001,
-    },
+    # solver_options=solver_options,
     mode="log"
 )
 print("[bold green]simulation completed![/bold green]")

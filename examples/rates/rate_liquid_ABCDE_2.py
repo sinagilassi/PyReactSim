@@ -112,7 +112,6 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
         Ea=Ea,
         T=T,
         T_ref=T_ref,
-        R=1.987*4.189
     )
 
     # concentration of reactants in mol/m3
