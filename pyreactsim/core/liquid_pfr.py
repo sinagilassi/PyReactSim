@@ -191,7 +191,7 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
         q_vol = max(q_vol, 1e-30)
 
         # NOTE: concentration from flow
-        # ! C_i = F_i / Q [mol/m3]
+        # ! C_i [mol/m3] = F_i [mol/s] / q_vol [m3/s]
         concentration = F / q_vol
 
         # NOTE: standardized concentration dict for rate interface
