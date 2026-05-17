@@ -55,7 +55,7 @@ heat_transfer_coefficient = CustomProp(
 
 # NOTE: heat transfer area
 heat_transfer_area = CustomProp(
-    value=66.67,
+    value=200,
     unit="m2",
 )
 
@@ -217,8 +217,8 @@ simulation_results = _reactor.simulate(
     volume_span=volume_span,
     solver_options={
         "method": "Radau",
-        "rtol": 1e-6,
-        "atol": 1e-9,
+        "rtol": 1e-8,
+        "atol": 1e-8,
         # "max_step": 0.001,
     },
     mode="log"
