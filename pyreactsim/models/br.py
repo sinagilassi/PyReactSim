@@ -1,8 +1,8 @@
 # import libs
 from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union, TypeAlias
+from typing import Any, Dict, Literal
 # locals
-from .ref import OperationMode, ReactorOptions
+from .ref import ReactorOptions, OperationMode
 
 
 class BatchReactorOptions(ReactorOptions):

@@ -17,42 +17,93 @@ OperationMode = Literal[
 GasModel = Literal['ideal', 'real']
 
 
-# SECTION: General Reference Models
-class ReactorOptions(BaseModel):
+# SECTION: Reactor Source Model
+class ReactorSourceModel(BaseModel):
     """
-    Base class for reactor options.
+    Base class for reactor source models.
 
     Attributes
     ----------
-    phase : ReactorPhase
-        Phase of the reactor (gas or liquid).
-    gas_model : GasModel
-        Gas model to use (required if phase is gas).
-    gas_heat_capacity_mode : Optional[Literal['constant', 'temperature-dependent', 'differential']]
-        Gas heat capacity mode as constant, temperature-dependent, and differential.
-    liquid_heat_capacity_mode : Optional[Literal['constant', 'temperature-dependent', 'differential']]
-        Liquid heat capacity mode as constant, temperature-dependent, and differential.
-    liquid_density_mode : Optional[Literal['constant', 'temperature-dependent']]
-        Liquid density mode as constant or temperature-dependent.
-    ideal_gas_formation_enthalpy_source : Optional[Literal['model_inputs', 'model_source']]
+    gas_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']]
+        Source of gas heat capacity as model_inputs or model_source.
+    liquid_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']]
+        Source of liquid heat capacity as model_inputs or model_source.
+    liquid_density_source: Optional[Literal['model_inputs', 'model_source']]
+        Source of liquid density as model_inputs or model_source.
+    ideal_gas_formation_enthalpy_source: Optional[Literal['model_inputs', 'model_source']]
         Source of gas formation enthalpy as model_inputs or model_source.
-    molecular_weight_source : Optional[Literal['model_inputs', 'model_source']]
+    molecular_weight_source: Optional[Literal['model_inputs', 'model_source']]
         Source of molecular weight as model_inputs or model_source.
+    reaction_enthalpy_source: Optional[Literal['model_inputs', 'model_source']]
+        Source of reaction enthalpy as model_inputs or model_source.
+    gas_mixture_total_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']]
+        Source of gas mixture total heat capacity as model_inputs or model_source.
+    liquid_mixture_total_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']]
+        Source of liquid mixture total heat capacity as model_inputs or model_source.
+    liquid_mixture_volumetric_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']]
+        Source of liquid mixture volumetric heat capacity as model_inputs or model_source.
     """
-    phase: ReactorPhase = Field(
-        ...,
-        description="Phase of the batch reactor (gas or liquid)."
+    gas_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default=None,
+        description="Source of gas heat capacity as model_inputs or model_source."
     )
-    gas_model: GasModel = Field(
-        default="ideal",
-        description="Gas model to use (required if phase is gas)."
+    liquid_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default=None,
+        description="Source of liquid heat capacity as model_inputs or model_source."
     )
+    liquid_density_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default=None,
+        description="Source of liquid density as model_inputs or model_source."
+    )
+    ideal_gas_formation_enthalpy_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default=None,
+        description="Source of gas formation enthalpy as model_inputs or model_source."
+    )
+    molecular_weight_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default=None,
+        description="Source of molecular weight as model_inputs or model_source."
+    )
+    reaction_enthalpy_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default=None,
+        description="Source of reaction enthalpy as model_inputs or model_source."
+    )
+    gas_mixture_total_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default=None,
+        description="Source of gas mixture total heat capacity as model_inputs or model_source."
+    )
+    liquid_mixture_total_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default=None,
+        description="Source of liquid mixture total heat capacity as model_inputs or model_source."
+    )
+    liquid_mixture_volumetric_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
+        default=None,
+        description="Source of liquid mixture volumetric heat capacity as model_inputs or model_source."
+    )
+
+# SECTION: Reactor mode model
+
+
+class ReactorModeModel(BaseModel):
+    """
+    Base class for reactor mode models.
+
+    Attributes
+    ----------
+    gas_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]]
+        Gas heat capacity mode as constant, temperature-dependent, differential, and mixture.
+    liquid_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]]
+        Liquid heat capacity mode as constant, temperature-dependent, differential, and mixture.
+    liquid_density_mode: Optional[Literal["constant", "temperature-dependent", "mixture"]]
+        Density mode as constant, temperature-dependent, and mixture.
+    reaction_enthalpy_mode: Optional[Literal['ideal_gas', 'liquid', 'reaction']]
+        Mode for reaction enthalpy calculation as ideal_gas, liquid, and reaction.
+    """
     gas_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
-        default="temperature-dependent",
+        default=None,
         description="Gas heat capacity mode as constant, temperature-dependent, differential, and mixture."
     )
     liquid_heat_capacity_mode: Optional[Literal["constant", "temperature-dependent", "differential"]] = Field(
-        default="temperature-dependent",
+        default=None,
         description="Liquid heat capacity mode as constant, temperature-dependent, differential, and mixture."
     )
     liquid_density_mode: Optional[Literal["constant", "temperature-dependent", "mixture"]] = Field(
@@ -60,9 +111,26 @@ class ReactorOptions(BaseModel):
         description="Density mode as constant, temperature-dependent, and mixture."
     )
     reaction_enthalpy_mode: Optional[Literal['ideal_gas', 'liquid', 'reaction']] = Field(
-        default="ideal_gas",
+        default=None,
         description="Mode for reaction enthalpy calculation as ideal_gas, liquid, and reaction."
     )
+
+# SECTION: Reactor use model
+
+
+class ReactorUseModel(BaseModel):
+    """
+    Base class for reactor use models.
+
+    Attributes
+    ----------
+    use_gas_mixture_total_heat_capacity : bool
+        If True, use gas mixture total heat capacity directly (J/K). If False, calculate it from species contributions: Cp_IG_MIX_TOTAL = sum(n_i * Cp_i), where Cp_i is in J/mol.K and n_i is in mol.
+    use_liquid_mixture_total_heat_capacity : bool
+        If True, use liquid mixture total heat capacity directly (J/K). If False, calculate it from species contributions: Cp_LIQ_MIX_TOTAL = sum(n_i * Cp_i), where Cp_i is in J/mol.K and n_i is in mol.
+    use_liquid_mixture_volumetric_heat_capacity : bool
+        If True, use liquid mixture volumetric heat capacity directly (J/m3/K). If False, calculate it from species contributions: Cp_LIQ_MIX_VOL = sum(C_i * Cp_i), where Cp_i is in J/mol.K and C_i is in mol/m3.
+    """
     use_gas_mixture_total_heat_capacity: bool = Field(
         default=False,
         description=(
@@ -87,39 +155,26 @@ class ReactorOptions(BaseModel):
             "Cp_LIQ_MIX_VOL = sum(C_i * Cp_i), where Cp_i is in J/mol.K and C_i is in mol/m3."
         )
     )
-    gas_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_source",
-        description="Source of gas heat capacity as model_inputs or model_source."
+
+# SECTION: General Reference Models
+
+
+class ReactorOptions(ReactorSourceModel, ReactorModeModel, ReactorUseModel):
+    """
+    Base class for reactor options.
+
+    Attributes
+    ----------
+    phase : ReactorPhase
+        Phase of the reactor (gas or liquid).
+    gas_model : GasModel
+        Gas model to use (required if phase is gas).
+    """
+    phase: ReactorPhase = Field(
+        ...,
+        description="Phase of the batch reactor (gas or liquid)."
     )
-    liquid_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_source",
-        description="Source of liquid heat capacity as model_inputs or model_source."
-    )
-    liquid_density_source: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_source",
-        description="Source of liquid density as model_inputs or model_source."
-    )
-    ideal_gas_formation_enthalpy_source: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_source",
-        description="Source of gas formation enthalpy as model_inputs or model_source."
-    )
-    molecular_weight_source: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_source",
-        description="Source of molecular weight as model_inputs or model_source."
-    )
-    reaction_enthalpy_source: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_source",
-        description="Source of reaction enthalpy as model_inputs or model_source."
-    )
-    gas_mixture_total_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_inputs",
-        description="Source of gas mixture total heat capacity as model_inputs or model_source."
-    )
-    liquid_mixture_total_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_inputs",
-        description="Source of liquid mixture total heat capacity as model_inputs or model_source."
-    )
-    liquid_mixture_volumetric_heat_capacity_source: Optional[Literal['model_inputs', 'model_source']] = Field(
-        default="model_inputs",
-        description="Source of liquid mixture volumetric heat capacity as model_inputs or model_source."
+    gas_model: GasModel = Field(
+        default="ideal",
+        description="Gas model to use (required if phase is gas)."
     )

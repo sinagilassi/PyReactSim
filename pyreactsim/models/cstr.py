@@ -1,8 +1,8 @@
 # import libs
 from pydantic import BaseModel, Field
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal
 # locals
-from .ref import GasModel, ReactorPhase, ReactorOptions
+from .ref import ReactorOptions
 
 
 class CSTRReactorOptions(ReactorOptions):

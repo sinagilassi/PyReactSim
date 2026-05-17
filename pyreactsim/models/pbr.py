@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Any, Dict, Literal, Optional
 from pythermodb_settings.models import CustomProp
 # locals
-from .ref import GasModel, ReactorPhase, ReactorOptions
+from .ref import ReactorOptions
 
 
 class PBRReactorOptions(ReactorOptions):
