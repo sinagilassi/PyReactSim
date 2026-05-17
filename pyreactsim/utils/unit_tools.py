@@ -314,3 +314,12 @@ def to_mol_per_s(value: float, unit: str) -> float:
         # fallback to raw value for unit systems that are already mol/s but not
         # explicitly recognized by converter
         return float(value)
+
+
+def to_m3_per_s(value: float, unit: str) -> float:
+    try:
+        return pycuc.convert_from_to(value=value, from_unit=unit, to_unit="m3/s")
+    except Exception:
+        # fallback to raw value for unit systems that are already m3/s but not
+        # explicitly recognized by converter
+        return float(value)
