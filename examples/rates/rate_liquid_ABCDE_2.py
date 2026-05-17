@@ -106,11 +106,13 @@ def r1(X: Dict[str, X], args: rArgs, params: rParams) -> CustomProperty:
     T = args['T'].value
 
     # calculate rate constant k using Arrhenius equation
+    # ? m3/mol.s for bimolecular reaction in liquid phase
     k = arrhenius_equation(
         k_ref=k_ref,
         Ea=Ea,
         T=T,
-        T_ref=T_ref
+        T_ref=T_ref,
+        R=1.987*4.189
     )
 
     # concentration of reactants in mol/m3
