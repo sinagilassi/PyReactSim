@@ -1109,6 +1109,7 @@ class ThermoSourceCore(ThermoCalc):
 
         # SECTION: retrieve reaction enthalpy from model inputs
         if (
+            self.heat_transfer_mode != "isothermal" and
             self.reaction_enthalpy_mode == "reaction" and
             self.reaction_enthalpy_source == "model_inputs" and
             self.dH_rxns_src is not None
@@ -1136,9 +1137,10 @@ class ThermoSourceCore(ThermoCalc):
             return res
 
         else:
-            raise ValueError(
-                f"Invalid reaction enthalpy configuration. Cannot set reaction enthalpy values from model inputs."
+            logger.info(
+                "Reaction enthalpy values could not be set from model inputs due to missing or invalid configuration. Returning empty array."
             )
+            return np.array([], dtype=float)
 
     # SECTION: Calculate Enthalpy Stream
     def calc_En_IG(
