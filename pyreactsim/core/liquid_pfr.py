@@ -67,6 +67,9 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
         self.jacket_temperature_value = pfr_reactor_core.jacket_temperature_value
         self.heat_rate_value = pfr_reactor_core.heat_rate_value
 
+        # volumetric inlet flow rate mode for liquid PFR closure
+        self.volumetric_inlet_flow_rate_mode = pfr_reactor_core.volumetric_inlet_flow_rate_mode
+
         # SECTION: Inlet and reactor geometry
         # ! F_in: inlet component molar flow rates [mol/s]
         self._F_in = pfr_reactor_core._F_in
@@ -84,20 +87,48 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
 
         # ! q_in: inlet volumetric flow rate [m3/s]
         # constant-volume liquid closure uses this fixed value.
-        self._q_in = self.thermo_source.calc_liquid_volumetric_flow_rate(
-            molar_flow_rates=self._F_in,
-            molecular_weights=self.thermo_source.MW,
-            density=self._rho_LIQ_in
-        )
+        self._q_in = self.config_volumetric_inlet_flow()
 
-    def config_volumetric_inlet_flow(self):
-        pass
+    # SECTION: model configuration methods
+    # NOTE: inlet volumetric flow rate configuration for liquid PFR based on selected mode
+    def config_volumetric_inlet_flow(self) -> float:
+        """
+        Configure inlet volumetric flow rate for liquid PFR based on selected mode.
+
+        Modes
+        -----
+        - constant: fixed inlet volumetric flow rate from model inputs.
+        - density-dependant: calculate inlet volumetric flow rate based on inlet mass flow rate and density at inlet conditions.
+        """
+        if self.volumetric_inlet_flow_rate_mode == "constant":
+            # ! q_in is fixed from model inputs [m3/s]
+            q_in = self.pfr_reactor_core._q0
+            # >> check
+            if q_in is None:
+                raise ValueError(
+                    "Inlet volumetric flow rate (q_in) must be provided in model inputs for constant mode."
+                )
+
+            return q_in
+        elif self.volumetric_inlet_flow_rate_mode == "density-dependant":
+            # ! q_in is calculated from inlet molar flow rates and density at inlet conditions [m3/s]
+            q_in = self.thermo_source.calc_liquid_volumetric_flow_rate(
+                molar_flow_rates=self._F_in,
+                molecular_weights=self.thermo_source.MW,
+                density=self._rho_LIQ_in
+            )
+            return q_in
+        else:
+            raise ValueError(
+                f"Invalid volumetric_inlet_flow_rate_mode '{self.volumetric_inlet_flow_rate_mode}' for liquid PFR."
+            )
 
     @property
     def F_in(self) -> np.ndarray:
         """Inlet component molar-flow vector [mol/s]."""
         return self._F_in
 
+    # NOTE: build inlet state vector for ODE solver based on selected mode
     def build_y0(self) -> np.ndarray:
         """
         Build inlet state vector for solve_ivp.
@@ -113,6 +144,7 @@ class LiquidPFRReactor(ReactorAuxiliary, ReactLog):
             return f0
         return np.concatenate([f0, np.array([float(self._T_in)], dtype=float)])
 
+    # NOTE: rhs method for ODE system in reactor-volume coordinate
     def rhs(
             self,
             V: float,
