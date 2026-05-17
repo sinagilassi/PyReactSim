@@ -55,7 +55,7 @@ heat_transfer_coefficient = CustomProp(
 
 # NOTE: heat transfer area
 heat_transfer_area = CustomProp(
-    value=2.0,
+    value=66.67,
     unit="m2",
 )
 
@@ -71,8 +71,8 @@ cstr_reactor_options = PFRReactorOptions(
     # liquid_heat_capacity_mode='temperature-dependent',
     use_liquid_mixture_volumetric_heat_capacity=True,
     reaction_enthalpy_mode='reaction',
-    # source
     liquid_density_mode='constant',
+    volumetric_inlet_flow_rate_mode='constant',
     # source
     liquid_density_source="model_inputs",
     molecular_weight_source="model_inputs",
@@ -163,9 +163,15 @@ inlet_temperature = Temperature(
 feed_mole_flow = {
     "A-l": CustomProp(value=100, unit="mol/s"),
     "B-l": CustomProp(value=90, unit="mol/s"),
-    "C-l": CustomProp(value=0.0, unit="mol/s"),
-    "D-l": CustomProp(value=0.0, unit="mol/s"),
+    "C-l": CustomProp(value=5.0, unit="mol/s"),
+    "D-l": CustomProp(value=2.0, unit="mol/s"),
 }
+
+# NOTE: volumetric inlet flow rate
+volumetric_inlet_flow = CustomProp(
+    value=0.001,
+    unit="m3/s",
+)
 
 # NOTE: model inputs for CSTR
 # ! constant volume
@@ -173,6 +179,7 @@ model_inputs = {
     "inlet_flows": feed_mole_flow,
     "reactor_volume": reactor_volume,
     "inlet_temperature": inlet_temperature,
+    "volumetric_inlet_flow": volumetric_inlet_flow,
 }
 
 # NOTE: volume span for PFR simulation in m3
