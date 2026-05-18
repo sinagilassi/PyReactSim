@@ -213,7 +213,13 @@ class ThermoModelInputs:
                 )
 
             # NOTE: molecular weight
-            if self.reactor_options.molecular_weight_source == "model_inputs":  # ! source
+            if (
+                (
+                    self.reactor_options.operation_mode == "variable_volume" or
+                    self.reactor_options.operation_mode == "constant_pressure"
+                ) and
+                self.reactor_options.molecular_weight_source == "model_inputs"
+            ):  # ! source
                 # NOTE: use molecular weight from model inputs
                 # ! to g/mol
                 self.MW_src: Dict[
