@@ -1,7 +1,7 @@
 # import libs
 import logging
 import numpy as np
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Callable
 from pythermodb_settings.models import Component, CustomProp, ComponentKey
 # locals
 from ..models.br import BatchReactorOptions
@@ -53,7 +53,7 @@ class ThermoModelInputs:
     MW: np.ndarray = np.array([])
     MW_comp: Dict[str, float] = {}
     # ! enthalpy of reaction
-    dH_rxn_src: Optional[Dict[str, CustomProp]] = None
+    dH_rxn_src: Optional[Dict[str, Dict[str, Any]]] = None
     # ! total heat capacity of gas mixture
     Cp_IG_MIX_TOTAL: Optional[CustomProp] = None
     # ! total heat capacity of liquid mixture
@@ -114,6 +114,8 @@ class ThermoModelInputs:
         self.liquid_density_mode = reactor_options.liquid_density_mode
         # ! phase
         self.phase = reactor_options.phase
+        # ! operation mode
+        self.operation_mode = reactor_options.operation_mode
 
         # SECTION: heat transfer options
         # ! heat transfer mode
@@ -121,10 +123,10 @@ class ThermoModelInputs:
 
         # SECTION: Extract property sources and configure properties
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
-        if self.heat_transfer_mode == "non-isothermal":
+        if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
             # check heat capacity mode
             if (
-                self.gas_heat_capacity_mode == "constant" and
+                self.reactor_options.gas_heat_capacity_mode == "constant" and
                 self.reactor_options.gas_heat_capacity_source == "model_inputs"  # ! source
             ):
                 # NOTE: use constant heat capacity from model inputs
@@ -175,8 +177,8 @@ class ThermoModelInputs:
         if self.phase == "liquid":
             # check heat capacity mode
             if (
-                self.heat_transfer_mode == "non-isothermal" and
-                self.liquid_heat_capacity_mode == "constant" and
+                self.heat_transfer_options.heat_transfer_mode == "non-isothermal" and
+                self.reactor_options.liquid_heat_capacity_mode == "constant" and
                 self.reactor_options.liquid_heat_capacity_source == "model_inputs"  # ! source
             ):
                 # NOTE: use constant heat capacity from model inputs
@@ -189,7 +191,7 @@ class ThermoModelInputs:
 
             # check density mode
             if (
-                self.liquid_density_mode == "constant" and
+                self.reactor_options.liquid_density_mode == "constant" and
                 self.reactor_options.liquid_density_source == "model_inputs"  # ! source
             ):
                 # NOTE: use constant density from model inputs
@@ -201,7 +203,7 @@ class ThermoModelInputs:
                 ) = self._config_constant_liquid_density()
 
             if (
-                self.liquid_density_mode == "mixture" and
+                self.reactor_options.liquid_density_mode == "mixture" and
                 self.reactor_options.liquid_density_source == "model_inputs"  # ! source
             ):
                 # NOTE: use mixture density from model inputs
@@ -252,8 +254,28 @@ class ThermoModelInputs:
                 # ! J/m3.K
                 self.Cp_LIQ_MIX_VOLUMETRIC = self._config_liquid_mixture_volumetric_heat_capacity()
 
+    # SECTION: Statement methods for property configuration
+    # NOTE: model inputs source check
+    def _is_model_inputs_source(self, prop_name, source) -> bool:
+        """Check if the source for the given property is model inputs."""
+        source_attr = f"{prop_name}_source"
+        return hasattr(self.reactor_options, source_attr) and getattr(self.reactor_options, source_attr) == source
+
+    # NOTE: model input mode check
+    def _is_model_inputs_mode(self, prop_name, mode) -> bool:
+        """Check if the mode for the given property is the specified mode."""
+        mode_attr = f"{prop_name}_mode"
+        return hasattr(self.reactor_options, mode_attr) and getattr(self.reactor_options, mode_attr) == mode
+
+    # NOTE: model inputs use check
+    def _should_use_model_inputs(self, prop_name, use) -> bool:
+        """Check if the use of the given property is enabled in the reactor options."""
+        use_attr = f"use_{prop_name}"
+        return hasattr(self.reactor_options, use_attr) and getattr(self.reactor_options, use_attr) == use
+
     # SECTION: configuration methods for properties
     # ! gas phase heat capacity configuration
+
     def _config_constant_gas_heat_capacity(
             self,
     ) -> Tuple[np.ndarray, Dict[str, float]]:
@@ -397,7 +419,7 @@ class ThermoModelInputs:
             self
     ) -> Dict[str, Dict[str, Any]]:
         """
-        Configure the ideal gas formation enthalpy at 298 K in [J/mol] for the batch reactor based on the model inputs and reactor configuration.
+        Configure the ideal gas formation enthalpy at 298 K in [J/mol] for the reactor based on the model inputs and reactor configuration.
         """
         # check ideal gas formation enthalpy mode
         if self.reactor_options.ideal_gas_formation_enthalpy_source is None:
@@ -437,7 +459,7 @@ class ThermoModelInputs:
     # ! molecular weight
     def _config_molecular_weight(
             self
-    ):
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Configure the molecular weight in [g/mol] for the batch reactor based on the model inputs and reactor configuration.
         """
@@ -479,7 +501,7 @@ class ThermoModelInputs:
     # ! reaction enthalpy
     def _config_reaction_enthalpy(
             self
-    ) -> Dict[str, CustomProp]:
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Configure the reaction enthalpy in [J/mol] for the batch reactor based on the model inputs and reactor configuration.
 
@@ -500,16 +522,19 @@ class ThermoModelInputs:
                 CustomProp
             ] = self.thermo_inputs["reaction_enthalpy"]
 
+            # res
+            reaction_enthalpy = {}
+
             # iterate through reactions and extract reaction enthalpy values
             for k, v in reaction_enthalpy_src.items():
                 # convert to J/mol
-                reaction_enthalpy_src[k] = CustomProp(
-                    value=to_J_per_mol(v.value, v.unit),
-                    unit="J/mol"
-                )
+                reaction_enthalpy[k] = {
+                    "value": to_J_per_mol(v.value, v.unit),
+                    "unit": "J/mol"
+                }
 
             # res
-            return reaction_enthalpy_src
+            return reaction_enthalpy
         else:
             raise ValueError(
                 "Reaction enthalpy must be provided in model_inputs for reaction enthalpy source mode."
@@ -610,3 +635,102 @@ class ThermoModelInputs:
             raise ValueError(
                 "Liquid mixture volumetric heat capacity must be provided in model_inputs for liquid mixture volumetric heat capacity source mode."
             )
+
+    # SECTION: Universal methods for property retrieval and configuration
+
+    def _config_prop_src(
+        self,
+        prop_name: str,
+        unit_conversion_func: Callable[[float, str], float],
+        expected_unit: str,
+        mode_config: List[str],
+        use_config: List[str],
+        source_config: str = "model_inputs",
+        strict_unit_check: bool = True,
+    ) -> Tuple[np.ndarray, Dict[str, float]]:
+        # NOTE: check source/mode/use configuration
+        # ! source
+        if not self._is_model_inputs_source(prop_name, source_config):
+            raise ValueError(
+                f"{prop_name} source must be '{source_config}' in reactor options for {prop_name} configuration."
+            )
+
+        # ! mode
+        if len(mode_config) > 0:
+            for mode in mode_config:
+                if not self._is_model_inputs_mode(prop_name, mode):
+                    raise ValueError(
+                        f"{prop_name} mode must be '{mode}' in reactor options for {prop_name} configuration."
+                    )
+
+        # ! use
+        if len(use_config) > 0:
+            for use in use_config:
+                if not self._should_use_model_inputs(prop_name, use):
+                    raise ValueError(
+                        f"Use of {prop_name} must be enabled in reactor options for {prop_name} configuration."
+                    )
+
+        # NOTE: if all checks pass, proceed to configure the property
+        if prop_name not in self.thermo_inputs_keys:
+            raise ValueError(
+                f"{prop_name} must be provided in model_inputs for {prop_name} configuration."
+            )
+
+        # get property source
+        prop_: Dict[str, CustomProp] = self.thermo_inputs[prop_name]
+
+        # set property values and component mapping
+        # >> component-wise property values
+        prop_comp = {}
+        # >> property values for components in order
+        prop_values = []
+
+        # iterate through components
+        for id in self.component_formula_state:
+            if id in prop_.keys():
+                # > value
+                value = prop_[id].value
+                # > unit
+                unit = prop_[id].unit
+
+                # >> check expected unit
+                if strict_unit_check:
+                    if unit != expected_unit:
+                        # convert to expected unit
+                        value = unit_conversion_func(
+                            value,
+                            unit
+                        )
+
+                # add to component mapping
+                prop_comp[id] = value
+
+                # add to values list
+                prop_values.append(value)
+            else:
+                raise ValueError(
+                    f"{prop_name} value for component '{id}' not found in model_inputs."
+                )
+
+        return np.array(prop_values), prop_comp
+
+    def _config_prop_src_component_wise(
+        self,
+        prop_name: str,
+        unit_conversion_func: Callable[[float, str], float],
+        expected_unit: str,
+        criteria: Dict[str, str],
+        strict_unit_check: bool = True,
+    ):
+        pass
+
+    def _config_prop_src_constant(
+        self,
+        prop_name: str,
+        unit_conversion_func: Callable[[float, str], float],
+        expected_unit: str,
+        criteria: Dict[str, str],
+        strict_unit_check: bool = True,
+    ):
+        pass

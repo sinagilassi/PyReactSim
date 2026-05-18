@@ -1168,7 +1168,7 @@ class ThermoSourceCore(ThermoCalc):
                     )
 
                 # set
-                value = self.dH_rxns_src[rxn_name].value
+                value = self.dH_rxns_src[rxn_name]['value']
                 # add
                 res.append(value)
 
