@@ -196,6 +196,7 @@ class LiquidCSTRReactor(ReactorAuxiliary, ReactLog):
 
         return np.concatenate([n0, np.array([T0], dtype=float)])
 
+    # SECTION: Build rhs for ODE system
     def rhs(self, t: float, y: np.ndarray) -> np.ndarray:
         """
         Right-hand side of the dynamic liquid CSTR ODE system.
@@ -287,6 +288,7 @@ class LiquidCSTRReactor(ReactorAuxiliary, ReactLog):
         # >>> non-isothermal balance: return concatenated species and temperature derivatives
         return np.concatenate([dn_dt, np.array([dT_dt], dtype=float)])
 
+    # SECTION: calculate reactor volume
     def _calc_reactor_volume(
         self,
         n: np.ndarray,
@@ -315,6 +317,7 @@ class LiquidCSTRReactor(ReactorAuxiliary, ReactLog):
 
         return reactor_volume
 
+    # SECTION: build dn/dt
     def _build_dn_dt(
         self,
         ns: int,
@@ -348,6 +351,7 @@ class LiquidCSTRReactor(ReactorAuxiliary, ReactLog):
 
         return dn_dt
 
+    # SECTION: build dT/dt
     def _build_dT_dt(
         self,
         n: np.ndarray,
