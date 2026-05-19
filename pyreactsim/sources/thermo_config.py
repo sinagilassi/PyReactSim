@@ -6,7 +6,7 @@ from ..utils.unit_tools import (
     to_g_per_mol
 )
 
-
+# SECTION: Model Inputs
 # NOTE: configurations
 MODEL_INPUTS_ATTR_CONFIG = {
     "Cp_IG": {
@@ -258,3 +258,11 @@ MODEL_INPUTS_CRITERIA = {
         }
     },
 }
+
+
+# SECTION: Model Source
+# NOTE: configuration
+MODEL_SOURCE_ATTR_CONFIG = {}
+
+# NOTE: criteria for model source
+MODEL_SOURCE_CRITERIA = {}
