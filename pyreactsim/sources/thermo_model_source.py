@@ -1,7 +1,7 @@
 # import libs
 import logging
 import numpy as np
-from typing import List, Dict, Any, cast, Optional
+from typing import List, Dict, Any, cast, Optional, Callable
 from pythermodb_settings.models import Component, ComponentKey
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models import ModelSource
@@ -20,7 +20,7 @@ from ..models.pbr import PBRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.cstr import CSTRReactorOptions
 from ..utils.tools import config_components_property
-from ..utils.unit_tools import to_J_per_mol, to_g_per_mol
+from .thermo_config import MODEL_SOURCE_ATTR_CONFIG, MODEL_SOURCE_CRITERIA
 from .thermo_model_config import ThermoModelConfig
 
 # NOTE: logger setup
@@ -53,6 +53,11 @@ class ThermoModelSource(ThermoModelConfig):
     MW_src: Dict[str, Dict[str, Any]] = {}
     MW: np.ndarray = np.array([])
     MW_comp: Dict[str, float] = {}
+
+    # NOTE: configurations
+    attr_config = MODEL_SOURCE_ATTR_CONFIG
+    # NOTE: criteria for model source
+    criteria = MODEL_SOURCE_CRITERIA
 
     def __init__(
         self,
@@ -108,77 +113,109 @@ class ThermoModelSource(ThermoModelConfig):
         # ! phase
         self.phase = reactor_options.phase
 
-        # SECTION: Extract property equation sources
-        if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
-            # check heat capacity mode
-            if (
-                self.reactor_options.gas_heat_capacity_mode == "temperature-dependent" and
-                self.reactor_options.gas_heat_capacity_source == "model_source"  # ! source
-            ):
-                # NOTE: extract heat capacity equation source for the components from the model source
-                self.Cp_IG_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
-                    prop_name="Cp_IG"
+        # NOTE: launch property configuration
+        self._launch_property_configuration()
+
+    # SECTION: Extract property sources and configure properties
+    def _launch_property_configuration(self):
+        # NOTE: configure properties based on the defined methods and criteria
+        for attr, config in self.attr_config.items():
+            method = config["method"]
+            prop_name = config["prop_name"]
+            unit_conversion_func = config.get("unit_conversion_func")
+            prop_criteria = self.criteria.get(prop_name, {})
+            phase_criteria = config.get("phase", {})
+            heat_transfer_mode_criteria = config.get("heat_transfer_mode", {})
+
+            if method == "property-equation-source":
+                # ! extract property equation source and set attribute
+                eq_src = self._config_property_equation_source(
+                    prop_name=prop_name,
+                    prop_criteria=prop_criteria,
+                    phase_criteria=phase_criteria,
+                    heat_transfer_mode_criteria=heat_transfer_mode_criteria,
                 )
 
-            # NOTE: Enthalpy of formation at 298 K for ideal gas
-            if (
-                self.reactor_options.reaction_enthalpy_mode != "reaction" and
-                self.reactor_options.ideal_gas_formation_enthalpy_source == "model_source"
-            ):  # ! source
-                # extract data
-                self.EnFo_IG_298_src: Dict[str, Dict[str, Any]] = self.prop_dt_src(
-                    component_ids=self.component_ids,
-                    prop_name="EnFo_IG"
-                )
-
-                # ! values in J/mol
-                (
-                    self.EnFo_IG_298,
-                    self.EnFo_IG_298_comp
-                ) = config_components_property(
-                    component_ids=self.component_ids,
-                    prop_source=self.EnFo_IG_298_src,
-                    unit_conversion_func=to_J_per_mol
-                )
-
-        if self.phase == "liquid":
-            # MW source
-            if self.reactor_options.molecular_weight_source == "model_source":  # ! source
-                self.MW_src = self.prop_dt_src(
-                    component_ids=self.component_ids,
-                    prop_name="MW"
-                )
-
-                # ! values in g/mol
-                (
-                    self.MW,
-                    self.MW_comp
-                ) = config_components_property(
-                    component_ids=self.component_ids,
-                    prop_source=self.MW_src,
-                    unit_conversion_func=to_g_per_mol
-                )
-
-            # NOTE: density
-            if (
-                self.reactor_options.liquid_density_mode == "temperature-dependent" and
-                self.reactor_options.liquid_density_source == "model_source"  # ! source
-            ):
-                # NOTE: extract density equation source for the components from the model source
-                self.rho_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
-                    prop_name="rho_LIQ"
-                )
-
-            # NOTE: heat capacity
-            if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
-                if (
-                    self.reactor_options.liquid_heat_capacity_mode == "temperature-dependent" and
-                    self.reactor_options.liquid_heat_capacity_source == "model_source"  # ! source
-                ):
-                    # extract heat capacity equation source for the components from the model source
-                    self.Cp_LIQ_src: Dict[str, ComponentEquationSource] = self.prop_eq_src(
-                        prop_name="Cp_LIQ"
+                # >> check
+                if eq_src is not None:
+                    if hasattr(self, f"{attr}_src"):
+                        setattr(self, f"{attr}_src", eq_src)
+            elif method == "property-data-source":
+                # ! extract property data source, configure property values and set attributes
+                if unit_conversion_func is None:
+                    raise ValueError(
+                        f"unit_conversion_func must be provided for data-source attribute '{attr}' ({prop_name})."
                     )
+
+                configured = self._config_property_data_source(
+                    prop_name=prop_name,
+                    unit_conversion_func=unit_conversion_func,
+                    prop_criteria=prop_criteria,
+                    phase_criteria=phase_criteria,
+                    heat_transfer_mode_criteria=heat_transfer_mode_criteria,
+                )
+
+                # >> check
+                if configured is None:
+                    continue
+
+                # >> unpack configured values and set attributes
+                prop_src, prop_values, prop_comp = configured
+                src_attr = f"{attr}_src"
+                if hasattr(self, src_attr):
+                    setattr(self, src_attr, prop_src)
+
+                if hasattr(self, attr):
+                    setattr(self, attr, prop_values)
+
+                comp_attr = f"{attr}_comp"
+                if hasattr(self, comp_attr):
+                    setattr(self, comp_attr, prop_comp)
+            else:
+                logger.warning(
+                    f"Unknown configuration method '{method}' for attribute '{attr}'. Skipping configuration."
+                )
+
+    def _config_property_equation_source(
+        self,
+        prop_name: str,
+        prop_criteria: Dict[str, Dict[str, List[Any]]],
+        phase_criteria: Dict[str, Dict[str, List[Any]]],
+        heat_transfer_mode_criteria: Dict[str, Dict[str, List[Any]]],
+    ) -> Dict[str, ComponentEquationSource] | None:
+        if not self._should_configure(prop_criteria, phase_criteria, heat_transfer_mode_criteria):
+            return None
+
+        return self.prop_eq_src(prop_name=prop_name)
+
+    def _config_property_data_source(
+        self,
+        prop_name: str,
+        unit_conversion_func: Optional[Callable[[float, str], float]],
+        prop_criteria: Dict[str, Dict[str, List[Any]]],
+        phase_criteria: Dict[str, Dict[str, List[Any]]],
+        heat_transfer_mode_criteria: Dict[str, Dict[str, List[Any]]],
+    ) -> tuple[Dict[str, Dict[str, Any]], Any, Dict[str, float]] | None:
+        if not self._should_configure(prop_criteria, phase_criteria, heat_transfer_mode_criteria):
+            return None
+
+        if unit_conversion_func is None:
+            raise ValueError(
+                f"unit_conversion_func cannot be None for data-source property '{prop_name}'."
+            )
+
+        prop_src = self.prop_dt_src(
+            component_ids=self.component_ids,
+            prop_name=prop_name,
+        )
+
+        prop_values, prop_comp = config_components_property(
+            component_ids=self.component_ids,
+            prop_source=prop_src,
+            unit_conversion_func=unit_conversion_func,
+        )
+
+        return prop_src, prop_values, prop_comp
 
     # ! Extract property equation source for components
 
