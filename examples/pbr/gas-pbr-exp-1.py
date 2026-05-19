@@ -82,7 +82,7 @@ pfr_reactor_options = PBRReactorOptions(
     pressure_mode="shortcut",
     gas_model="ideal",
     # gas_heat_capacity_mode="constant",
-    # ideal_gas_formation_enthalpy_source="model_inputs",
+    # ideal_gas_formation_enthalpy_source="custom_inputs",
 )
 
 # NOTE: heat transfer options
@@ -171,7 +171,7 @@ model_inputs = {
 thermo_source = build_thermo_source(
     components=components,
     model_source=model_source,
-    thermo_inputs=thermo_inputs,
+    custom_inputs=custom_inputs,
     reactor_options=pfr_reactor_options,
     heat_transfer_options=heat_transfer_options,
     reaction_rates=reaction_rates,

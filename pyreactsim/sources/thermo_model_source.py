@@ -21,13 +21,13 @@ from ..models.pfr import PFRReactorOptions
 from ..models.cstr import CSTRReactorOptions
 from ..utils.tools import config_components_property
 from .thermo_config import MODEL_SOURCE_ATTR_CONFIG, MODEL_SOURCE_CRITERIA
-from .thermo_model_config import ThermoModelConfig
+from .thermo_source_config import ThermoSourceConfig
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class ThermoModelSource(ThermoModelConfig):
+class ThermoModelSource(ThermoSourceConfig):
     """
     ThermoModelSource is a class that represents a model source for thermodynamic properties of components in a chemical reaction system. It is designed to extract and configure the necessary thermodynamic property equations and data from a given model source, which can then be used in reactor simulations. This class is designed to retrieve the following properties for the components in the system:
 
@@ -64,7 +64,7 @@ class ThermoModelSource(ThermoModelConfig):
         components: List[Component],
         source: Source,
         model_source: ModelSource | None,
-        thermo_inputs: Dict[str, Any],
+        custom_inputs: Dict[str, Any] | None,
         reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
@@ -98,7 +98,7 @@ class ThermoModelSource(ThermoModelConfig):
         # LINK: init
         super().__init__(
             components=components,
-            thermo_inputs=thermo_inputs,
+            custom_inputs=custom_inputs,
             reactor_options=reactor_options,
             heat_transfer_options=heat_transfer_options,
             component_refs=component_refs,

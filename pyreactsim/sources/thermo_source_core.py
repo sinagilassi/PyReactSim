@@ -13,7 +13,7 @@ from pythermocalcdb.reactions.source import dH_rxn_STD as dH_rxn_reactions
 from pythermocalcdb.models import ComponentEnthalpy
 from pyreactsim_core.models import ReactionRateExpression
 # locals
-from .thermo_model_inputs import ThermoModelInputs
+from .thermo_custom_inputs import ThermoCustomInputs
 from .thermo_model_source import ThermoModelSource
 from .thermo_reaction import ThermoReaction
 from .interface import exec_component_eq
@@ -45,12 +45,12 @@ class ThermoSourceCore(ThermoCalc):
         self,
         components: List[Component],
         source: Source,
-        thermo_inputs: Dict[str, Any],
+        custom_inputs: Dict[str, Any] | None,
         reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
         thermo_model_source: ThermoModelSource,
-        thermo_model_inputs: ThermoModelInputs,
+        thermo_model_inputs: ThermoCustomInputs,
         thermo_reaction: ThermoReaction,
         component_refs: Dict[str, Any],
         component_key: ComponentKey,
@@ -64,7 +64,7 @@ class ThermoSourceCore(ThermoCalc):
         # SECTION: Set attributes
         self.components = components
         self.source = source
-        self.thermo_inputs = thermo_inputs
+        self.custom_inputs = custom_inputs
         self.reactor_options = reactor_options
         self.heat_transfer_options = heat_transfer_options
         self.reaction_rates = reaction_rates
@@ -103,7 +103,9 @@ class ThermoSourceCore(ThermoCalc):
 
         # SECTION: Process model configuration
         # ! model inputs keys
-        self.thermo_inputs_keys = collect_keys(self.thermo_inputs)
+        self.thermo_inputs_keys = collect_keys(
+            self.custom_inputs
+        ) if self.custom_inputs is not None else []
 
         # SECTION: Reactor configuration
         # ! heat capacity modes
@@ -348,7 +350,7 @@ class ThermoSourceCore(ThermoCalc):
 
         elif (
             self.liquid_heat_capacity_mode == "constant" and
-            self.reactor_options.liquid_heat_capacity_source == "model_inputs"
+            self.reactor_options.liquid_heat_capacity_source == "custom_inputs"
         ):
             # NOTE: use constant heat capacity from model inputs
             # ! J/mol.K
@@ -1153,7 +1155,7 @@ class ThermoSourceCore(ThermoCalc):
         if (
             self.heat_transfer_mode != "isothermal" and
             self.reaction_enthalpy_mode == "reaction" and
-            self.reaction_enthalpy_source == "model_inputs" and
+            self.reaction_enthalpy_source == "custom_inputs" and
             self.dH_rxns_src is not None
         ):
             # iterate over reactions

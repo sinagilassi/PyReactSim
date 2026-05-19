@@ -14,11 +14,11 @@ from ..models.heat import HeatTransferOptions
 logger = logging.getLogger(__name__)
 
 
-class ThermoModelConfig:
+class ThermoSourceConfig:
     def __init__(
         self,
         components: List[Component],
-        thermo_inputs: Dict[str, Any],
+        custom_inputs: Dict[str, Any] | None,
         reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         component_refs: Dict[str, Any],
@@ -26,7 +26,7 @@ class ThermoModelConfig:
     ):
         # NOTE: Set attributes
         self.components = components
-        self.thermo_inputs = thermo_inputs
+        self.custom_inputs = custom_inputs
         self.reactor_options = reactor_options
         self.heat_transfer_options = heat_transfer_options
         self.component_refs = component_refs
@@ -37,9 +37,6 @@ class ThermoModelConfig:
         self.component_ids = component_refs['component_ids']
         self.component_formula_state = component_refs['component_formula_state']
         self.component_mapper = component_refs['component_mapper']
-
-        # ! model inputs keys
-        self.thermo_inputs_keys = list(self.thermo_inputs.keys())
 
     # SECTION: Criteria matching method
     def match_criteria(self, criteria: Dict[str, Dict[str, List[Any]]]) -> bool:

@@ -60,8 +60,8 @@ batch_reactor_options = BatchReactorOptions(
     # mode
     gas_heat_capacity_mode="constant",
     # source
-    gas_heat_capacity_source="model_inputs",
-    ideal_gas_formation_enthalpy_source="model_inputs",
+    gas_heat_capacity_source="custom_inputs",
+    ideal_gas_formation_enthalpy_source="custom_inputs",
 )
 
 # ! heat transfer options
@@ -92,7 +92,7 @@ constant_ideal_gas_formation_enthalpy = {
 }
 
 # ! thermo inputs
-thermo_inputs = {
+custom_inputs = {
     "gas_heat_capacity": constant_gas_heat_capacity,
     "ideal_gas_formation_enthalpy": constant_ideal_gas_formation_enthalpy,
 }
@@ -142,7 +142,7 @@ model_inputs = {
 thermo_source = build_thermo_source(
     components=components,
     model_source=model_source,
-    thermo_inputs=thermo_inputs,
+    custom_inputs=custom_inputs,
     reactor_options=batch_reactor_options,
     heat_transfer_options=heat_transfer_options,
     reaction_rates=reaction_rates,

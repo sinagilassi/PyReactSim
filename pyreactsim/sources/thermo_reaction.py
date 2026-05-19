@@ -24,7 +24,7 @@ class ThermoReaction:
         self,
         components: List[Component],
         model_source: ModelSource | None,
-        thermo_inputs: Dict[str, Any],
+        custom_inputs: Dict[str, Any] | None,
         reaction_rates: List[ReactionRateExpression],
         component_key: ComponentKey,
     ):
@@ -49,7 +49,7 @@ class ThermoReaction:
         # NOTE: Set attributes
         self.components = components
         self.model_source = model_source
-        self.thermo_inputs = thermo_inputs
+        self.custom_inputs = custom_inputs
         self.reaction_rates = reaction_rates
         self.component_key = component_key
 

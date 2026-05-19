@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def build_thermo_source(
     components: List[Component],
     model_source: ModelSource | None,
-    thermo_inputs: Dict[str, Any],
+    custom_inputs: Dict[str, Any] | None,
     reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
     heat_transfer_options: HeatTransferOptions,
     reaction_rates: List[ReactionRateExpression],
@@ -57,7 +57,7 @@ def build_thermo_source(
     """
     # SECTION: Validation
     # ! thermo inputs
-    thermo_inputs = thermo_inputs if thermo_inputs is not None else {}
+    custom_inputs = custom_inputs if custom_inputs is not None else {}
 
     # SECTION: Generate component references
     component_refs = generate_component_references(
@@ -76,7 +76,7 @@ def build_thermo_source(
         components=components,
         source=source,
         model_source=model_source,
-        thermo_inputs=thermo_inputs,
+        custom_inputs=custom_inputs,
         reactor_options=reactor_options,
         heat_transfer_options=heat_transfer_options,
         reaction_rates=reaction_rates,

@@ -196,12 +196,12 @@ MODEL_INPUTS_CRITERIA = {
     "gas_heat_capacity": {
         "all": {
             "gas_heat_capacity_mode": ["constant"],
-            "gas_heat_capacity_source": ["model_inputs"],
+            "gas_heat_capacity_source": ["custom_inputs"],
         }
     },
     "ideal_gas_formation_enthalpy": {
         "all": {
-            "ideal_gas_formation_enthalpy_source": ["model_inputs"],
+            "ideal_gas_formation_enthalpy_source": ["custom_inputs"],
         },
         "not": {
             "reaction_enthalpy_mode": ["reaction"],
@@ -210,36 +210,36 @@ MODEL_INPUTS_CRITERIA = {
     "reaction_enthalpy": {
         "all": {
             "reaction_enthalpy_mode": ["reaction"],
-            "reaction_enthalpy_source": ["model_inputs"],
+            "reaction_enthalpy_source": ["custom_inputs"],
         }
     },
     "gas_mixture_total_heat_capacity": {
         "all": {
             "use_gas_mixture_total_heat_capacity": [True],
-            "gas_mixture_total_heat_capacity_source": ["model_inputs"],
+            "gas_mixture_total_heat_capacity_source": ["custom_inputs"],
         }
     },
     "liquid_heat_capacity": {
         "all": {
             "liquid_heat_capacity_mode": ["constant"],
-            "liquid_heat_capacity_source": ["model_inputs"],
+            "liquid_heat_capacity_source": ["custom_inputs"],
         }
     },
     "liquid_density": {
         "all": {
             "liquid_density_mode": ["constant"],
-            "liquid_density_source": ["model_inputs"],
+            "liquid_density_source": ["custom_inputs"],
         }
     },
     "liquid_density_mixture": {
         "all": {
             "liquid_density_mode": ["mixture"],
-            "liquid_density_source": ["model_inputs"],
+            "liquid_density_source": ["custom_inputs"],
         }
     },
     "molecular_weight": {
         "all": {
-            "molecular_weight_source": ["model_inputs"],
+            "molecular_weight_source": ["custom_inputs"],
         },
         "any": {
             "operation_mode": ["variable_volume", "constant_pressure"],
@@ -248,13 +248,13 @@ MODEL_INPUTS_CRITERIA = {
     "liquid_mixture_total_heat_capacity": {
         "all": {
             "use_liquid_mixture_total_heat_capacity": [True],
-            "liquid_mixture_total_heat_capacity_source": ["model_inputs"],
+            "liquid_mixture_total_heat_capacity_source": ["custom_inputs"],
         }
     },
     "liquid_mixture_volumetric_heat_capacity": {
         "all": {
             "use_liquid_mixture_volumetric_heat_capacity": [True],
-            "liquid_mixture_volumetric_heat_capacity_source": ["model_inputs"],
+            "liquid_mixture_volumetric_heat_capacity_source": ["custom_inputs"],
         }
     },
 }

@@ -62,9 +62,9 @@ batch_reactor_options = BatchReactorOptions(
     liquid_heat_capacity_mode='constant',
     liquid_density_mode='constant',
     # source
-    gas_heat_capacity_source='model_inputs',
-    liquid_heat_capacity_source='model_inputs',
-    liquid_density_source='model_inputs',
+    gas_heat_capacity_source='custom_inputs',
+    liquid_heat_capacity_source='custom_inputs',
+    liquid_density_source='custom_inputs',
 )
 
 # ! heat transfer options
@@ -155,7 +155,7 @@ print("[bold green]Model inputs successfully defined![/bold green]")
 thermo_source = build_thermo_source(
     components=components,
     model_source=model_source,
-    thermo_inputs=thermo_inputs,
+    custom_inputs=custom_inputs,
     reactor_options=batch_reactor_options,
     heat_transfer_options=heat_transfer_options,
     reaction_rates=reaction_rates,

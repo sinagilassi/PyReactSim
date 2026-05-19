@@ -11,15 +11,15 @@ from ..models.pbr import PBRReactorOptions
 from ..models.heat import HeatTransferOptions
 from .thermo_config import MODEL_INPUTS_ATTR_CONFIG, MODEL_INPUTS_CRITERIA
 from ..utils.tools import config_components_property
-from .thermo_model_config import ThermoModelConfig
+from .thermo_source_config import ThermoSourceConfig
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
 
 
-class ThermoModelInputs(ThermoModelConfig):
+class ThermoCustomInputs(ThermoSourceConfig):
     """
-    ThermoModelInputs is a class that encapsulates the inputs required for configuring the thermodynamic properties in the reactor models.
+    ThermoCustomInputs is a class that encapsulates the inputs required for configuring the thermodynamic properties in the reactor models.
     This class is designed to retrieve the following properties for the components in the system:
 
     - Ideal gas heat capacity (Cp_IG)
@@ -65,7 +65,7 @@ class ThermoModelInputs(ThermoModelConfig):
     def __init__(
         self,
         components: List[Component],
-        thermo_inputs: Dict[str, Any],
+        custom_inputs: Dict[str, Any] | None,
         reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
         heat_transfer_options: HeatTransferOptions,
         component_refs: Dict[str, Any],
@@ -92,7 +92,7 @@ class ThermoModelInputs(ThermoModelConfig):
         # LINK: init
         super().__init__(
             components=components,
-            thermo_inputs=thermo_inputs,
+            custom_inputs=custom_inputs,
             reactor_options=reactor_options,
             heat_transfer_options=heat_transfer_options,
             component_refs=component_refs,
@@ -115,11 +115,27 @@ class ThermoModelInputs(ThermoModelConfig):
         # ! heat transfer mode
         self.heat_transfer_mode = heat_transfer_options.heat_transfer_mode
 
+        # custom inputs keys
+        self.custom_inputs_keys = list(
+            self.custom_inputs.keys()) if self.custom_inputs is not None else []
+
         # NOTE: launch property configuration
         self._launch_property_configuration()
 
+    # SECTION: Custom input validation and property configuration methods
+    def _check_custom_inputs(self) -> bool:
+        if self.custom_inputs is None:
+            logger.info(
+                "No custom inputs provided. Skipping thermo property configuration.")
+            return False
+        return True
+
     # SECTION: Extract property sources and configure properties
     def _launch_property_configuration(self):
+        # NOTE: check custom inputs
+        if not self._check_custom_inputs():
+            return
+
         # NOTE: configure properties based on the defined methods and criteria
         for attr, config in self.attr_config.items():
             method = config["method"]
@@ -207,17 +223,25 @@ class ThermoModelInputs(ThermoModelConfig):
         heat_transfer_mode_criteria: Dict[str, Dict[str, List[Any]]],
         strict_unit_check: bool = True,
     ) -> Dict[str, float] | None:
+        # ! check custom inputs
+        if not self._check_custom_inputs():
+            return None
+
+        # NOTE: check criteria for property configuration
         if not self._should_configure(prop_criteria, phase_criteria, heat_transfer_mode_criteria):
             return None
 
         # NOTE: if all checks pass, proceed to configure the property
-        if prop_name not in self.thermo_inputs_keys:
+        if prop_name not in self.custom_inputs_keys:
             raise ValueError(
                 f"{prop_name} must be provided in model_inputs for {prop_name} configuration."
             )
 
         # get property source
-        prop_: Dict[str, CustomProp] = self.thermo_inputs[prop_name]
+        if self.custom_inputs is None:
+            return None
+
+        prop_: Dict[str, CustomProp] = self.custom_inputs[prop_name]
 
         # set property values and component mapping
         # >> component-wise property values
@@ -256,17 +280,26 @@ class ThermoModelInputs(ThermoModelConfig):
         heat_transfer_mode_criteria: Dict[str, Dict[str, List[Any]]],
         strict_unit_check: bool = True,
     ) -> Tuple[Dict[str, Dict[str, Any]], Any, Dict[str, float]] | None:
+        # ! check custom inputs
+        if not self._check_custom_inputs():
+            return None
+
+        # NOTE: check criteria for property configuration
         if not self._should_configure(prop_criteria, phase_criteria, heat_transfer_mode_criteria):
             return None
 
         # NOTE: if all checks pass, proceed to configure the property
-        if prop_name not in self.thermo_inputs_keys:
+        if prop_name not in self.custom_inputs_keys:
             raise ValueError(
                 f"{prop_name} must be provided in model_inputs for {prop_name} configuration."
             )
 
         # get property source
-        prop_: Dict[str, CustomProp] = self.thermo_inputs[prop_name]
+        if self.custom_inputs is None:
+            return None
+
+        # get property source
+        prop_: Dict[str, CustomProp] = self.custom_inputs[prop_name]
 
         # init property source dict
         prop_src = {}
@@ -309,17 +342,26 @@ class ThermoModelInputs(ThermoModelConfig):
         heat_transfer_mode_criteria: Dict[str, Dict[str, List[Any]]],
         strict_unit_check: bool = True,
     ) -> CustomProp | None:
+        # ! check custom inputs
+        if not self._check_custom_inputs():
+            return None
+
+        # NOTE: check criteria for property configuration
         if not self._should_configure(prop_criteria, phase_criteria, heat_transfer_mode_criteria):
             return None
 
         # NOTE: if all checks pass, proceed to configure the property
-        if prop_name not in self.thermo_inputs_keys:
+        if prop_name not in self.custom_inputs_keys:
             raise ValueError(
                 f"{prop_name} must be provided in model_inputs for {prop_name} configuration."
             )
 
         # get property source
-        prop_: CustomProp = self.thermo_inputs[prop_name]
+        if self.custom_inputs is None:
+            return None
+
+        # set
+        prop_: CustomProp = self.custom_inputs[prop_name]
 
         # check unit
         if strict_unit_check:

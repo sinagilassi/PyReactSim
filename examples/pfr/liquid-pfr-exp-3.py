@@ -75,10 +75,10 @@ cstr_reactor_options = PFRReactorOptions(
     liquid_density_mode='constant',
     volumetric_inlet_flow_rate_mode='constant',
     # source
-    liquid_density_source="model_inputs",
-    molecular_weight_source="model_inputs",
-    liquid_mixture_volumetric_heat_capacity_source="model_inputs",
-    reaction_enthalpy_source='model_inputs',
+    liquid_density_source="custom_inputs",
+    molecular_weight_source="custom_inputs",
+    liquid_mixture_volumetric_heat_capacity_source="custom_inputs",
+    reaction_enthalpy_source='custom_inputs',
 )
 
 # NOTE: heat transfer options
@@ -194,7 +194,7 @@ print("[bold green]Model inputs successfully defined![/bold green]")
 thermo_source = build_thermo_source(
     components=components,
     model_source=None,
-    thermo_inputs=thermo_inputs,
+    custom_inputs=custom_inputs,
     reactor_options=cstr_reactor_options,
     heat_transfer_options=heat_transfer_options,
     reaction_rates=reaction_rates,
