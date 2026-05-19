@@ -1,27 +1,22 @@
 # import libs
 import logging
 import numpy as np
-from typing import Dict, List, Tuple, Any, Optional, Callable
+from typing import Dict, List, Any, Optional
 from pythermodb_settings.models import Component, CustomProp, ComponentKey
 # locals
 from ..models.br import BatchReactorOptions
 from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
-from ..utils.tools import config_components_property
 from ..models.heat import HeatTransferOptions
-from ..utils.unit_tools import (
-    to_J_per_mol_K,
-    to_g_per_m3,
-    to_J_per_mol,
-    to_g_per_mol
-)
+from .thermo_model_config import ThermoModelConfig
+from .thermo_config import MODEL_INPUTS_ATTR_CONFIG, MODEL_INPUTS_CRITERIA
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
 
 
-class ThermoModelInputs:
+class ThermoModelInputs(ThermoModelConfig):
     """
     ThermoModelInputs is a class that encapsulates the inputs required for configuring the thermodynamic properties in the reactor models.
     This class is designed to retrieve the following properties for the components in the system:
@@ -43,7 +38,7 @@ class ThermoModelInputs:
     rho_LIQ: np.ndarray = np.array([])
     rho_LIQ_comp: Dict[str, float] = {}
     # ! mixture liquid density
-    rho_LIQ_MIX: float = 0.0
+    rho_LIQ_MIX: Optional[CustomProp] = None
     # ! ideal gas formation enthalpy at 298 K
     EnFo_IG_298_src: Dict[str, Dict[str, Any]] = {}
     EnFo_IG_298: np.ndarray = np.array([])
@@ -60,6 +55,11 @@ class ThermoModelInputs:
     Cp_LIQ_MIX_TOTAL: Optional[CustomProp] = None
     # ! volumetric heat capacity of liquid mixture
     Cp_LIQ_MIX_VOLUMETRIC: Optional[CustomProp] = None
+
+    # NOTE: configurations
+    attr_config = MODEL_INPUTS_ATTR_CONFIG
+    # NOTE: criteria for model inputs
+    criteria = MODEL_INPUTS_CRITERIA
 
     def __init__(
         self,
@@ -88,22 +88,15 @@ class ThermoModelInputs:
         component_key : ComponentKey
             A ComponentKey object that serves as a key for identifying and categorizing the components in the model source.
         """
-        # NOTE: Set attributes
-        self.components = components
-        self.thermo_inputs = thermo_inputs
-        self.reactor_options = reactor_options
-        self.heat_transfer_options = heat_transfer_options
-        self.component_refs = component_refs
-        self.component_key = component_key
-
-        # SECTION: component reference
-        # ! component refs
-        self.component_ids = component_refs['component_ids']
-        self.component_formula_state = component_refs['component_formula_state']
-        self.component_mapper = component_refs['component_mapper']
-
-        # ! model inputs keys
-        self.thermo_inputs_keys = list(self.thermo_inputs.keys())
+        # LINK: init
+        super().__init__(
+            components=components,
+            thermo_inputs=thermo_inputs,
+            reactor_options=reactor_options,
+            heat_transfer_options=heat_transfer_options,
+            component_refs=component_refs,
+            component_key=component_key,
+        )
 
         # SECTION: Reactor configuration
         # ! gas heat capacity mode
@@ -121,616 +114,82 @@ class ThermoModelInputs:
         # ! heat transfer mode
         self.heat_transfer_mode = heat_transfer_options.heat_transfer_mode
 
-        # SECTION: Extract property sources and configure properties
-        # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
-        if self.heat_transfer_options.heat_transfer_mode == "non-isothermal":
-            # check heat capacity mode
-            if (
-                self.reactor_options.gas_heat_capacity_mode == "constant" and
-                self.reactor_options.gas_heat_capacity_source == "model_inputs"  # ! source
-            ):
-                # NOTE: use constant heat capacity from model inputs
-                # >> constant heat capacity
-                # ! to J/mol.K
-                (
-                    self.Cp_IG,
-                    self.Cp_IG_comp
-                ) = self._config_constant_gas_heat_capacity()
+        # NOTE: launch property configuration
+        self._launch_property_configuration()
 
-            # NOTE: Enthalpy of formation at 298 K for ideal gas
-            if (
-                self.reactor_options.reaction_enthalpy_mode != "reaction" and
-                self.reactor_options.ideal_gas_formation_enthalpy_source == "model_inputs"
-            ):  # ! source
-                # ! to J/mol
-                self.EnFo_IG_298_src: Dict[
-                    str, Dict[str, Any]
-                ] = self._config_constant_ideal_gas_formation_enthalpy()
+    # SECTION: Extract property sources and configure properties
+    def _launch_property_configuration(self):
+        # NOTE: configure properties based on the defined methods and criteria
+        for attr, config in self.attr_config.items():
+            method = config["method"]
+            prop_name = config["prop_name"]
+            unit_conversion_func = config["unit_conversion_func"]
+            expected_unit = config["expected_unit"]
+            strict_unit_check = config["strict_unit_check"]
+            prop_criteria = self.criteria.get(prop_name, {})
+            phase_criteria = config.get("phase", {})
+            heat_transfer_mode_criteria = config.get("heat_transfer_mode", {})
 
-                # ! values in J/mol
-                (
-                    self.EnFo_IG_298,
-                    self.EnFo_IG_298_comp
-                ) = config_components_property(
-                    component_ids=self.component_ids,
-                    prop_source=self.EnFo_IG_298_src,
-                    unit_conversion_func=to_J_per_mol
+            if method == "property-source":
+                # ! property source configuration
+                configured = self._config_property_source(
+                    prop_name=prop_name,
+                    unit_conversion_func=unit_conversion_func,
+                    expected_unit=expected_unit,
+                    prop_criteria=prop_criteria,
+                    phase_criteria=phase_criteria,
+                    heat_transfer_mode_criteria=heat_transfer_mode_criteria,
+                    strict_unit_check=strict_unit_check,
                 )
 
-            # NOTE: reaction enthalpy
-            if (
-                self.reactor_options.reaction_enthalpy_mode == "reaction" and
-                self.reactor_options.reaction_enthalpy_source == "model_inputs"
-            ):
-                # ! to J/mol
-                self.dH_rxn_src = self._config_reaction_enthalpy()
+                # >> check
+                if configured is None:
+                    continue
 
-            # NOTE: total heat capacity of gas mixture
-            if (
-                self.reactor_options.use_gas_mixture_total_heat_capacity and
-                self.reactor_options.gas_mixture_total_heat_capacity_source == "model_inputs"
-            ):
-                # ! J/K
-                self.Cp_IG_MIX_TOTAL = self._config_gas_mixture_total_heat_capacity()
-
-        # ! phase
-        if self.phase == "liquid":
-            # check heat capacity mode
-            if (
-                self.heat_transfer_options.heat_transfer_mode == "non-isothermal" and
-                self.reactor_options.liquid_heat_capacity_mode == "constant" and
-                self.reactor_options.liquid_heat_capacity_source == "model_inputs"  # ! source
-            ):
-                # NOTE: use constant heat capacity from model inputs
-                # >> constant heat capacity
-                # ! to J/mol.K
-                (
-                    self.Cp_LIQ,
-                    self.Cp_LIQ_comp
-                ) = self._config_constant_liquid_heat_capacity()
-
-            # check density mode
-            if (
-                self.reactor_options.liquid_density_mode == "constant" and
-                self.reactor_options.liquid_density_source == "model_inputs"  # ! source
-            ):
-                # NOTE: use constant density from model inputs
-                # >> constant density
-                # ! to g/m3
-                (
-                    self.rho_LIQ,
-                    self.rho_LIQ_comp
-                ) = self._config_constant_liquid_density()
-
-            if (
-                self.reactor_options.liquid_density_mode == "mixture" and
-                self.reactor_options.liquid_density_source == "model_inputs"  # ! source
-            ):
-                # NOTE: use mixture density from model inputs
-                # >> mixture density
-                # ! to g/m3
-                self.rho_LIQ_MIX = to_g_per_m3(
-                    self.thermo_inputs["liquid_density_mixture"].value,
-                    self.thermo_inputs["liquid_density_mixture"].unit
+                # >>> unpack configured values
+                prop_src, prop_values, prop_comp = configured
+                setattr(self, attr, prop_values)
+                if hasattr(self, f"{attr}_comp"):
+                    setattr(self, f"{attr}_comp", prop_comp)
+                if hasattr(self, f"{attr}_src"):
+                    setattr(self, f"{attr}_src", prop_src)
+            elif method == "property-constant":
+                # ! property constant configuration
+                configured_value = self._config_property_constant(
+                    prop_name=prop_name,
+                    unit_conversion_func=unit_conversion_func,
+                    expected_unit=expected_unit,
+                    prop_criteria=prop_criteria,
+                    phase_criteria=phase_criteria,
+                    heat_transfer_mode_criteria=heat_transfer_mode_criteria,
+                    strict_unit_check=strict_unit_check,
                 )
 
-            # NOTE: molecular weight
-            if (
-                (
-                    self.reactor_options.operation_mode == "variable_volume" or
-                    self.reactor_options.operation_mode == "constant_pressure"
-                ) and
-                self.reactor_options.molecular_weight_source == "model_inputs"
-            ):  # ! source
-                # NOTE: use molecular weight from model inputs
-                # ! to g/mol
-                self.MW_src: Dict[
-                    str, Dict[str, Any]
-                ] = self._config_molecular_weight()
+                # >> check
+                if configured_value is None:
+                    continue
 
-                # ! values in g/mol
-                (
-                    self.MW,
-                    self.MW_comp
-                ) = config_components_property(
-                    component_ids=self.component_ids,
-                    prop_source=self.MW_src,
-                    unit_conversion_func=to_g_per_mol
+                # >> set attribute
+                setattr(self, attr, configured_value)
+            elif method == "property":
+                # ! property configuration
+                configured_value = self._config_property(
+                    prop_name=prop_name,
+                    unit_conversion_func=unit_conversion_func,
+                    expected_unit=expected_unit,
+                    prop_criteria=prop_criteria,
+                    phase_criteria=phase_criteria,
+                    heat_transfer_mode_criteria=heat_transfer_mode_criteria,
+                    strict_unit_check=strict_unit_check,
                 )
 
-            # NOTE: total heat capacity of liquid mixture
-            if (
-                self.reactor_options.use_liquid_mixture_total_heat_capacity and
-                self.reactor_options.liquid_mixture_total_heat_capacity_source == "model_inputs"
-            ):
-                # ! J/K
-                self.Cp_LIQ_MIX_TOTAL = self._config_liquid_mixture_total_heat_capacity()
-
-            # NOTE: volumetric heat capacity of liquid mixture
-            if (
-                self.reactor_options.use_liquid_mixture_volumetric_heat_capacity and
-                self.reactor_options.liquid_mixture_volumetric_heat_capacity_source == "model_inputs"
-            ):
-                # ! J/m3.K
-                self.Cp_LIQ_MIX_VOLUMETRIC = self._config_liquid_mixture_volumetric_heat_capacity()
-
-    # SECTION: Statement methods for property configuration
-    # NOTE: model inputs source check
-    def _is_model_inputs_source(self, prop_name, source) -> bool:
-        """Check if the source for the given property is model inputs."""
-        source_attr = f"{prop_name}_source"
-        return hasattr(self.reactor_options, source_attr) and getattr(self.reactor_options, source_attr) == source
-
-    # NOTE: model input mode check
-    def _is_model_inputs_mode(self, prop_name, mode) -> bool:
-        """Check if the mode for the given property is the specified mode."""
-        mode_attr = f"{prop_name}_mode"
-        return hasattr(self.reactor_options, mode_attr) and getattr(self.reactor_options, mode_attr) == mode
-
-    # NOTE: model inputs use check
-    def _should_use_model_inputs(self, prop_name, use) -> bool:
-        """Check if the use of the given property is enabled in the reactor options."""
-        use_attr = f"use_{prop_name}"
-        return hasattr(self.reactor_options, use_attr) and getattr(self.reactor_options, use_attr) == use
-
-    # SECTION: configuration methods for properties
-    # ! gas phase heat capacity configuration
-
-    def _config_constant_gas_heat_capacity(
-            self,
-    ) -> Tuple[np.ndarray, Dict[str, float]]:
-        """Configure the heat capacity in [J/mol.K] for the batch reactor based on the model inputs and reactor configuration."""
-        # check heat capacity mode
-        if self.gas_heat_capacity_mode is None:
-            raise ValueError(
-                "Heat capacity mode must be specified in reactor_inputs for non-isothermal reactors.")
-
-        # heat capacity constant
-        if "gas_heat_capacity" in self.thermo_inputs_keys:
-            heat_capacity_: dict[
-                str,
-                CustomProp
-            ] = self.thermo_inputs["gas_heat_capacity"]
-
-            # iterate through components and extract heat capacity values
-            heat_capacity_values = []
-            heat_capacity_comp = {}
-
-            for id in self.component_formula_state:
-                if id in heat_capacity_:
-                    cp_value = to_J_per_mol_K(
-                        heat_capacity_[id].value,
-                        heat_capacity_[id].unit
-                    )
-
-                    # add
-                    heat_capacity_values.append(cp_value)
-                    heat_capacity_comp[id] = cp_value
-                else:
-                    raise ValueError(
-                        f"Heat capacity value for component '{id}' not found in model_inputs."
-                    )
-
-            heat_capacity_array = np.array(heat_capacity_values)
-
-            # res
-            return heat_capacity_array, heat_capacity_comp
-        else:
-            raise ValueError(
-                "Heat capacity must be provided in model_inputs for constant heat capacity mode."
-            )
-
-    # ! constant liquid phase heat capacity
-    def _config_constant_liquid_heat_capacity(
-            self,
-    ) -> Tuple[np.ndarray, Dict[str, float]]:
-        """
-        Configure the heat capacity in [J/mol.K] for the batch reactor based on the model inputs and reactor configuration.
-        """
-        # check heat capacity mode
-        if self.liquid_heat_capacity_mode is None:
-            raise ValueError(
-                "Heat capacity mode must be specified in reactor_inputs for non-isothermal reactors.")
-
-        # heat capacity constant
-        if "liquid_heat_capacity" in self.thermo_inputs_keys:
-            heat_capacity_: dict[
-                str,
-                CustomProp
-            ] = self.thermo_inputs["liquid_heat_capacity"]
-
-            # iterate through components and extract heat capacity values
-            heat_capacity_values = []
-            heat_capacity_comp = {}
-
-            for id in self.component_formula_state:
-                if id in heat_capacity_:
-                    cp_value = to_J_per_mol_K(
-                        heat_capacity_[id].value,
-                        heat_capacity_[id].unit
-                    )
-
-                    # add
-                    heat_capacity_values.append(cp_value)
-                    heat_capacity_comp[id] = cp_value
-                else:
-                    raise ValueError(
-                        f"Heat capacity value for component '{id}' not found in model_inputs."
-                    )
-
-            heat_capacity_array = np.array(heat_capacity_values)
-
-            # res
-            return heat_capacity_array, heat_capacity_comp
-        else:
-            raise ValueError(
-                "Heat capacity must be provided in model_inputs for constant heat capacity mode."
-            )
-
-    # ! liquid density
-    def _config_constant_liquid_density(
-            self
-    ) -> Tuple[np.ndarray, Dict[str, float]]:
-        """
-        Configure the density in [g/m3] for the batch reactor based on the model inputs and reactor configuration.
-        """
-        # check density mode
-        if self.liquid_density_mode is None:
-            raise ValueError(
-                "Density mode must be specified in reactor_inputs for liquid phase.")
-
-        # density constant
-        if "liquid_density" in self.thermo_inputs_keys:
-            density_: dict[
-                str,
-                CustomProp
-            ] = self.thermo_inputs["liquid_density"]
-
-            # iterate through components and extract density values
-            density_values = []
-            density_comp = {}
-
-            for id in self.component_formula_state:
-                if id in density_:
-                    density_value = to_g_per_m3(
-                        density_[id].value,
-                        density_[id].unit
-                    )
-
-                    # add
-                    density_values.append(density_value)
-                    density_comp[id] = density_value
-                else:
-                    raise ValueError(
-                        f"Density value for component '{id}' not found in model_inputs."
-                    )
-
-            density_array = np.array(density_values)
-
-            # res
-            return density_array, density_comp
-        else:
-            raise ValueError(
-                "Density must be provided in model_inputs for constant density mode."
-            )
-
-    # ! ideal gas formation enthalpy at 298 K
-    def _config_constant_ideal_gas_formation_enthalpy(
-            self
-    ) -> Dict[str, Dict[str, Any]]:
-        """
-        Configure the ideal gas formation enthalpy at 298 K in [J/mol] for the reactor based on the model inputs and reactor configuration.
-        """
-        # check ideal gas formation enthalpy mode
-        if self.reactor_options.ideal_gas_formation_enthalpy_source is None:
-            raise ValueError(
-                "Ideal gas formation enthalpy mode must be specified in reactor_inputs for non-isothermal reactors."
-            )
-
-        # ideal gas formation enthalpy constant
-        if "ideal_gas_formation_enthalpy" in self.thermo_inputs_keys:
-            EnFo_IG_298_: dict[
-                str,
-                CustomProp
-            ] = self.thermo_inputs["ideal_gas_formation_enthalpy"]
-
-            # iterate through components and extract ideal gas formation enthalpy values
-            EnFo_IG_298_src = {}
-
-            for id_formula_state, id_name_formula in zip(self.component_formula_state, self.component_ids):
-                if id_formula_state in EnFo_IG_298_:
-                    # add
-                    EnFo_IG_298_src[id_name_formula] = {
-                        "value": EnFo_IG_298_[id_formula_state].value,
-                        "unit": EnFo_IG_298_[id_formula_state].unit
-                    }
-                else:
-                    raise ValueError(
-                        f"Ideal gas formation enthalpy value for component '{id_formula_state}' not found in model_inputs."
-                    )
-
-            # res
-            return EnFo_IG_298_src
-        else:
-            raise ValueError(
-                "Ideal gas formation enthalpy must be provided in model_inputs for constant ideal gas formation enthalpy mode."
-            )
-
-    # ! molecular weight
-    def _config_molecular_weight(
-            self
-    ) -> Dict[str, Dict[str, Any]]:
-        """
-        Configure the molecular weight in [g/mol] for the batch reactor based on the model inputs and reactor configuration.
-        """
-        # check molecular weight source
-        if self.reactor_options.molecular_weight_source is None:
-            raise ValueError(
-                "Molecular weight source must be specified in reactor_inputs."
-            )
-
-        # molecular weight
-        if "molecular_weight" in self.thermo_inputs_keys:
-            molecular_weight_: dict[
-                str,
-                CustomProp
-            ] = self.thermo_inputs["molecular_weight"]
-
-            # iterate through components and extract molecular weight values
-            molecular_weight_src = {}
-
-            for id_formula_state, id_name_formula in zip(self.component_formula_state, self.component_ids):
-                if id_formula_state in molecular_weight_:
-                    # add
-                    molecular_weight_src[id_name_formula] = {
-                        "value": molecular_weight_[id_formula_state].value,
-                        "unit": molecular_weight_[id_formula_state].unit
-                    }
-                else:
-                    raise ValueError(
-                        f"Molecular weight value for component '{id_formula_state}' not found in model_inputs."
-                    )
-
-            # res
-            return molecular_weight_src
-        else:
-            raise ValueError(
-                "Molecular weight must be provided in model_inputs for molecular weight source mode."
-            )
-
-    # ! reaction enthalpy
-    def _config_reaction_enthalpy(
-            self
-    ) -> Dict[str, Dict[str, Any]]:
-        """
-        Configure the reaction enthalpy in [J/mol] for the batch reactor based on the model inputs and reactor configuration.
-
-        Notes
-        -----
-        - The reaction enthalpy is given for each reaction in the system by reaction-name in model inputs.
-        """
-        # check reaction enthalpy source
-        if self.reactor_options.reaction_enthalpy_source is None:
-            raise ValueError(
-                "Reaction enthalpy source must be specified in reactor_inputs."
-            )
-
-        # reaction enthalpy
-        if "reaction_enthalpy" in self.thermo_inputs_keys:
-            reaction_enthalpy_src: dict[
-                str,
-                CustomProp
-            ] = self.thermo_inputs["reaction_enthalpy"]
-
-            # res
-            reaction_enthalpy = {}
-
-            # iterate through reactions and extract reaction enthalpy values
-            for k, v in reaction_enthalpy_src.items():
-                # convert to J/mol
-                reaction_enthalpy[k] = {
-                    "value": to_J_per_mol(v.value, v.unit),
-                    "unit": "J/mol"
-                }
-
-            # res
-            return reaction_enthalpy
-        else:
-            raise ValueError(
-                "Reaction enthalpy must be provided in model_inputs for reaction enthalpy source mode."
-            )
-
-    # ! mixture total heat capacity of gas mixture
-    def _config_gas_mixture_total_heat_capacity(
-            self
-    ) -> CustomProp:
-        """
-        Configure the total heat capacity of gas mixture.
-        """
-        # check gas mixture total heat capacity source
-        if self.reactor_options.gas_mixture_total_heat_capacity_source is None:
-            raise ValueError(
-                "Gas mixture total heat capacity source must be specified in reactor_inputs."
-            )
-
-        # gas mixture total heat capacity
-        if "gas_mixture_total_heat_capacity" in self.thermo_inputs_keys:
-            gas_mixture_total_heat_capacity: CustomProp = self.thermo_inputs[
-                "gas_mixture_total_heat_capacity"]
-
-            # NOTE: check unit
-            # ! J/K
-            if gas_mixture_total_heat_capacity.unit != "J/K":
-                raise ValueError(
-                    "Gas mixture total heat capacity must be provided in J/K for gas mixture total heat capacity source mode."
-                )
-
-            # res
-            return gas_mixture_total_heat_capacity
-        else:
-            raise ValueError(
-                "Gas mixture total heat capacity must be provided in model_inputs for gas mixture total heat capacity source mode."
-            )
-
-    # ! mixture total heat capacity of liquid mixture
-    def _config_liquid_mixture_total_heat_capacity(
-            self
-    ) -> CustomProp:
-        """
-        Configure the total heat capacity of liquid mixture.
-        """
-        # check liquid mixture total heat capacity source
-        if self.reactor_options.liquid_mixture_total_heat_capacity_source is None:
-            raise ValueError(
-                "Liquid mixture total heat capacity source must be specified in reactor_inputs."
-            )
-
-        # liquid mixture total heat capacity
-        if "liquid_mixture_total_heat_capacity" in self.thermo_inputs_keys:
-            liquid_mixture_total_heat_capacity: CustomProp = self.thermo_inputs[
-                "liquid_mixture_total_heat_capacity"]
-
-            # NOTE: check unit
-            # ! J/K
-            if liquid_mixture_total_heat_capacity.unit != "J/K":
-                raise ValueError(
-                    "Liquid mixture total heat capacity must be provided in J/K for liquid mixture total heat capacity source mode."
-                )
-
-            # res
-            return liquid_mixture_total_heat_capacity
-        else:
-            raise ValueError(
-                "Liquid mixture total heat capacity must be provided in model_inputs for liquid mixture total heat capacity source mode."
-            )
-
-    # ! mixture volumetric heat capacity of liquid mixture
-    def _config_liquid_mixture_volumetric_heat_capacity(
-            self
-    ) -> CustomProp:
-        """
-        Configure the volumetric heat capacity of liquid mixture.
-        """
-        # check liquid mixture volumetric heat capacity source
-        if self.reactor_options.liquid_mixture_volumetric_heat_capacity_source is None:
-            raise ValueError(
-                "Liquid mixture volumetric heat capacity source must be specified in reactor_inputs."
-            )
-
-        # liquid mixture volumetric heat capacity
-        if "liquid_mixture_volumetric_heat_capacity" in self.thermo_inputs_keys:
-            liquid_mixture_volumetric_heat_capacity: CustomProp = self.thermo_inputs[
-                "liquid_mixture_volumetric_heat_capacity"]
-
-            # NOTE: check unit
-            # ! J/m3.K
-            if liquid_mixture_volumetric_heat_capacity.unit != "J/m3.K":
-                raise ValueError(
-                    "Liquid mixture volumetric heat capacity must be provided in J/m3.K for liquid mixture volumetric heat capacity source mode."
-                )
-
-            # res
-            return liquid_mixture_volumetric_heat_capacity
-        else:
-            raise ValueError(
-                "Liquid mixture volumetric heat capacity must be provided in model_inputs for liquid mixture volumetric heat capacity source mode."
-            )
-
-    # SECTION: Universal methods for property retrieval and configuration
-
-    def _config_prop_src(
-        self,
-        prop_name: str,
-        unit_conversion_func: Callable[[float, str], float],
-        expected_unit: str,
-        mode_config: List[str],
-        use_config: List[str],
-        source_config: str = "model_inputs",
-        strict_unit_check: bool = True,
-    ) -> Tuple[np.ndarray, Dict[str, float]]:
-        # NOTE: check source/mode/use configuration
-        # ! source
-        if not self._is_model_inputs_source(prop_name, source_config):
-            raise ValueError(
-                f"{prop_name} source must be '{source_config}' in reactor options for {prop_name} configuration."
-            )
-
-        # ! mode
-        if len(mode_config) > 0:
-            for mode in mode_config:
-                if not self._is_model_inputs_mode(prop_name, mode):
-                    raise ValueError(
-                        f"{prop_name} mode must be '{mode}' in reactor options for {prop_name} configuration."
-                    )
-
-        # ! use
-        if len(use_config) > 0:
-            for use in use_config:
-                if not self._should_use_model_inputs(prop_name, use):
-                    raise ValueError(
-                        f"Use of {prop_name} must be enabled in reactor options for {prop_name} configuration."
-                    )
-
-        # NOTE: if all checks pass, proceed to configure the property
-        if prop_name not in self.thermo_inputs_keys:
-            raise ValueError(
-                f"{prop_name} must be provided in model_inputs for {prop_name} configuration."
-            )
-
-        # get property source
-        prop_: Dict[str, CustomProp] = self.thermo_inputs[prop_name]
-
-        # set property values and component mapping
-        # >> component-wise property values
-        prop_comp = {}
-        # >> property values for components in order
-        prop_values = []
-
-        # iterate through components
-        for id in self.component_formula_state:
-            if id in prop_.keys():
-                # > value
-                value = prop_[id].value
-                # > unit
-                unit = prop_[id].unit
-
-                # >> check expected unit
-                if strict_unit_check:
-                    if unit != expected_unit:
-                        # convert to expected unit
-                        value = unit_conversion_func(
-                            value,
-                            unit
-                        )
-
-                # add to component mapping
-                prop_comp[id] = value
-
-                # add to values list
-                prop_values.append(value)
+                # >> check
+                if configured_value is None:
+                    continue
+
+                # >> set attribute
+                setattr(self, attr, configured_value)
             else:
-                raise ValueError(
-                    f"{prop_name} value for component '{id}' not found in model_inputs."
+                logger.warning(
+                    f"Unknown configuration method '{method}' for attribute '{attr}'. Skipping configuration."
                 )
-
-        return np.array(prop_values), prop_comp
-
-    def _config_prop_src_component_wise(
-        self,
-        prop_name: str,
-        unit_conversion_func: Callable[[float, str], float],
-        expected_unit: str,
-        criteria: Dict[str, str],
-        strict_unit_check: bool = True,
-    ):
-        pass
-
-    def _config_prop_src_constant(
-        self,
-        prop_name: str,
-        unit_conversion_func: Callable[[float, str], float],
-        expected_unit: str,
-        criteria: Dict[str, str],
-        strict_unit_check: bool = True,
-    ):
-        pass
