@@ -2,7 +2,7 @@
 import logging
 import numpy as np
 from typing import List, Dict, Any, cast, Optional
-from pythermodb_settings.models import Component, Temperature, Pressure, CustomProperty, ComponentKey
+from pythermodb_settings.models import Component, ComponentKey
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
@@ -13,21 +13,21 @@ from pyreactsim_core.models import ReactionRateExpression
 from ..sources.interface import (
     ext_components_dt,
     ext_components_eq,
-    exec_component_eq
 )
 from ..models.br import BatchReactorOptions
 from ..models.heat import HeatTransferOptions
+from ..models.pbr import PBRReactorOptions
+from ..models.pfr import PFRReactorOptions
+from ..models.cstr import CSTRReactorOptions
 from ..utils.tools import config_components_property
 from ..utils.unit_tools import to_J_per_mol, to_g_per_mol
-from ..models.cstr import CSTRReactorOptions
-from ..models.pfr import PFRReactorOptions
-from ..models.pbr import PBRReactorOptions
+from .thermo_model_config import ThermoModelConfig
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class ThermoModelSource:
+class ThermoModelSource(ThermoModelConfig):
     """
     ThermoModelSource is a class that represents a model source for thermodynamic properties of components in a chemical reaction system. It is designed to extract and configure the necessary thermodynamic property equations and data from a given model source, which can then be used in reactor simulations. This class is designed to retrieve the following properties for the components in the system:
 
@@ -90,21 +90,20 @@ class ThermoModelSource:
         component_key : ComponentKey
             A ComponentKey object that serves as a key for identifying and categorizing the components in the model source.
         """
+        # LINK: init
+        super().__init__(
+            components=components,
+            thermo_inputs=thermo_inputs,
+            reactor_options=reactor_options,
+            heat_transfer_options=heat_transfer_options,
+            component_refs=component_refs,
+            component_key=component_key,
+        )
+
         # NOTE: Set attributes
-        self.components = components
         self.source = source
         self.model_source = model_source
-        self.thermo_inputs = thermo_inputs
-        self.reactor_options = reactor_options
-        self.heat_transfer_options = heat_transfer_options
         self.reaction_rates = reaction_rates
-        self.component_refs = component_refs
-        self.component_key = component_key
-
-        # ! component refs
-        self.component_ids = component_refs['component_ids']
-        self.component_formula_state = component_refs['component_formula_state']
-        self.component_mapper = component_refs['component_mapper']
 
         # ! phase
         self.phase = reactor_options.phase
