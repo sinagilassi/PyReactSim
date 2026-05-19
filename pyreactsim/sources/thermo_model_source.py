@@ -39,15 +39,18 @@ class ThermoModelSource:
     """
 
     # NOTE: Attributes
-    # ! sources
+    # ! ideal gas heat capacity
     Cp_IG_src: Dict[str, ComponentEquationSource] = {}
+    # ! liquid heat capacity
     Cp_LIQ_src: Dict[str, ComponentEquationSource] = {}
+    # ! liquid density
     rho_LIQ_src: Dict[str, ComponentEquationSource] = {}
+    # ! enthalpy of formation at 298 K for ideal gas
     EnFo_IG_298_src: Dict[str, Dict[str, Any]] = {}
-    MW_src: Dict[str, Dict[str, Any]] = {}
-    # ! properties
     EnFo_IG_298: np.ndarray = np.array([])
     EnFo_IG_298_comp: Dict[str, float] = {}
+    # ! molecular weight
+    MW_src: Dict[str, Dict[str, Any]] = {}
     MW: np.ndarray = np.array([])
     MW_comp: Dict[str, float] = {}
 
