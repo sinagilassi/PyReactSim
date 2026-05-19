@@ -59,6 +59,7 @@ batch_reactor_options = BatchReactorOptions(
     gas_model='ideal',
     # mode
     gas_heat_capacity_mode="constant",
+    ideal_gas_formation_enthalpy_mode="constant",
     # source
     gas_heat_capacity_source="custom_inputs",
     ideal_gas_formation_enthalpy_source="custom_inputs",

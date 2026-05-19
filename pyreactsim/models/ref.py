@@ -114,6 +114,10 @@ class ReactorModeModel(BaseModel):
         default=None,
         description="Mode for reaction enthalpy calculation as ideal_gas, liquid, and reaction."
     )
+    ideal_gas_formation_enthalpy_mode: Optional[Literal['constant']] = Field(
+        default=None,
+        description="Mode for ideal gas formation enthalpy calculation as constant"
+    )
 
 # SECTION: Reactor use model
 

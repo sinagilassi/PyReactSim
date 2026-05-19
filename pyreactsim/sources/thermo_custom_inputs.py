@@ -305,6 +305,7 @@ class ThermoCustomInputs(ThermoSourceConfig):
         prop_src = {}
 
         # iterate through components
+        # ! component_ids constructed based on component key (default is name-formula)
         for formula_state, component_id in zip(self.component_formula_state, self.component_ids):
             if formula_state in prop_.keys():
                 # value
