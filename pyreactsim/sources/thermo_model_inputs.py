@@ -1,7 +1,7 @@
 # import libs
 import logging
 import numpy as np
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple, Callable
 from pythermodb_settings.models import Component, CustomProp, ComponentKey
 # locals
 from ..models.br import BatchReactorOptions
@@ -9,8 +9,9 @@ from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
 from ..models.heat import HeatTransferOptions
-from .thermo_model_config import ThermoModelConfig
 from .thermo_config import MODEL_INPUTS_ATTR_CONFIG, MODEL_INPUTS_CRITERIA
+from ..utils.tools import config_components_property
+from .thermo_model_config import ThermoModelConfig
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
@@ -193,3 +194,150 @@ class ThermoModelInputs(ThermoModelConfig):
                 logger.warning(
                     f"Unknown configuration method '{method}' for attribute '{attr}'. Skipping configuration."
                 )
+
+    # SECTION: Universal methods for property retrieval and configuration
+    # NOTE: configure property values and component mapping based on criteria matching
+    def _config_property(
+        self,
+        prop_name: str,
+        unit_conversion_func: Callable[[float, str], float],
+        expected_unit: str,
+        prop_criteria: Dict[str, Dict[str, List[Any]]],
+        phase_criteria: Dict[str, Dict[str, List[Any]]],
+        heat_transfer_mode_criteria: Dict[str, Dict[str, List[Any]]],
+        strict_unit_check: bool = True,
+    ) -> Dict[str, float] | None:
+        if not self._should_configure(prop_criteria, phase_criteria, heat_transfer_mode_criteria):
+            return None
+
+        # NOTE: if all checks pass, proceed to configure the property
+        if prop_name not in self.thermo_inputs_keys:
+            raise ValueError(
+                f"{prop_name} must be provided in model_inputs for {prop_name} configuration."
+            )
+
+        # get property source
+        prop_: Dict[str, CustomProp] = self.thermo_inputs[prop_name]
+
+        # set property values and component mapping
+        # >> component-wise property values
+        prop_comp = {}
+
+        # NOTE: prepare array and component mapping dict for property source
+        # iterate through components
+        for id in prop_.keys():
+            # > value
+            value = prop_[id].value
+            # > unit
+            unit = prop_[id].unit
+
+            # >> check expected unit
+            if strict_unit_check:
+                if unit != expected_unit:
+                    # convert to expected unit
+                    value = unit_conversion_func(
+                        value,
+                        unit
+                    )
+
+            # add to component mapping
+            prop_comp[id] = value
+
+        return prop_comp
+
+    # NOTE: configure property source dict based on criteria matching
+    def _config_property_source(
+        self,
+        prop_name: str,
+        unit_conversion_func: Callable[[float, str], float],
+        expected_unit: str,
+        prop_criteria: Dict[str, Dict[str, List[Any]]],
+        phase_criteria: Dict[str, Dict[str, List[Any]]],
+        heat_transfer_mode_criteria: Dict[str, Dict[str, List[Any]]],
+        strict_unit_check: bool = True,
+    ) -> Tuple[Dict[str, Dict[str, Any]], Any, Dict[str, float]] | None:
+        if not self._should_configure(prop_criteria, phase_criteria, heat_transfer_mode_criteria):
+            return None
+
+        # NOTE: if all checks pass, proceed to configure the property
+        if prop_name not in self.thermo_inputs_keys:
+            raise ValueError(
+                f"{prop_name} must be provided in model_inputs for {prop_name} configuration."
+            )
+
+        # get property source
+        prop_: Dict[str, CustomProp] = self.thermo_inputs[prop_name]
+
+        # init property source dict
+        prop_src = {}
+
+        # iterate through components
+        for formula_state, component_id in zip(self.component_formula_state, self.component_ids):
+            if formula_state in prop_.keys():
+                # value
+                value = prop_[formula_state].value
+                # unit
+                unit = prop_[formula_state].unit
+
+                # add to property source dict with name-formula key
+                prop_src[component_id] = {
+                    "value": value,
+                    "unit": unit,
+                }
+            else:
+                raise ValueError(
+                    f"{prop_name} value for component '{formula_state}' not found in model_inputs."
+                )
+
+        # NOTE: prepare array and component mapping dict for property source
+        prop_values, prop_comp = config_components_property(
+            component_ids=self.component_ids,
+            prop_source=prop_src,
+            unit_conversion_func=unit_conversion_func,
+        )
+
+        return prop_src, prop_values, prop_comp
+
+    # NOTE: configure property constant based on criteria matching
+    def _config_property_constant(
+        self,
+        prop_name: str,
+        unit_conversion_func: Callable[[float, str], float],
+        expected_unit: str,
+        prop_criteria: Dict[str, Dict[str, List[Any]]],
+        phase_criteria: Dict[str, Dict[str, List[Any]]],
+        heat_transfer_mode_criteria: Dict[str, Dict[str, List[Any]]],
+        strict_unit_check: bool = True,
+    ) -> CustomProp | None:
+        if not self._should_configure(prop_criteria, phase_criteria, heat_transfer_mode_criteria):
+            return None
+
+        # NOTE: if all checks pass, proceed to configure the property
+        if prop_name not in self.thermo_inputs_keys:
+            raise ValueError(
+                f"{prop_name} must be provided in model_inputs for {prop_name} configuration."
+            )
+
+        # get property source
+        prop_: CustomProp = self.thermo_inputs[prop_name]
+
+        # check unit
+        if strict_unit_check:
+            if prop_.unit != expected_unit:
+                # convert to expected unit
+                value = unit_conversion_func(
+                    prop_.value,
+                    prop_.unit
+                )
+            else:
+                value = prop_.value
+        else:
+            value = prop_.value
+
+        # create property constant
+        prop_constant = CustomProp(
+            value=value,
+            unit=expected_unit,
+        )
+
+        return prop_constant
