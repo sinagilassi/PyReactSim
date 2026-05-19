@@ -81,7 +81,6 @@ constant_gas_heat_capacity = {
     "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
     "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
     "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
-    "CO-g": CustomProp(value=35.0, unit="J/mol.K"),
 }
 
 # NOTE: ideal gas formation enthalpy at 298 K [J/mol]
@@ -90,7 +89,6 @@ constant_ideal_gas_formation_enthalpy = {
     "H2-g": CustomProp(value=0.0, unit="J/mol"),
     "CH3OH-g": CustomProp(value=-201000.0, unit="J/mol"),
     "H2O-g": CustomProp(value=-241820.0, unit="J/mol"),
-    "CO-g": CustomProp(value=-110530.0, unit="J/mol"),
 }
 
 # ! thermo inputs
@@ -128,13 +126,6 @@ initial_mole = {
     "H2O-g": CustomProp(value=0.0, unit="mol"),
 }
 
-# NOTE: constant heat capacity (Cp) for the system in J/mol.K
-constant_gas_heat_capacity = {
-    "CO2-g": CustomProp(value=30.0, unit="J/mol.K"),
-    "H2-g": CustomProp(value=25.0, unit="J/mol.K"),
-    "CH3OH-g": CustomProp(value=40.0, unit="J/mol.K"),
-    "H2O-g": CustomProp(value=35.0, unit="J/mol.K"),
-}
 
 # ! model inputs
 model_inputs = {
