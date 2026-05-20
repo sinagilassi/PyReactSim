@@ -102,7 +102,7 @@ liquid_mixture_volumetric_heat_capacity = CustomProp(
 )
 
 # ! thermo inputs
-thermo_inputs = {
+custom_inputs = {
     "molecular_weight": molecular_weight,
     "reaction_enthalpy": reaction_enthalpies,
     "liquid_mixture_volumetric_heat_capacity": liquid_mixture_volumetric_heat_capacity,
