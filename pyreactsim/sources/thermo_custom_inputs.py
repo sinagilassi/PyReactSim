@@ -9,9 +9,9 @@ from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
 from ..models.heat import HeatTransferOptions
-from .thermo_config import MODEL_INPUTS_ATTR_CONFIG, MODEL_INPUTS_CRITERIA
 from ..utils.tools import config_components_property
 from .thermo_source_config import ThermoSourceConfig
+from .thermo_config import MODEL_INPUTS_ATTR_CONFIG, MODEL_INPUTS_CRITERIA
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
