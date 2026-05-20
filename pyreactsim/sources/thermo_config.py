@@ -8,7 +8,7 @@ from ..utils.unit_tools import (
 
 # SECTION: Model Inputs
 # NOTE: configurations
-MODEL_INPUTS_ATTR_CONFIG = {
+CUSTOM_INPUTS_ATTR_CONFIG = {
     "Cp_IG": {
         "description": "Ideal gas heat capacity for each component.",
         "method": "property-source",
@@ -192,7 +192,7 @@ MODEL_INPUTS_ATTR_CONFIG = {
 }
 
 # NOTE: criteria for model inputs
-MODEL_INPUTS_CRITERIA = {
+CUSTOM_INPUTS_CRITERIA = {
     "gas_heat_capacity": {
         "all": {
             "gas_heat_capacity_mode": ["constant"],
