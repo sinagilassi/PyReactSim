@@ -44,8 +44,10 @@ class SourceUtils:
 
             # check empty values
             if (
-                prop_value is not None and
-                prop_value_comp is not None
+                prop_value is not None
+                and prop_value.size > 0
+                and isinstance(prop_value_comp, dict) and
+                prop_value_comp
             ):
                 return prop_value, prop_value_comp
 
@@ -58,7 +60,9 @@ class SourceUtils:
             # check empty values
             if (
                 prop_value is not None and
-                prop_value_comp is not None
+                prop_value.size > 0 and
+                isinstance(prop_value_comp, dict) and
+                prop_value_comp
             ):
                 return prop_value, prop_value_comp
 
@@ -69,12 +73,10 @@ class SourceUtils:
     def equation_source_assigner(
         self,
         symbol: str,
-    ) -> Optional[
-        Tuple[
-            np.ndarray,
-            Dict[str, float],
-            Dict[str, ComponentEquationSource]
-        ]
+    ) -> Tuple[
+        np.ndarray,
+        Dict[str, float],
+        Dict[str, ComponentEquationSource]
     ]:
         # NOTE: create variable name
         val = f"{symbol}"
@@ -89,11 +91,11 @@ class SourceUtils:
         # NOTE: assign property equations based on source
         # ! check attribute in model source
         if hasattr(self.thermo_model_source, val_src):
-            # > assign equations from model source
+            # > assign equations from model source (a dictionary of component to equation source)
             eq_src = getattr(self.thermo_model_source, val_src)
 
             # check empty values
-            if eq_src is not None:
+            if isinstance(eq_src, dict) and eq_src:
                 return _values, _values_comp, eq_src
 
         # NOTE: assign property values based on source
@@ -106,7 +108,9 @@ class SourceUtils:
             # check empty values
             if (
                 _values is not None and
-                _values_comp is not None
+                _values.size > 0 and
+                isinstance(_values_comp, dict) and
+                _values_comp
             ):
                 return _values, _values_comp, _source
 

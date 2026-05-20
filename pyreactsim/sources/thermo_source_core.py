@@ -139,6 +139,7 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         # SECTION: Thermodynamic properties
 
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
+        # ?? source/value/comp
         self.Cp_IG_src: Dict[
             str,
             ComponentEquationSource
@@ -147,6 +148,15 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         # ! to J/mol.K
         self.Cp_IG = self.thermo_model_inputs.Cp_IG
         self.Cp_IG_comp = self.thermo_model_inputs.Cp_IG_comp
+
+        # assign
+        (
+            self.Cp_IG,
+            self.Cp_IG_comp,
+            self.Cp_IG_src
+        ) = self.equation_source_assigner(
+            symbol="Cp_IG",
+        )
 
         # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
         # ! to J/K
