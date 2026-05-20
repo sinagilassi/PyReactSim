@@ -51,6 +51,15 @@ class ThermoSourceConfig:
                 return getattr(self.reactor_options, attr)
             return None
 
+        def _attr_exists(attr: str) -> bool:
+            return hasattr(self.heat_transfer_options, attr) or hasattr(self.reactor_options, attr)
+
+        # If a criteria references an unknown attribute, fail fast instead of
+        # letting "not" blocks pass accidentally with None.
+        criteria_attrs = set(all_block.keys()) | set(any_block.keys()) | set(not_block.keys())
+        if any(not _attr_exists(attr) for attr in criteria_attrs):
+            return False
+
         all_ok = all(
             _get_attr_value(attr) in allowed_values
             for attr, allowed_values in all_block.items()

@@ -25,12 +25,13 @@ from .thermo_calc import ThermoCalc
 from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
+from .source_utils import SourceUtils
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class ThermoSourceCore(ThermoCalc):
+class ThermoSourceCore(ThermoCalc, SourceUtils):
     """
     THermo class for handling thermodynamic calculations and properties related to chemical reactions and processes. This class provides methods for calculating various thermodynamic properties, such as heat capacities, enthalpies, and entropies, as well as methods for performing energy balance calculations in chemical systems.
     """
@@ -58,8 +59,14 @@ class ThermoSourceCore(ThermoCalc):
         """
         Initializes the THermo instance with default properties and settings for thermodynamic calculations.
         """
-        # LINK: ThermoCalc initialization
+        # LINK: ThermoCalc for thermodynamic property calculations
         ThermoCalc.__init__(self)
+        # LINK: SourceUtils for property assignment based on source configuration
+        SourceUtils.__init__(
+            self,
+            thermo_custom_inputs=thermo_model_inputs,
+            thermo_model_source=thermo_model_source,
+        )
 
         # SECTION: Set attributes
         self.components = components
@@ -521,6 +528,19 @@ class ThermoSourceCore(ThermoCalc):
 
         # NOTE: enthalpy mode is reaction
         if self.reaction_enthalpy_mode == "reaction":
+            return np.array(dH_rxns, dtype=float)
+
+        # NOTE: no formation enthalpy source configured for ideal-gas/liquid modes
+        if (
+            self.ideal_gas_formation_enthalpy_source not in (
+                "model_source", "custom_inputs")
+            or self.EnFo_IG_298_comp is None
+            or len(self.EnFo_IG_298_comp) == 0
+        ):
+            logger.info(
+                "No ideal gas formation enthalpy source configured. "
+                "Skipping dH_rxns_298 calculation and returning empty array."
+            )
             return np.array(dH_rxns, dtype=float)
 
         # NOTE: non-isothermal case
