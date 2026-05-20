@@ -471,7 +471,8 @@ class ThermoSourceCore(ThermoCalc):
             Cp_IG_values, _ = find_components_property(
                 components=components,
                 prop_values=self.gas_heat_capacity_constant_comp,
-                component_key="Formula-State"
+                component_key=cast(ComponentKey, self.component_key),
+                prop_symbol="Cp_IG"
             )
 
             # calculate mix heat capacity change for the reaction using the formula:
@@ -543,7 +544,8 @@ class ThermoSourceCore(ThermoCalc):
             EnFo_IG_298_values, _ = find_components_property(
                 components=components,
                 prop_values=self.EnFo_IG_298_comp,
-                component_key=cast(ComponentKey, self.component_key)
+                component_key=cast(ComponentKey, self.component_key),
+                prop_symbol="EnFo_IG_298"
             )
 
             # calc
