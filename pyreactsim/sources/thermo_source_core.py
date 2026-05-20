@@ -145,8 +145,8 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         ] = self.thermo_model_source.Cp_IG_src
         # >> constant heat capacity
         # ! to J/mol.K
-        self.gas_heat_capacity_constant_values = self.thermo_model_inputs.Cp_IG
-        self.gas_heat_capacity_constant_comp = self.thermo_model_inputs.Cp_IG_comp
+        self.Cp_IG = self.thermo_model_inputs.Cp_IG
+        self.Cp_IG_comp = self.thermo_model_inputs.Cp_IG_comp
 
         # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
         # ! to J/K
@@ -194,8 +194,8 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
             ComponentEquationSource
         ] = self.thermo_model_source.rho_LIQ_src
         # ! values in g/m3
-        self.liquid_density_constant_values = self.thermo_model_inputs.rho_LIQ
-        self.liquid_density_constant_comp = self.thermo_model_inputs.rho_LIQ_comp
+        self.rho_LIQ = self.thermo_model_inputs.rho_LIQ
+        self.rho_LIQ_comp = self.thermo_model_inputs.rho_LIQ_comp
 
         # NOTE: mixture liquid density (average)
         # ! values in g/m3
@@ -207,8 +207,8 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
             ComponentEquationSource
         ] = self.thermo_model_source.Cp_LIQ_src
         # ! values in J/mol.K
-        self.liquid_heat_capacity_constant_values = self.thermo_model_inputs.Cp_LIQ
-        self.liquid_heat_capacity_constant_comp = self.thermo_model_inputs.Cp_LIQ_comp
+        self.Cp_LIQ = self.thermo_model_inputs.Cp_LIQ
+        self.Cp_LIQ_comp = self.thermo_model_inputs.Cp_LIQ_comp
 
     # SECTION: Thermodynamic property calculations
     # ! Calculate heat capacity at ideal gas for the components (Cp_IG)
@@ -253,7 +253,7 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         elif self.gas_heat_capacity_mode == "constant":
             # NOTE: use constant heat capacity from model inputs
             # ! J/mol.K
-            Cp_IG_values = self.gas_heat_capacity_constant_values
+            Cp_IG_values = self.Cp_IG
         else:
             raise ValueError(
                 f"Invalid heat_capacity_mode '{self.gas_heat_capacity_mode}'. Must be 'temperature-dependent' or 'constant'."
@@ -361,7 +361,7 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         ):
             # NOTE: use constant heat capacity from model inputs
             # ! J/mol.K
-            Cp_LIQ_values = self.liquid_heat_capacity_constant_values
+            Cp_LIQ_values = self.Cp_LIQ
         else:
             raise ValueError(
                 f"Invalid heat_capacity_mode '{self.liquid_heat_capacity_mode}'. Must be 'temperature-dependent' or 'constant'."
@@ -451,10 +451,10 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
 
         # NOTE: check heat capacity constant
         if (
-            self.gas_heat_capacity_constant_comp is None or
-            self.gas_heat_capacity_constant_values is None or
-            len(self.gas_heat_capacity_constant_comp) == 0 or
-            len(self.gas_heat_capacity_constant_values) == 0
+            self.Cp_IG_comp is None or
+            self.Cp_IG is None or
+            len(self.Cp_IG_comp) == 0 or
+            len(self.Cp_IG) == 0
         ):
             return np.array(dCp, dtype=float)
 
@@ -477,7 +477,7 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
             # ! J/mol.K
             Cp_IG_values, _ = find_components_property(
                 components=components,
-                prop_values=self.gas_heat_capacity_constant_comp,
+                prop_values=self.Cp_IG_comp,
                 component_key=cast(ComponentKey, self.component_key),
                 prop_symbol="Cp_IG"
             )
@@ -885,7 +885,7 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         elif self.liquid_density_mode == "constant":
             # NOTE: use constant density from model inputs
             # ! in g/m3
-            rho_LIQ_values = self.liquid_density_constant_values
+            rho_LIQ_values = self.rho_LIQ
         else:
             raise ValueError(
                 f"Invalid density_mode '{self.liquid_density_mode}'. Must be 'temperature-dependent' or 'constant'."
