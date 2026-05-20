@@ -61,10 +61,12 @@ batch_reactor_options = BatchReactorOptions(
     gas_heat_capacity_mode='constant',
     liquid_heat_capacity_mode='constant',
     liquid_density_mode='constant',
+    reaction_enthalpy_mode='ideal_gas',
     # source
     gas_heat_capacity_source='custom_inputs',
     liquid_heat_capacity_source='custom_inputs',
     liquid_density_source='custom_inputs',
+    molecular_weight_source='model_source',
 )
 
 # ! heat transfer options
@@ -102,11 +104,20 @@ constant_liquid_density = {
     "C3H6O2-l": CustomProp(value=932.0, unit="kg/m3"),  # methyl acetate
 }
 
+# NOTE: molecular weight for the components in g/mol
+molecular_weight = {
+    "CH3OH-l": CustomProp(value=32.04, unit="g/mol"),  # methanol
+    "H2O-l": CustomProp(value=18.015, unit="g/mol"),   # water
+    "CH3COOH-l": CustomProp(value=60.05, unit="g/mol"),  # acetic acid
+    "C3H6O2-l": CustomProp(value=74.08, unit="g/mol"),  # methyl acetate
+}
+
 # ! thermo inputs
 custom_inputs = {
     "gas_heat_capacity": constant_gas_heat_capacity,
     "liquid_heat_capacity": constant_liquid_heat_capacity,
     "liquid_density": constant_liquid_density,
+    "molecular_weight": molecular_weight,
 }
 
 # ====================================================
