@@ -11,7 +11,7 @@ from ..models.pbr import PBRReactorOptions
 from ..models.heat import HeatTransferOptions
 from ..utils.tools import config_components_property
 from .thermo_source_config import ThermoSourceConfig
-from .thermo_config import MODEL_INPUTS_ATTR_CONFIG, MODEL_INPUTS_CRITERIA
+from .thermo_config import CUSTOM_INPUTS_ATTR_CONFIG, CUSTOM_INPUTS_CRITERIA
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
@@ -58,9 +58,9 @@ class ThermoCustomInputs(ThermoSourceConfig):
     Cp_LIQ_MIX_VOLUMETRIC: Optional[CustomProp] = None
 
     # NOTE: configurations
-    attr_config = MODEL_INPUTS_ATTR_CONFIG
+    attr_config = CUSTOM_INPUTS_ATTR_CONFIG
     # NOTE: criteria for model inputs
-    criteria = MODEL_INPUTS_CRITERIA
+    criteria = CUSTOM_INPUTS_CRITERIA
 
     def __init__(
         self,
