@@ -5,11 +5,15 @@ from typing import Any, Dict, List, Optional, Tuple, Union, Callable, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, Pressure, Temperature, CustomProperty
 from pythermodb_settings.utils import set_component_id, build_components_mapper
 
+# NOTE: logger
+logger = logging.getLogger(__name__)
+
 
 def find_components_property(
         components: List[Component],
         prop_values: Dict[str, float],
         component_key: ComponentKey,
+        prop_symbol: Optional[str] = None
 ):
     """
     Find the specified property values for the components based on the component key.
@@ -22,6 +26,8 @@ def find_components_property(
         A dictionary with component names as keys and the property values to be extracted as values.
     component_key : ComponentKey
         A ComponentKey object representing the key to be used for the components in the model source.
+    prop_symbol : Optional[str]
+        An optional string representing the symbol of the property being extracted, used for logging purposes.
 
     Returns
     -------
@@ -33,6 +39,12 @@ def find_components_property(
     ValueError
         If a component specified in the prop_values dictionary is not found in the components list based on the component key.
     """
+    # ! check
+    if prop_symbol is None:
+        logger.warning(
+            "Property symbol not provided. The extracted property values will be returned without logging.")
+        raise
+
     # NOTE: extract the specified property values for the components based on the component key
     extracted_values = []
     extracted_values_comp = {}
