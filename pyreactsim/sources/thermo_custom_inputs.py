@@ -196,7 +196,7 @@ class ThermoCustomInputs(ThermoSourceConfig):
 
                 # >> set attribute
                 setattr(self, attr, configured_value)
-            elif method == "property":
+            elif method == "property-constants":
                 # ! property configuration
                 # ?? property independent of component mapping
                 configured_value = self._config_property(
