@@ -51,7 +51,7 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         heat_transfer_options: HeatTransferOptions,
         reaction_rates: List[ReactionRateExpression],
         thermo_model_source: ThermoModelSource,
-        thermo_model_inputs: ThermoCustomInputs,
+        thermo_custom_inputs: ThermoCustomInputs,
         thermo_reaction: ThermoReaction,
         component_refs: Dict[str, Any],
         component_key: ComponentKey,
@@ -64,7 +64,7 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         # LINK: SourceUtils for property assignment based on source configuration
         SourceUtils.__init__(
             self,
-            thermo_custom_inputs=thermo_model_inputs,
+            thermo_custom_inputs=thermo_custom_inputs,
             thermo_model_source=thermo_model_source,
         )
 
@@ -82,7 +82,7 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         # ! model source
         self.thermo_model_source = thermo_model_source
         # ! model inputs
-        self.thermo_model_inputs = thermo_model_inputs
+        self.thermo_custom_inputs = thermo_custom_inputs
         # ! reaction
         self.thermo_reaction = thermo_reaction
 
@@ -140,14 +140,14 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
 
         # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
         # ?? source/value/comp
-        self.Cp_IG_src: Dict[
-            str,
-            ComponentEquationSource
-        ] = self.thermo_model_source.Cp_IG_src
+        # self.Cp_IG_src: Dict[
+        #     str,
+        #     ComponentEquationSource
+        # ] = self.thermo_model_source.Cp_IG_src
         # >> constant heat capacity
         # ! to J/mol.K
-        self.Cp_IG = self.thermo_model_inputs.Cp_IG
-        self.Cp_IG_comp = self.thermo_model_inputs.Cp_IG_comp
+        # self.Cp_IG = self.thermo_custom_inputs.Cp_IG
+        # self.Cp_IG_comp = self.thermo_custom_inputs.Cp_IG_comp
 
         # assign
         (
@@ -163,19 +163,28 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         self.dCp_rxns = self.calc_dCp_IG()
 
         # SECTION: Ideal Gas Enthalpy of formation at 298 K
-        self.EnFo_IG_298_src: Dict[
-            str,
-            Dict[str, Any]
-        ] = self.thermo_model_source.EnFo_IG_298_src
+        # self.EnFo_IG_298_src: Dict[
+        #     str,
+        #     Dict[str, Any]
+        # ] = self.thermo_model_source.EnFo_IG_298_src
         # ! values in J/mol
-        if len(self.EnFo_IG_298_src) > 0:
-            # >> from model source
-            self.EnFo_IG_298 = self.thermo_model_source.EnFo_IG_298
-            self.EnFo_IG_298_comp = self.thermo_model_source.EnFo_IG_298_comp
-        else:
-            # >> from model inputs
-            self.EnFo_IG_298 = self.thermo_model_inputs.EnFo_IG_298
-            self.EnFo_IG_298_comp = self.thermo_model_inputs.EnFo_IG_298_comp
+        # if len(self.EnFo_IG_298_src) > 0:
+        #     # >> from model source
+        #     self.EnFo_IG_298 = self.thermo_model_source.EnFo_IG_298
+        #     self.EnFo_IG_298_comp = self.thermo_model_source.EnFo_IG_298_comp
+        # else:
+        #     # >> from model inputs
+        #     self.EnFo_IG_298 = self.thermo_custom_inputs.EnFo_IG_298
+        #     self.EnFo_IG_298_comp = self.thermo_custom_inputs.EnFo_IG_298_comp
+
+        # assign
+        (
+            self.EnFo_IG_298,
+            self.EnFo_IG_298_comp,
+            self.EnFo_IG_298_src
+        ) = self.data_source_assigner(
+            symbol="EnFo_IG_298",
+        )
 
         # dH_rxn at 298 K
         # ! values in J/mol
@@ -183,42 +192,94 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
 
         # dH_rxn at temperature T
         # ! values in J/mol
-        self.dH_rxns_src = self.thermo_model_inputs.dH_rxn_src
+        # self.dH_rxns = self.thermo_custom_inputs.dH_rxn
+
+        # assign
+        self.dH_rxns = self.properties_assigner(
+            symbol="dH_rxn",
+        )
 
         # SECTION: molecular weight (MW)
-        self.MW_src: Dict[
-            str,
-            Dict[str, Any]
-        ] = self.thermo_model_source.MW_src
+        # self.MW_src: Dict[
+        #     str,
+        #     Dict[str, Any]
+        # ] = self.thermo_model_source.MW_src
         # ! values in g/mol
-        if len(self.MW_src) > 0:
-            self.MW = self.thermo_model_source.MW
-            self.MW_comp = self.thermo_model_source.MW_comp
-        else:
-            self.MW = self.thermo_model_inputs.MW
-            self.MW_comp = self.thermo_model_inputs.MW_comp
+        # if len(self.MW_src) > 0:
+        #     self.MW = self.thermo_model_source.MW
+        #     self.MW_comp = self.thermo_model_source.MW_comp
+        # else:
+        #     self.MW = self.thermo_custom_inputs.MW
+        #     self.MW_comp = self.thermo_custom_inputs.MW_comp
+
+        # assign
+        (
+            self.MW,
+            self.MW_comp,
+            self.MW_src
+        ) = self.data_source_assigner(
+            symbol="MW",
+        )
 
         # SECTION: liquid density
-        self.rho_LIQ_src: Dict[
-            str,
-            ComponentEquationSource
-        ] = self.thermo_model_source.rho_LIQ_src
+        # self.rho_LIQ_src: Dict[
+        #     str,
+        #     ComponentEquationSource
+        # ] = self.thermo_model_source.rho_LIQ_src
         # ! values in g/m3
-        self.rho_LIQ = self.thermo_model_inputs.rho_LIQ
-        self.rho_LIQ_comp = self.thermo_model_inputs.rho_LIQ_comp
+        # self.rho_LIQ = self.thermo_custom_inputs.rho_LIQ
+        # self.rho_LIQ_comp = self.thermo_custom_inputs.rho_LIQ_comp
+
+        # assign
+        (
+            self.rho_LIQ,
+            self.rho_LIQ_comp,
+            self.rho_LIQ_src
+        ) = self.equation_source_assigner(
+            symbol="rho_LIQ",
+        )
 
         # NOTE: mixture liquid density (average)
         # ! values in g/m3
-        self.rho_LIQ_MIX = self.thermo_model_inputs.rho_LIQ_MIX
+        # self.rho_LIQ_MIX = self.thermo_custom_inputs.rho_LIQ_MIX
+
+        # assign
+        self.rho_LIQ_MIX = self.property_assigner(
+            symbol="rho_LIQ_MIX",
+        )
 
         # SECTION: heat capacity at liquid phase (Cp_LIQ)
-        self.Cp_LIQ_src: Dict[
-            str,
-            ComponentEquationSource
-        ] = self.thermo_model_source.Cp_LIQ_src
+        # self.Cp_LIQ_src: Dict[
+        #     str,
+        #     ComponentEquationSource
+        # ] = self.thermo_model_source.Cp_LIQ_src
         # ! values in J/mol.K
-        self.Cp_LIQ = self.thermo_model_inputs.Cp_LIQ
-        self.Cp_LIQ_comp = self.thermo_model_inputs.Cp_LIQ_comp
+        # self.Cp_LIQ = self.thermo_custom_inputs.Cp_LIQ
+        # self.Cp_LIQ_comp = self.thermo_custom_inputs.Cp_LIQ_comp
+
+        # assign
+        (
+            self.Cp_LIQ,
+            self.Cp_LIQ_comp,
+            self.Cp_LIQ_src
+        ) = self.equation_source_assigner(
+            symbol="Cp_LIQ",
+        )
+
+        # SECTION: total heat capacity of gas mixture (Cp_IG_MIX_TOTAL)
+        self.Cp_IG_MIX_TOTAL = self.property_assigner(
+            symbol="Cp_IG_MIX_TOTAL",
+        )
+
+        # SECTION: total heat capacity of liquid mixture (Cp_LIQ_MIX_TOTAL)
+        self.Cp_LIQ_MIX_TOTAL = self.property_assigner(
+            symbol="Cp_LIQ_MIX_TOTAL",
+        )
+
+        # SECTION: volumetric heat capacity of liquid mixture (Cp_LIQ_MIX_VOLUMETRIC)
+        self.Cp_LIQ_MIX_VOLUMETRIC = self.property_assigner(
+            symbol="Cp_LIQ_MIX_VOLUMETRIC",
+        )
 
     # SECTION: Thermodynamic property calculations
     # ! Calculate heat capacity at ideal gas for the components (Cp_IG)
@@ -542,10 +603,8 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
 
         # NOTE: no formation enthalpy source configured for ideal-gas/liquid modes
         if (
-            self.ideal_gas_formation_enthalpy_source not in (
-                "model_source", "custom_inputs")
-            or self.EnFo_IG_298_comp is None
-            or len(self.EnFo_IG_298_comp) == 0
+            self.EnFo_IG_298_comp is None or
+            len(self.EnFo_IG_298_comp) == 0
         ):
             logger.info(
                 "No ideal gas formation enthalpy source configured. "
@@ -1188,7 +1247,7 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
             self.heat_transfer_mode != "isothermal" and
             self.reaction_enthalpy_mode == "reaction" and
             self.reaction_enthalpy_source == "custom_inputs" and
-            self.dH_rxns_src is not None
+            self.dH_rxns is not None
         ):
             # iterate over reactions
             for rxn in self.reactions:
@@ -1196,13 +1255,13 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
                 rxn_name = rxn.name
 
                 # >> check
-                if rxn_name not in self.dH_rxns_src.keys():
+                if rxn_name not in self.dH_rxns.keys():
                     raise ValueError(
                         f"No reaction enthalpy source found for reaction: {rxn_name}"
                     )
 
                 # set
-                value = self.dH_rxns_src[rxn_name]['value']
+                value = self.dH_rxns[rxn_name]['value']
                 # add
                 res.append(value)
 
