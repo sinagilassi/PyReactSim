@@ -29,17 +29,19 @@ class ThermoCustomInputs(ThermoSourceConfig):
     - Molecular weight (MW)
     """
     # NOTE: Attributes
+    # ?? properties defined for each component
     # ! heat capacity of ideal gas
+    Cp_IG_src: Dict[str, Dict[str, Any]] = {}
     Cp_IG: np.ndarray = np.array([])
     Cp_IG_comp: Dict[str, float] = {}
     # ! heat capacity of liquid
+    Cp_LIQ_src: Dict[str, Dict[str, Any]] = {}
     Cp_LIQ: np.ndarray = np.array([])
     Cp_LIQ_comp: Dict[str, float] = {}
     # ! liquid density
+    rho_LIQ_src: Dict[str, Dict[str, Any]] = {}
     rho_LIQ: np.ndarray = np.array([])
     rho_LIQ_comp: Dict[str, float] = {}
-    # ! mixture liquid density
-    rho_LIQ_MIX: Optional[CustomProp] = None
     # ! ideal gas formation enthalpy at 298 K
     EnFo_IG_298_src: Dict[str, Dict[str, Any]] = {}
     EnFo_IG_298: np.ndarray = np.array([])
@@ -48,8 +50,12 @@ class ThermoCustomInputs(ThermoSourceConfig):
     MW_src: Dict[str, Dict[str, Any]] = {}
     MW: np.ndarray = np.array([])
     MW_comp: Dict[str, float] = {}
-    # ! enthalpy of reaction
-    dH_rxn_src: Optional[Dict[str, Dict[str, Any]]] = None
+
+    # ?? properties defined as constants (not component-specific)
+    # ! enthalpy of reaction at T
+    dH_rxn: Optional[Dict[str, Dict[str, Any]]] = None
+    # ! mixture liquid density
+    rho_LIQ_MIX: Optional[CustomProp] = None
     # ! total heat capacity of gas mixture
     Cp_IG_MIX_TOTAL: Optional[CustomProp] = None
     # ! total heat capacity of liquid mixture
@@ -149,6 +155,7 @@ class ThermoCustomInputs(ThermoSourceConfig):
 
             if method == "property-source":
                 # ! property source configuration
+                # ?? property contains component-wise source, values, and component mapping
                 configured = self._config_property_source(
                     prop_name=prop_name,
                     unit_conversion_func=unit_conversion_func,
@@ -172,6 +179,7 @@ class ThermoCustomInputs(ThermoSourceConfig):
                     setattr(self, f"{attr}_src", prop_src)
             elif method == "property-constant":
                 # ! property constant configuration
+                # ?? property contains a constant value for the whole system (not component-specific)
                 configured_value = self._config_property_constant(
                     prop_name=prop_name,
                     unit_conversion_func=unit_conversion_func,
@@ -190,6 +198,7 @@ class ThermoCustomInputs(ThermoSourceConfig):
                 setattr(self, attr, configured_value)
             elif method == "property":
                 # ! property configuration
+                # ?? property independent of component mapping
                 configured_value = self._config_property(
                     prop_name=prop_name,
                     unit_conversion_func=unit_conversion_func,
