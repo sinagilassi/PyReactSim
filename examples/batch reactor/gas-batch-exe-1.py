@@ -1,6 +1,6 @@
 # import packages/modules
 import logging
-import warnings
+# import warnings
 from rich import print
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
