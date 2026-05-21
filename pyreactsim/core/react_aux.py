@@ -2,7 +2,7 @@
 import logging
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple, Literal, cast
-from pythermodb_settings.models import Component, ComponentKey, Pressure, Temperature, Volume, CustomProperty
+from pythermodb_settings.models import Component, ComponentKey, Pressure, Temperature, CustomProperty
 from pyreactsim_core.models import ReactionRateExpression
 # ! locals
 from ..configs.constants import R_J_per_mol_K
@@ -11,7 +11,7 @@ from .brc import BatchReactorCore
 from .pfrc import PFRReactorCore
 from .pbrc import PBRReactorCore
 from ..utils.reaction_tools import stoichiometry_mat_key, stoichiometry_mat
-from ..utils.thermo_tools import calc_total_heat_capacity, calc_rxn_heat_generation
+from ..utils.thermo_tools import calc_total_heat_capacity
 from ..sources.thermo_source import ThermoSource
 from ..models import GasModel
 
@@ -40,7 +40,7 @@ class ReactorAuxiliary:
         component_key: ComponentKey,
     ):
         """
-        Initializes the ReactorAuxiliary instance with the provided components, model inputs, component references, and component key.
+        Initializes the ReactorAuxiliary instance with the provided components, custom inputs, component references, and component key.
 
         Parameters
         ----------
@@ -94,38 +94,38 @@ class ReactorAuxiliary:
         self.Cp_LIQ_MIX_TOTAL_BASIS = None
 
         # ! Cp_IG_MIX_TOTAL: total heat capacity of gas mixture (in J/K)
-        self.Cp_IG_MIX_TOTAL = self.thermo_source.thermo_model_inputs.Cp_IG_MIX_TOTAL
+        self.Cp_IG_MIX_TOTAL = self.thermo_source.Cp_IG_MIX_TOTAL
         self.Cp_IG_MIX_TOTAL_MODE = "constant" if self.Cp_IG_MIX_TOTAL is not None else "calculate"
 
         # >> check
         if self.reactor_core.use_gas_mixture_total_heat_capacity:
             if self.Cp_IG_MIX_TOTAL is None:
                 raise ValueError(
-                    "Cp_IG_MIX_TOTAL must be provided in the thermo model inputs when use_gas_mixture_total_heat_capacity is True."
+                    "Cp_IG_MIX_TOTAL must be provided in the thermo custom inputs when use_gas_mixture_total_heat_capacity is True."
                 )
 
         # ! Cp_LIQ_MIX_TOTAL: total heat capacity of liquid mixture (in J/K)
-        self.Cp_LIQ_MIX_TOTAL = self.thermo_source.thermo_model_inputs.Cp_LIQ_MIX_TOTAL
+        self.Cp_LIQ_MIX_TOTAL = self.thermo_source.Cp_LIQ_MIX_TOTAL
         self.Cp_LIQ_MIX_TOTAL_MODE = "constant" if self.Cp_LIQ_MIX_TOTAL is not None else "calculate"
 
         # >> check
         if self.reactor_core.use_liquid_mixture_total_heat_capacity:
             if self.Cp_LIQ_MIX_TOTAL is None:
                 raise ValueError(
-                    "Cp_LIQ_MIX_TOTAL must be provided in the thermo model inputs when use_liquid_mixture_total_heat_capacity is True."
+                    "Cp_LIQ_MIX_TOTAL must be provided in the thermo custom inputs when use_liquid_mixture_total_heat_capacity is True."
                 )
             # set
             self.Cp_LIQ_MIX_TOTAL_BASIS = "molar"
 
         # ! Cp_LIQ_MIX_VOLUMETRIC: volumetric heat capacity of liquid mixture (in J/K.m3)
-        self.Cp_LIQ_MIX_VOLUMETRIC = self.thermo_source.thermo_model_inputs.Cp_LIQ_MIX_VOLUMETRIC
+        self.Cp_LIQ_MIX_VOLUMETRIC = self.thermo_source.Cp_LIQ_MIX_VOLUMETRIC
         self.Cp_LIQ_MIX_VOLUMETRIC_MODE = "constant" if self.Cp_LIQ_MIX_VOLUMETRIC is not None else "calculate"
 
         # >> check
         if self.reactor_core.use_liquid_mixture_volumetric_heat_capacity:
             if self.Cp_LIQ_MIX_VOLUMETRIC is None:
                 raise ValueError(
-                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
+                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo custom inputs when use_liquid_mixture_volumetric_heat_capacity is True."
                 )
             # set
             self.Cp_LIQ_MIX_VOLUMETRIC_BASIS = "volumetric"
@@ -298,7 +298,7 @@ class ReactorAuxiliary:
             # NOTE: if use_gas_mixture_total_heat_capacity is True, use constant heat capacity from model source
             if self.Cp_IG_MIX_TOTAL is None:
                 raise ValueError(
-                    "Cp_IG_MIX_TOTAL must be provided in the thermo model inputs when use_gas_mixture_total_heat_capacity is True."
+                    "Cp_IG_MIX_TOTAL must be provided in the thermo custom inputs when use_gas_mixture_total_heat_capacity is True."
                 )
 
             return float(self.Cp_IG_MIX_TOTAL.value)
@@ -343,7 +343,7 @@ class ReactorAuxiliary:
         reactor_volume : float
             Volume of the reactor (in m3).
         mode : Literal['calculate', 'constant']
-            The mode for calculating the total heat capacity. If 'calculate', it will calculate based on individual component heat capacities and moles. If 'constant', it will use a constant value provided in the model inputs.
+            The mode for calculating the total heat capacity. If 'calculate', it will calculate based on individual component heat capacities and moles. If 'constant', it will use a constant value provided in the custom inputs.
 
         Returns
         -------
@@ -355,7 +355,7 @@ class ReactorAuxiliary:
                 # NOTE: if use_gas_mixture_total_heat_capacity is True, use constant heat capacity from model source
                 if self.Cp_LIQ_MIX_TOTAL is None:
                     raise ValueError(
-                        "Cp_LIQ_MIX_TOTAL must be provided in the thermo model inputs when use_liquid_mixture_total_heat_capacity is True."
+                        "Cp_LIQ_MIX_TOTAL must be provided in the thermo custom inputs when use_liquid_mixture_total_heat_capacity is True."
                     )
 
                 return float(self.Cp_LIQ_MIX_TOTAL.value)
@@ -363,7 +363,7 @@ class ReactorAuxiliary:
                 # NOTE: if use_liquid_mixture_volumetric_heat_capacity is True, use constant volumetric heat capacity from model source
                 if self.Cp_LIQ_MIX_VOLUMETRIC is None:
                     raise ValueError(
-                        "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
+                        "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo custom inputs when use_liquid_mixture_volumetric_heat_capacity is True."
                     )
 
                 return float(self.Cp_LIQ_MIX_VOLUMETRIC.value)*reactor_volume
@@ -412,7 +412,7 @@ class ReactorAuxiliary:
         volumetric_flow_rate : float
             Volumetric flow rate of the liquid mixture (in m3/s).
         mode : Literal['calculate', 'constant']
-            The mode for calculating the total flowing heat capacity. If 'calculate', it will calculate based on individual component heat capacities and molar flow rates. If 'constant', it will use a constant value provided in the model inputs.
+            The mode for calculating the total flowing heat capacity. If 'calculate', it will calculate based on individual component heat capacities and molar flow rates. If 'constant', it will use a constant value provided in the custom inputs.
 
         Returns
         -------
@@ -423,7 +423,7 @@ class ReactorAuxiliary:
             # NOTE: calculate volumetric heat capacity of liquid mixture [J/m3.K]
             if self.Cp_LIQ_MIX_VOLUMETRIC is None:
                 raise ValueError(
-                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
+                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo custom inputs when use_liquid_mixture_volumetric_heat_capacity is True."
                 )
 
             # ! total flowing heat capacity of liquid mixture [J/s.K] = volumetric heat capacity [J/m3.K] * volumetric flow rate [m3/s]
@@ -468,7 +468,7 @@ class ReactorAuxiliary:
         temperature : Temperature
             Current temperature of the system (in K).
         mode : Literal['calculate', 'constant']
-            The mode for calculating the volumetric heat capacity. If 'calculate', it will calculate based on individual component heat capacities and concentrations. If 'constant', it will use a constant value provided in the model inputs.
+            The mode for calculating the volumetric heat capacity. If 'calculate', it will calculate based on individual component heat capacities and concentrations. If 'constant', it will use a constant value provided in the custom inputs.
 
         Returns
         -------
@@ -479,7 +479,7 @@ class ReactorAuxiliary:
             # NOTE: calculate volumetric heat capacity of liquid mixture
             if self.Cp_LIQ_MIX_VOLUMETRIC is None:
                 raise ValueError(
-                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo model inputs when use_liquid_mixture_volumetric_heat_capacity is True."
+                    "Cp_LIQ_MIX_VOLUMETRIC must be provided in the thermo custom inputs when use_liquid_mixture_volumetric_heat_capacity is True."
                 )
 
             return float(self.Cp_LIQ_MIX_VOLUMETRIC.value)
@@ -694,7 +694,7 @@ class ReactorAuxiliary:
         np.ndarray
             An array of enthalpy changes for each reaction in the reactor, calculated based on the current temperature.
         """
-        # NOTE: if reaction enthalpy mode is "reaction", use reaction enthalpies from model inputs
+        # NOTE: if reaction enthalpy mode is "reaction", use reaction enthalpies from custom inputs
         if self.dH_rxns is not None:
             # ΔH_k [J/mol]
             return self.dH_rxns
