@@ -8,11 +8,11 @@ from pyThermoLinkDB.models import ModelSource
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pyreactlab_core.models.reaction import Reaction
 from pythermocalcdb.reactions.reactions import dH_rxn_STD
-from pythermocalcdb.docs.thermo import calc_En_IG_ref, calc_En, calc_En_IG_ref_hsg, calc_En_hsg
+from pythermocalcdb.docs.thermo import calc_En_IG_ref, calc_En
 from pythermocalcdb.reactions.source import dH_rxn_STD as dH_rxn_reactions
 from pythermocalcdb.models import ComponentEnthalpy
 from pyreactsim_core.models import ReactionRateExpression
-# locals
+# ! locals
 from .thermo_custom_inputs import ThermoCustomInputs
 from .thermo_model_source import ThermoModelSource
 from .thermo_reaction import ThermoReaction
@@ -26,12 +26,15 @@ from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
 from .source_utils import SourceUtils
+from .thermo_property_fields import ThermoPropertyFields
+from .thermo_config import CUSTOM_INPUTS_ATTR_CONFIG, MODEL_SOURCE_ATTR_CONFIG, AVAILABLE_VARIABLES
+from ..models.ref import ReactorSourceModel
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class ThermoSourceCore(ThermoCalc, SourceUtils):
+class ThermoSourceCore(ThermoCalc, SourceUtils, ThermoPropertyFields):
     """
     THermo class for handling thermodynamic calculations and properties related to chemical reactions and processes. This class provides methods for calculating various thermodynamic properties, such as heat capacities, enthalpies, and entropies, as well as methods for performing energy balance calculations in chemical systems.
     """
@@ -132,174 +135,109 @@ class ThermoSourceCore(ThermoCalc, SourceUtils):
         # ! reaction enthalpy source
         self.reaction_enthalpy_source = reactor_options.reaction_enthalpy_source
 
+        # NOTE: all configured thermodynamic property sources from reactor options
+        self.thermo_property_sources = self._collect_thermo_property_sources(
+            reactor_options=reactor_options
+        )
+
         # SECTION: heat transfer options
         # ! heat transfer mode
         self.heat_transfer_mode = self.heat_transfer_options.heat_transfer_mode
 
         # SECTION: Thermodynamic properties
+        self._launch()
 
-        # ! Ideal Gas Heat Capacity at reference temperature (e.g., 298 K)
-        # ?? source/value/comp
-        # self.Cp_IG_src: Dict[
-        #     str,
-        #     ComponentEquationSource
-        # ] = self.thermo_model_source.Cp_IG_src
-        # >> constant heat capacity
-        # ! to J/mol.K
-        # self.Cp_IG = self.thermo_custom_inputs.Cp_IG
-        # self.Cp_IG_comp = self.thermo_custom_inputs.Cp_IG_comp
-
-        # assign
-        (
-            self.Cp_IG,
-            self.Cp_IG_comp,
-            self.Cp_IG_src
-        ) = self.equation_source_assigner(
-            symbol="Cp_IG",
-        )
-
-        # NOTE: calculate heat capacity change for the reactions using the constant heat capacity values
+        # NOTE: calculate derived properties after core assignments
         # ! to J/K
         self.dCp_rxns = self.calc_dCp_IG()
-
-        # SECTION: Ideal Gas Enthalpy of formation at 298 K
-        # self.EnFo_IG_298_src: Dict[
-        #     str,
-        #     Dict[str, Any]
-        # ] = self.thermo_model_source.EnFo_IG_298_src
-        # ! values in J/mol
-        # if len(self.EnFo_IG_298_src) > 0:
-        #     # >> from model source
-        #     self.EnFo_IG_298 = self.thermo_model_source.EnFo_IG_298
-        #     self.EnFo_IG_298_comp = self.thermo_model_source.EnFo_IG_298_comp
-        # else:
-        #     # >> from model inputs
-        #     self.EnFo_IG_298 = self.thermo_custom_inputs.EnFo_IG_298
-        #     self.EnFo_IG_298_comp = self.thermo_custom_inputs.EnFo_IG_298_comp
-
-        # assign
-        (
-            self.EnFo_IG_298,
-            self.EnFo_IG_298_comp,
-            self.EnFo_IG_298_src
-        ) = self.data_source_assigner(
-            symbol="EnFo_IG_298",
-        )
-
-        # dH_rxn at 298 K
         # ! values in J/mol
         self.dH_rxns_298 = self.calc_dH_rxns_298()
 
-        # dH_rxn at temperature T
-        # ! values in J/mol
-        # self.dH_rxns = self.thermo_custom_inputs.dH_rxn
+    # NOTE: placeholder for launch method to be implemented in ThermoSource
+    def _launch(
+            self,
+    ):
+        # NOTE: merge configs and assign all known variables using the unified assigner
+        all_config = {
+            **CUSTOM_INPUTS_ATTR_CONFIG,
+            **MODEL_SOURCE_ATTR_CONFIG,
+        }
 
-        # assign
-        self.dH_rxns = self.properties_assigner(
-            symbol="dH_rxn",
-        )
+        # NOTE: backward-compatible mapping for legacy assigner labels
+        assigner_mode_map = {
+            "data-source": "data",
+            "equation-source": "equation",
+            "property": "constant",
+            "properties": "constants",
+        }
 
-        # SECTION: molecular weight (MW)
-        # self.MW_src: Dict[
-        #     str,
-        #     Dict[str, Any]
-        # ] = self.thermo_model_source.MW_src
-        # ! values in g/mol
-        # if len(self.MW_src) > 0:
-        #     self.MW = self.thermo_model_source.MW
-        #     self.MW_comp = self.thermo_model_source.MW_comp
-        # else:
-        #     self.MW = self.thermo_custom_inputs.MW
-        #     self.MW_comp = self.thermo_custom_inputs.MW_comp
+        # deterministic order for reproducibility
+        for symbol in sorted(AVAILABLE_VARIABLES):
+            config = all_config.get(symbol)
+            if config is None:
+                continue
 
-        # assign
-        (
-            self.MW,
-            self.MW_comp,
-            self.MW_src
-        ) = self.data_source_assigner(
-            symbol="MW",
-        )
+            mode_raw = cast(str, config.get("assigner", ""))
+            mode = assigner_mode_map.get(mode_raw, mode_raw)
 
-        # SECTION: liquid density
-        # self.rho_LIQ_src: Dict[
-        #     str,
-        #     ComponentEquationSource
-        # ] = self.thermo_model_source.rho_LIQ_src
-        # ! values in g/m3
-        # self.rho_LIQ = self.thermo_custom_inputs.rho_LIQ
-        # self.rho_LIQ_comp = self.thermo_custom_inputs.rho_LIQ_comp
+            if mode not in {"data", "equation", "constant", "constants"}:
+                logger.warning(
+                    "Unknown assigner mode '%s' for symbol '%s'. Skipping.",
+                    mode_raw,
+                    symbol
+                )
+                continue
 
-        # assign
-        (
-            self.rho_LIQ,
-            self.rho_LIQ_comp,
-            self.rho_LIQ_src
-        ) = self.equation_source_assigner(
-            symbol="rho_LIQ",
-        )
+            res = self.assigner(
+                symbol=symbol,
+                mode=cast(Any, mode),
+            )
 
-        # NOTE: mixture liquid density (average)
-        # ! values in g/m3
-        # self.rho_LIQ_MIX = self.thermo_custom_inputs.rho_LIQ_MIX
+            if mode in {"data", "equation"}:
+                values, values_comp, source = cast(
+                    Tuple[np.ndarray, Dict[str, float], Dict[str, Any]],
+                    res
+                )
+                setattr(self, symbol, values)
+                setattr(self, f"{symbol}_comp", values_comp)
+                setattr(self, f"{symbol}_src", source)
+                continue
 
-        # assign
-        self.rho_LIQ_MIX = self.property_assigner(
-            symbol="rho_LIQ_MIX",
-        )
+            # constant / constants
+            setattr(self, symbol, res)
 
-        # SECTION: heat capacity at liquid phase (Cp_LIQ)
-        # self.Cp_LIQ_src: Dict[
-        #     str,
-        #     ComponentEquationSource
-        # ] = self.thermo_model_source.Cp_LIQ_src
-        # ! values in J/mol.K
-        # self.Cp_LIQ = self.thermo_custom_inputs.Cp_LIQ
-        # self.Cp_LIQ_comp = self.thermo_custom_inputs.Cp_LIQ_comp
+    # NOTE: helper method to collect all configured thermodynamic property sources from reactor options
+    def _collect_thermo_property_sources(
+            self,
+            reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
+    ) -> Dict[str, Optional[str]]:
+        """
+        Collect all source-selector fields defined on ReactorSourceModel from reactor options.
 
-        # assign
-        (
-            self.Cp_LIQ,
-            self.Cp_LIQ_comp,
-            self.Cp_LIQ_src
-        ) = self.equation_source_assigner(
-            symbol="Cp_LIQ",
-        )
+        Returns
+        -------
+        Dict[str, Optional[str]]
+            Mapping of source alias (e.g. ``Cp_IG_src``) to configured source
+            value (``custom_inputs`` or ``model_source``), or ``None`` when unset.
+        """
+        res: Dict[str, Optional[str]] = {}
 
-        # SECTION: total heat capacity of gas mixture (Cp_IG_MIX_TOTAL)
-        self.Cp_IG_MIX_TOTAL = self.property_assigner(
-            symbol="Cp_IG_MIX_TOTAL",
-        )
+        # pydantic v2 field metadata
+        for field_name, field_info in ReactorSourceModel.model_fields.items():
+            alias = field_info.alias or field_name
+            value = getattr(reactor_options, field_name, None)
+            res[alias] = value
 
-        # SECTION: total heat capacity of liquid mixture (Cp_LIQ_MIX_TOTAL)
-        self.Cp_LIQ_MIX_TOTAL = self.property_assigner(
-            symbol="Cp_LIQ_MIX_TOTAL",
-        )
-
-        # SECTION: volumetric heat capacity of liquid mixture (Cp_LIQ_MIX_VOLUMETRIC)
-        self.Cp_LIQ_MIX_VOLUMETRIC = self.property_assigner(
-            symbol="Cp_LIQ_MIX_VOLUMETRIC",
-        )
+        return res
 
     # SECTION: Thermodynamic property calculations
     # ! Calculate heat capacity at ideal gas for the components (Cp_IG)
-
     def calc_Cp_IG(
             self,
             temperature: Temperature,
     ):
         """
         Calculate the ideal gas heat capacity (Cp_IG) in J/mol.K for the components in the batch reactor at the specified temperature.
-
-        Parameters
-        ----------
-        temperature : Temperature
-            The temperature at which to calculate the ideal gas heat capacity (Cp_IG) for the components in the batch reactor.
-
-        Returns
-        -------
-        np.ndarray
-            An array of ideal gas heat capacity (Cp_IG) values for the components in the batch reactor, calculated at the specified temperature.
         """
         # NOTE: check heat transfer mode
         if self.heat_transfer_mode == "isothermal":
