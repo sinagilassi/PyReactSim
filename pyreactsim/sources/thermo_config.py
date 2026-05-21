@@ -26,6 +26,7 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "data-source"
     },
     "Cp_LIQ": {
         "description": "Liquid heat capacity for each component.",
@@ -44,6 +45,7 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "data-source"
     },
     "rho_LIQ": {
         "description": "Liquid density for each component.",
@@ -62,6 +64,7 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal", "isothermal"],
             }
         },
+        "assigner": "data-source"
     },
     "rho_LIQ_MIX": {
         "description": "Mixture liquid density.",
@@ -80,6 +83,7 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal", "isothermal"],
             }
         },
+        "assigner": "property"
     },
     "MW": {
         "description": "Molecular weight for each component.",
@@ -98,6 +102,7 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal", "isothermal"],
             }
         },
+        "assigner": "data-source"
     },
     "EnFo_IG_298": {
         "description": "Ideal gas formation enthalpy at 298 K for each component.",
@@ -116,6 +121,8 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "data-source",
+        "executer": "calc_dH_rxns_298",
     },
     "dH_rxn": {
         "description": "Reaction enthalpy for each reaction in the system.",
@@ -134,6 +141,7 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "properties"
     },
     "Cp_IG_MIX_TOTAL": {
         "description": "Total heat capacity of gas mixture.",
@@ -152,6 +160,7 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "property"
     },
     "Cp_LIQ_MIX_TOTAL": {
         "description": "Total heat capacity of liquid mixture.",
@@ -170,6 +179,7 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "property"
     },
     "Cp_LIQ_MIX_VOLUMETRIC": {
         "description": "Volumetric heat capacity of liquid mixture.",
@@ -188,6 +198,7 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "property"
     },
 }
 
@@ -265,7 +276,7 @@ CUSTOM_INPUTS_CRITERIA = {
 MODEL_SOURCE_ATTR_CONFIG = {
     "Cp_IG": {
         "description": "Ideal gas heat capacity equation source for each component.",
-        "method": "property-equation-source",
+        "method": "equation-source",
         "prop_name": "Cp_IG",
         "unit_conversion_func": None,
         "expected_unit": None,
@@ -280,10 +291,11 @@ MODEL_SOURCE_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "equation-source",
     },
     "EnFo_IG_298": {
         "description": "Ideal gas formation enthalpy at 298 K data source for each component.",
-        "method": "property-data-source",
+        "method": "data-source",
         "prop_name": "EnFo_IG",
         "unit_conversion_func": to_J_per_mol,
         "expected_unit": "J/mol",
@@ -298,10 +310,12 @@ MODEL_SOURCE_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "data-source",
+        "executer": "calc_dH_rxns_298",
     },
     "MW": {
         "description": "Molecular weight data source for each component.",
-        "method": "property-data-source",
+        "method": "data-source",
         "prop_name": "MW",
         "unit_conversion_func": to_g_per_mol,
         "expected_unit": "g/mol",
@@ -316,10 +330,11 @@ MODEL_SOURCE_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal", "isothermal"],
             }
         },
+        "assigner": "data-source",
     },
     "rho_LIQ": {
         "description": "Liquid density equation source for each component.",
-        "method": "property-equation-source",
+        "method": "equation-source",
         "prop_name": "rho_LIQ",
         "unit_conversion_func": None,
         "expected_unit": None,
@@ -334,10 +349,11 @@ MODEL_SOURCE_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal", "isothermal"],
             }
         },
+        "assigner": "equation-source",
     },
     "Cp_LIQ": {
         "description": "Liquid heat capacity equation source for each component.",
-        "method": "property-equation-source",
+        "method": "equation-source",
         "prop_name": "Cp_LIQ",
         "unit_conversion_func": None,
         "expected_unit": None,
@@ -352,6 +368,7 @@ MODEL_SOURCE_ATTR_CONFIG = {
                 "heat_transfer_mode": ["non-isothermal"],
             }
         },
+        "assigner": "equation-source",
     },
 }
 
