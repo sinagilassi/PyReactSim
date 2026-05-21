@@ -39,12 +39,15 @@ class ThermoModelSource(ThermoSourceConfig):
     """
 
     # NOTE: Attributes
+    # ?? equation sources
     # ! ideal gas heat capacity
     Cp_IG_src: Dict[str, ComponentEquationSource] = {}
     # ! liquid heat capacity
     Cp_LIQ_src: Dict[str, ComponentEquationSource] = {}
     # ! liquid density
     rho_LIQ_src: Dict[str, ComponentEquationSource] = {}
+
+    # ?? data source
     # ! enthalpy of formation at 298 K for ideal gas
     EnFo_IG_298_src: Dict[str, Dict[str, Any]] = {}
     EnFo_IG_298: np.ndarray = np.array([])
@@ -127,7 +130,7 @@ class ThermoModelSource(ThermoSourceConfig):
             phase_criteria = config.get("phase", {})
             heat_transfer_mode_criteria = config.get("heat_transfer_mode", {})
 
-            if method == "property-equation-source":
+            if method == "equation-source":
                 # ! extract property equation source and set attribute
                 eq_src = self._config_property_equation_source(
                     prop_name=prop_name,
@@ -140,7 +143,7 @@ class ThermoModelSource(ThermoSourceConfig):
                 if eq_src is not None:
                     if hasattr(self, f"{attr}_src"):
                         setattr(self, f"{attr}_src", eq_src)
-            elif method == "property-data-source":
+            elif method == "data-source":
                 # ! extract property data source, configure property values and set attributes
                 if unit_conversion_func is None:
                     raise ValueError(
