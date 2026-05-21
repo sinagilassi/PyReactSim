@@ -1,7 +1,7 @@
 # import libs
 import logging
 import numpy as np
-from typing import Dict, Any, Literal, Tuple, List, Optional
+from typing import Dict, Any, Literal, Tuple, List, Optional, TypeAlias
 from pythermodb_settings.models import CustomProp
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 # locals
@@ -10,6 +10,25 @@ from .thermo_model_source import ThermoModelSource
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
+
+
+# NOTE: Models
+# ! data source assigner
+DataSourceAssignerResult: TypeAlias = Tuple[
+    np.ndarray,
+    Dict[str, float],
+    Dict[str, Any]
+]
+# ! equation source assigner
+EquationSourceAssignerResult: TypeAlias = Tuple[
+    np.ndarray,
+    Dict[str, float],
+    Dict[str, ComponentEquationSource]
+]
+# ! property constant assigner
+PropertyConstantAssignerResult: TypeAlias = Optional[CustomProp]
+# ! properties constant assigner
+PropertiesConstantAssignerResult: TypeAlias = Optional[Dict[str, Dict[str, Any]]]
 
 
 class SourceUtils:
@@ -27,7 +46,7 @@ class SourceUtils:
     def data_source_assigner(
             self,
             symbol: str,
-    ) -> Tuple[np.ndarray, Dict[str, float], Dict[str, Any]]:
+    ) -> DataSourceAssignerResult:
         """
         Assigns property values based on the source, checking custom inputs first, then model source. Returns the property values and component-specific values if available.
 
@@ -38,7 +57,7 @@ class SourceUtils:
 
         Returns
         -------
-        Tuple[np.ndarray, Dict[str, float]]
+        DataSourceAssignerResult
             A tuple containing the property values (if any) and component-specific values (if any).
 
         Notes
@@ -98,11 +117,7 @@ class SourceUtils:
     def equation_source_assigner(
         self,
         symbol: str,
-    ) -> Tuple[
-        np.ndarray,
-        Dict[str, float],
-        Dict[str, ComponentEquationSource]
-    ]:
+    ) -> EquationSourceAssignerResult:
         """
         Assigns property equations based on the source, checking model source first, then custom inputs. Returns the property values, component-specific values, and equation sources if available.
 
@@ -113,7 +128,7 @@ class SourceUtils:
 
         Returns
         -------
-        Tuple[np.ndarray, Dict[str, float], Dict[str, ComponentEquationSource]]
+        EquationSourceAssignerResult
             A tuple containing the property values (if any), component-specific values (if any), and equation sources (if any).
 
         Notes
@@ -132,7 +147,7 @@ class SourceUtils:
         # >>> init res
         _values = np.array([])
         _values_comp = {}
-        _source = {}
+        _source: Dict[str, ComponentEquationSource] = {}
 
         # NOTE: assign property equations based on source
         # ! check attribute in model source
@@ -170,10 +185,10 @@ class SourceUtils:
         return _values, _values_comp, _source
 
     # SECTION: data source assigner method
-    def property_assigner(
+    def property_constant_assigner(
         self,
         symbol: str,
-    ) -> CustomProp | None:
+    ) -> PropertyConstantAssignerResult:
         """
         Assigns property source information based on the source, checking custom inputs first, then model source. Returns the property source information if available. The symbol is used to directly access the corresponding attribute in the custom inputs or model source.
 
@@ -184,7 +199,7 @@ class SourceUtils:
 
         Returns
         -------
-        CustomProp | None
+        PropertyConstantAssignerResult
             A dictionary containing the property source information if available, or None.
         Notes
         -----
@@ -194,7 +209,7 @@ class SourceUtils:
         - The properties which are usually constant (e.g., standard enthalpy of formation at 298 K) are extracted using this method.
         """
         # >>> init res
-        prop_symbol = None
+        prop_symbol: CustomProp | None = None
 
         # NOTE: assign property source information based on source
         # ! check attribute in custom inputs
@@ -218,10 +233,10 @@ class SourceUtils:
         # ! if no source found, return empty values
         return prop_symbol
 
-    def properties_assigner(
+    def properties_constant_assigner(
             self,
             symbol: str
-    ) -> Optional[Dict[str, Dict[str, Any]]]:
+    ) -> PropertiesConstantAssignerResult:
         """
         Assigns component-specific property source information based on the source, checking custom inputs first, then model source. Returns a dictionary containing the component-specific property source information if available.
 
@@ -232,11 +247,11 @@ class SourceUtils:
 
         Returns
         -------
-        Optional[Dict[str, Dict[str, Any]]]
+        PropertiesConstantAssignerResult
             A dictionary containing the component-specific property source information if available, or None.
         """
         # >>> init res
-        prop_symbol = None
+        prop_symbol: Dict[str, Dict[str, Any]] | None = None
 
         # NOTE: assign component-specific property source information based on source
         # ! check attribute in custom inputs
@@ -259,3 +274,41 @@ class SourceUtils:
 
         # ! if no source found, return empty values
         return prop_symbol
+
+    # SECTION: Intelligent property assigner method
+    def assigner(
+            self,
+            symbol: str,
+            mode: Literal[
+                'data',
+                'equation',
+                'constant',
+                'constants',
+            ]
+    ) -> DataSourceAssignerResult | EquationSourceAssignerResult | PropertyConstantAssignerResult | PropertiesConstantAssignerResult:
+        """
+        Assigns property values, equations, or source information based on the specified mode, checking custom inputs first, then model source. Returns the assigned values, equations, or source information based on the mode.
+
+        Parameters
+        ----------
+        symbol : str
+            The symbol representing the property to assign (e.g., 'EnFo_IG_298').
+        mode : Literal['data', 'equation', 'constant', 'constants']
+            The mode of assignment, which determines whether to assign property values ('data'), equations ('equation'), a single property source ('constant'), or component-specific property sources ('constants').
+
+        Returns
+        -------
+        DataSourceAssignerResult | EquationSourceAssignerResult | PropertyConstantAssignerResult | PropertiesConstantAssignerResult
+            The assigned property values, equations, or source information based on the specified mode.
+        """
+        if mode == 'data':
+            return self.data_source_assigner(symbol)
+        elif mode == 'equation':
+            return self.equation_source_assigner(symbol)
+        elif mode == 'constant':
+            return self.property_constant_assigner(symbol)
+        elif mode == 'constants':
+            return self.properties_constant_assigner(symbol)
+        else:
+            raise ValueError(
+                f"Invalid mode: {mode}. Must be one of 'data', 'equation', 'property_constant', or 'properties_constant'.")
