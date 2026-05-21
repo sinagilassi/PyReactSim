@@ -127,7 +127,7 @@ class ThermoSource(ThermoSourceCore):
             reaction_rates=reaction_rates,
             component_key=component_key,
             thermo_model_source=ThermoModelSource_,
-            thermo_model_inputs=ThermoModelInputs_,
+            thermo_custom_inputs=ThermoModelInputs_,
             thermo_reaction=ThermoReaction_,
             component_refs=component_refs,
         )
