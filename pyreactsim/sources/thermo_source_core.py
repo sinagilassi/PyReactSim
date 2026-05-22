@@ -131,7 +131,11 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
         # ! heat transfer mode
         self.heat_transfer_mode = self.heat_transfer_options.heat_transfer_mode
 
-        # SECTION: launch to config properties based on source configuration
+    # SECTION: Initialization
+    def initialize(
+            self,
+    ):
+        # NOTE: launch thermo source construction process based on the provided configuration
         self.launch()
 
         # NOTE: calculate derived properties after core assignments
