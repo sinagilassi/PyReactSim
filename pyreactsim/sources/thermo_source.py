@@ -93,7 +93,7 @@ class ThermoSource(ThermoSourceCore):
             component_key=component_key,
         )
 
-        # section: Initialize ThermoSourceCore
+        # SECTION: Initialize ThermoSourceCore
         ThermoSourceCore.__init__(
             self,
             components=components,
