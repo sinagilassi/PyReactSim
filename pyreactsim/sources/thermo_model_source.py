@@ -126,7 +126,7 @@ class ThermoModelSource(ThermoSourceConfig):
             method = config["method"]
             prop_name = config["prop_name"]
             unit_conversion_func = config.get("unit_conversion_func")
-            prop_criteria = self.criteria.get(prop_name, {})
+            prop_criteria = self.criteria.get(attr, {})
             phase_criteria = config.get("phase", {})
             heat_transfer_mode_criteria = config.get("heat_transfer_mode", {})
 

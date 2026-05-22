@@ -34,7 +34,7 @@ MODEL_SOURCE_ATTR_CONFIG = {
         "description": "Ideal gas formation enthalpy at 298 K data source for each component.",
         "method": "data-source",
         "prop_symbol": "EnFo_IG_298",
-        "prop_name": "EnFo_IG",
+        "prop_name": "EnFo_IG",  # 1 used to retrieved from model source
         "prop_source": "ideal_gas_formation_enthalpy_source",
         "unit_conversion_func": to_J_per_mol,
         "expected_unit": "J/mol",
@@ -125,8 +125,9 @@ MODEL_SOURCE_CRITERIA = {
             "gas_heat_capacity_source": ["model_source"],
         }
     },
-    "EnFo_IG": {
+    "EnFo_IG_298": {
         "all": {
+            "ideal_gas_formation_enthalpy_mode": ["temperature-dependent"],
             "ideal_gas_formation_enthalpy_source": ["model_source"],
         },
         "not": {
@@ -370,51 +371,52 @@ CUSTOM_INPUTS_ATTR_CONFIG = {
 
 # NOTE: criteria for model inputs
 CUSTOM_INPUTS_CRITERIA = {
-    "gas_heat_capacity": {
+    "Cp_IG": {
         "all": {
             "gas_heat_capacity_mode": ["constant"],
             "gas_heat_capacity_source": ["custom_inputs"],
         }
     },
-    "ideal_gas_formation_enthalpy": {
+    "EnFo_IG_298": {
         "all": {
+            "ideal_gas_formation_enthalpy_mode": ["constant"],
             "ideal_gas_formation_enthalpy_source": ["custom_inputs"],
         },
         "not": {
             "reaction_enthalpy_mode": ["reaction"],
         }
     },
-    "reaction_enthalpy": {
+    "dH_rxn": {
         "all": {
             "reaction_enthalpy_mode": ["reaction"],
             "reaction_enthalpy_source": ["custom_inputs"],
         }
     },
-    "gas_mixture_total_heat_capacity": {
+    "Cp_IG_MIX_TOTAL": {
         "all": {
             "use_gas_mixture_total_heat_capacity": [True],
             "gas_mixture_total_heat_capacity_source": ["custom_inputs"],
         }
     },
-    "liquid_heat_capacity": {
+    "Cp_LIQ": {
         "all": {
             "liquid_heat_capacity_mode": ["constant"],
             "liquid_heat_capacity_source": ["custom_inputs"],
         }
     },
-    "liquid_density": {
+    "rho_LIQ": {
         "all": {
             "liquid_density_mode": ["constant"],
             "liquid_density_source": ["custom_inputs"],
         }
     },
-    "liquid_density_mixture": {
+    "rho_LIQ_MIX": {
         "all": {
             "liquid_density_mode": ["mixture"],
             "liquid_density_source": ["custom_inputs"],
         }
     },
-    "molecular_weight": {
+    "MW": {
         "all": {
             "molecular_weight_source": ["custom_inputs"],
         },
@@ -422,13 +424,13 @@ CUSTOM_INPUTS_CRITERIA = {
             "operation_mode": ["variable_volume", "constant_pressure"],
         }
     },
-    "liquid_mixture_total_heat_capacity": {
+    "Cp_LIQ_MIX_TOTAL": {
         "all": {
             "use_liquid_mixture_total_heat_capacity": [True],
             "liquid_mixture_total_heat_capacity_source": ["custom_inputs"],
         }
     },
-    "liquid_mixture_volumetric_heat_capacity": {
+    "Cp_LIQ_MIX_VOLUMETRIC": {
         "all": {
             "use_liquid_mixture_volumetric_heat_capacity": [True],
             "liquid_mixture_volumetric_heat_capacity_source": ["custom_inputs"],

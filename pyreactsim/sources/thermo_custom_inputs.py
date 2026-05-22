@@ -144,14 +144,16 @@ class ThermoCustomInputs(ThermoSourceConfig):
 
         # NOTE: configure properties based on the defined methods and criteria
         for attr, config in self.attr_config.items():
+            # ! config details
             method = config["method"]
             prop_name = config["prop_name"]
             unit_conversion_func = config["unit_conversion_func"]
             expected_unit = config["expected_unit"]
             strict_unit_check = config["strict_unit_check"]
-            prop_criteria = self.criteria.get(prop_name, {})
             phase_criteria = config.get("phase", {})
             heat_transfer_mode_criteria = config.get("heat_transfer_mode", {})
+            # ! criteria
+            prop_criteria = self.criteria.get(attr, {})
 
             if method == "property-source":
                 # ! property source configuration

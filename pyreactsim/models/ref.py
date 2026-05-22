@@ -124,6 +124,10 @@ class ReactorModeModel(BaseModel):
         default=None,
         description="Mode for ideal gas formation enthalpy calculation as constant"
     )
+    molecular_weight_mode: Optional[Literal['constant']] = Field(
+        default=None,
+        description="Mode for molecular weight calculation as constant"
+    )
 
 # SECTION: Reactor use model
 
