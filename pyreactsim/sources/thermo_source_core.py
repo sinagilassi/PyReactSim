@@ -122,9 +122,11 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
         self.ideal_gas_formation_enthalpy_source = reactor_options.ideal_gas_formation_enthalpy_source
         # ! molecular weight mode
         self.molecular_weight_source = reactor_options.molecular_weight_source
-        # ! reaction enthalpy mode
+
+        # ?? reaction enthalpy
+        # > mode
         self.reaction_enthalpy_mode = reactor_options.reaction_enthalpy_mode
-        # ! reaction enthalpy source
+        # > source
         self.reaction_enthalpy_source = reactor_options.reaction_enthalpy_source
 
         # SECTION: heat transfer options
@@ -138,12 +140,6 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
         # NOTE: launch thermo source construction process based on the provided configuration
         self.launch()
 
-        # NOTE: calculate derived properties after core assignments
-        # ! to J/K
-        self.dCp_rxns = self.calc_dCp_IG()
-        # ! values in J/mol
-        self.dH_rxns_298 = self.calc_dH_rxns_298()
-
     # SECTION: Thermodynamic property calculations
     # ! Calculate heat capacity at ideal gas for the components (Cp_IG)
 
@@ -152,7 +148,7 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
             temperature: Temperature,
     ):
         """
-        Calculate the ideal gas heat capacity (Cp_IG) in J/mol.K for the components in the batch reactor at the specified temperature.
+        Calculate the ideal gas heat capacity (Cp_IG) in J/mol.K for the components in the  reactor at the specified temperature.
         """
         # NOTE: check heat transfer mode
         if self.heat_transfer_mode == "isothermal":
@@ -197,7 +193,7 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
             inputs: Dict[str, Any],
     ) -> np.ndarray:
         """
-        Calculate the ideal gas heat capacity (Cp_IG) in J/mol.K for the components in the batch reactor at the specified temperature using temperature-dependent heat capacity values.
+        Calculate the ideal gas heat capacity (Cp_IG) in J/mol.K for the components in the  reactor at the specified temperature using temperature-dependent heat capacity values.
         """
         # NOTE: extract Cp_IG at reference temperature (e.g., 298 K)
         Cp_IG_ref: Dict[str, CustomProperty] = {}
@@ -305,7 +301,7 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
             inputs: Dict[str, Any],
     ) -> np.ndarray:
         """
-        Calculate the liquid phase heat capacity (Cp_LIQ) in J/mol.K for the components in the batch reactor at the specified temperature using temperature-dependent heat capacity values.
+        Calculate the liquid phase heat capacity (Cp_LIQ) in J/mol.K for the components in the  reactor at the specified temperature using temperature-dependent heat capacity values.
         """
         # NOTE: extract Cp_LIQ at reference temperature (e.g., 298 K)
         Cp_LIQ_ref: Dict[str, CustomProperty] = {}
@@ -508,7 +504,7 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
         return res
 
     # ! Calculate reaction enthalpies (ΔH) for reactions at temperature T
-    def calc_dH_rxns(
+    def calc_dH_rxns_IG(
             self,
             temperature: Temperature,
     ) -> np.ndarray:
@@ -557,18 +553,18 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
             temperature: Temperature,
     ) -> np.ndarray:
         """
-        Calculate the reaction enthalpies (ΔH) in J/mol for the reactions in the gas-phase batch reactor using the provided reaction rates and components.
+        Calculate the reaction enthalpies (ΔH) in J/mol for the reactions in the gas-phase  reactor using the provided reaction rates and components.
 
         Parameters
         ----------
         temperature : Temperature
             The temperature at which to calculate the reaction enthalpies (ΔH) for the reactions
-            in the gas-phase batch reactor.
+            in the gas-phase  reactor.
 
         Returns
         -------
         np.ndarray
-            An array of reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor, calculated at the specified temperature.
+            An array of reaction enthalpies (ΔH) for the reactions in the gas-phase  reactor, calculated at the specified temperature.
         """
         # create model source
         model_source = self.source.model_source
@@ -635,13 +631,19 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
         Returns
         -------
         np.ndarray
-            An array of average reaction enthalpies (ΔH) for the reactions in the gas-phase batch reactor, calculated at the specified temperature.
+            An array of average reaction enthalpies (ΔH) for the reactions in the gas-phase reactor, calculated at the specified temperature.
         """
+        # NOTE: calculate derived properties after core assignments
+        # ! to J/K
+        dCp_rxns = self.calc_dCp_IG()
+        # ! values in J/mol
+        dH_rxns_298 = self.calc_dH_rxns_298()
+
         # res
         dH_rxns = []
 
         # iterate over reactions
-        for rxn, dH_rxn_298, dCp_mix in zip(self.reactions, self.dH_rxns_298, self.dCp_rxns):
+        for rxn, dH_rxn_298, dCp_mix in zip(self.reactions, dH_rxns_298, dCp_rxns):
             # nu
             nu = rxn.reaction_stoichiometry_matrix
             nu = np.array(nu, dtype=float)
@@ -649,6 +651,8 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
             # calculate average reaction enthalpy using the formula:
             # ΔH_rxn_avg = ΔH_rxn_298 + dCp_mix * (T - 298)
             T = to_K(temperature.value, temperature.unit)
+
+            # ?? average reaction enthalpy at temperature T using linear approximation with constant heat capacity
             dH_rxn_avg = dH_rxn_298 + dCp_mix * (T - self.T_ref_K)
 
             # >> check
@@ -670,7 +674,7 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
             self,
     ) -> Dict[str, float]:
         """
-        Configure the unit for the enthalpy of formation at ideal gas at 298 K (EnFo_IG_298) in J/mol for the components in the batch reactor based on the model source and reactor configuration.
+        Configure the unit for the enthalpy of formation at ideal gas at 298 K (EnFo_IG_298) in J/mol for the components in the reactor based on the model source and reactor configuration.
 
         Returns
         -------
@@ -717,7 +721,7 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
             self,
     ) -> Tuple[np.ndarray, Dict[str, float]]:
         """
-        Configure the unit for the molecular weight (MW) for the components in the batch reactor based on the model source and reactor configuration.
+        Configure the unit for the molecular weight (MW) for the components in the  reactor based on the model source and reactor configuration.
 
         Returns
         -------
@@ -827,7 +831,7 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
             inputs: Dict[str, Any],
     ) -> np.ndarray:
         """
-        Calculate the density of the liquid phase in g/m3 for the components in the batch reactor at the specified temperature using temperature-dependent equations of state.
+        Calculate the density of the liquid phase in g/m3 for the components in the  reactor at the specified temperature using temperature-dependent equations of state.
         """
         # NOTE: extract density at reference temperature (e.g., 298 K)
         rho_LIQ_ref: Dict[str, CustomProperty] = {}
@@ -880,14 +884,14 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
         Parameters
         ----------
         temperature : Temperature
-            The temperature at which to calculate the liquid phase enthalpy (En_LIQ) for the components in the batch reactor.
+            The temperature at which to calculate the liquid phase enthalpy (En_LIQ) for the components in the  reactor.
 
         Returns
         -------
         Tuple[Dict[str, CustomProp], np.ndarray]
             A tuple containing:
             - A dictionary where the keys are component IDs and the values are the liquid phase enthalpy values for the components in J/mol, calculated at the specified temperature.
-            - An array of liquid phase enthalpy (En_LIQ) values for the components in the batch reactor, calculated at the specified temperature.
+            - An array of liquid phase enthalpy (En_LIQ) values for the components in the  reactor, calculated at the specified temperature.
         """
         # NOTE: check heat transfer mode
         if self.heat_transfer_mode == "isothermal":
@@ -959,7 +963,10 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
 
         return res, res_array
 
+    # !
+
     # SECTION: Reaction Enthalpy calculations (liquid phase)
+
     def calc_dH_rxns_LIQ(
             self,
             temperature: Temperature,
@@ -1000,6 +1007,9 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
             raise NotImplementedError(
                 "Calculation of reaction enthalpies using liquid phase enthalpy is not implemented yet."
             )
+        elif self.reaction_enthalpy_mode == "reaction":
+            # NOTE: use reaction enthalpy values from model inputs
+            dH_rxns = self.set_dH_rxns()
         else:
             raise ValueError(
                 f"Invalid reaction_enthalpy_mode '{self.reaction_enthalpy_mode}'. Must be 'ideal_gas' or 'liquid'."
@@ -1019,7 +1029,7 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
         Parameters
         ----------
         temperature : Temperature
-            The temperature at which to calculate the reaction enthalpy (ΔH) for the reactions in the batch reactor.
+            The temperature at which to calculate the reaction enthalpy (ΔH) for the reactions in the  reactor.
 
         Returns
         -------
@@ -1076,17 +1086,17 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
 
         return res
 
-    # ! set reaction enthalpy (ΔH) for reactions at temperature T using ideal gas reference state from model inputs
+    # ! set reaction enthalpy (ΔH) for reactions at temperature T from custom inputs for both gas and liquid phase reactors
     def set_dH_rxns(
             self,
     ) -> np.ndarray:
         """
-        Set the reaction enthalpy (ΔH) in J/mol for the reactions in the batch reactor using values from model inputs.
+        Set the reaction enthalpy (ΔH) in J/mol for the reactions in the reactor using values from model inputs.
 
         Returns
         -------
         np.ndarray
-            An array of reaction enthalpy (ΔH) values for the reactions in the batch reactor, set using values from model inputs.
+            An array of reaction enthalpy (ΔH) values for the reactions in the  reactor, set using values from model inputs.
 
         Notes
         -----
@@ -1148,7 +1158,7 @@ class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
         Tuple[Dict[str, CustomProp], np.ndarray]
             A tuple containing:
             - A dictionary where the keys are component IDs and the values are the ideal gas enthalpy values for the components in J/mol, calculated at the specified temperature.
-            - An array of ideal gas enthalpy (En_IG) values for the components in the batch reactor, calculated at the specified temperature.
+            - An array of ideal gas enthalpy (En_IG) values for the components in the  reactor, calculated at the specified temperature.
         """
         # NOTE: check heat transfer mode
         if self.heat_transfer_mode == "isothermal":
