@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 from pythermodb_settings.models import Component, ComponentKey, CustomProp, CustomProperty, Temperature, Pressure
 from pyThermoLinkDB.thermo import Source
 from pyThermoLinkDB.models import ModelSource
-from pyThermoLinkDB.models.component_models import ComponentEquationSource
 from pyreactlab_core.models.reaction import Reaction
 from pythermocalcdb.reactions.reactions import dH_rxn_STD
 from pythermocalcdb.docs.thermo import calc_En_IG_ref, calc_En
@@ -16,25 +15,22 @@ from pyreactsim_core.models import ReactionRateExpression
 from .thermo_custom_inputs import ThermoCustomInputs
 from .thermo_model_source import ThermoModelSource
 from .thermo_reaction import ThermoReaction
-from .interface import exec_component_eq
-from ..utils.unit_tools import to_K, to_J_per_mol, to_g_per_mol
-from ..utils.tools import find_components_property, collect_keys
 from ..models.heat import HeatTransferOptions
-from ..models.br import BatchReactorOptions
 from .thermo_calc import ThermoCalc
+from ..models.br import BatchReactorOptions
 from ..models.cstr import CSTRReactorOptions
 from ..models.pfr import PFRReactorOptions
 from ..models.pbr import PBRReactorOptions
-from .source_utils import SourceUtils
-from .thermo_property_fields import ThermoPropertyFields
-from .thermo_config import CUSTOM_INPUTS_ATTR_CONFIG, MODEL_SOURCE_ATTR_CONFIG, AVAILABLE_VARIABLES
-from ..models.ref import ReactorSourceModel
+from .thermo_source_launcher import ThermoSourceLauncher
+from .interface import exec_component_eq
+from ..utils.unit_tools import to_K, to_J_per_mol, to_g_per_mol
+from ..utils.tools import find_components_property
 
 # NOTE: logger setup
 logger = logging.getLogger(__name__)
 
 
-class ThermoSourceCore(ThermoCalc, SourceUtils, ThermoPropertyFields):
+class ThermoSourceCore(ThermoCalc, ThermoSourceLauncher):
     """
     THermo class for handling thermodynamic calculations and properties related to chemical reactions and processes. This class provides methods for calculating various thermodynamic properties, such as heat capacities, enthalpies, and entropies, as well as methods for performing energy balance calculations in chemical systems.
     """
@@ -64,11 +60,13 @@ class ThermoSourceCore(ThermoCalc, SourceUtils, ThermoPropertyFields):
         """
         # LINK: ThermoCalc for thermodynamic property calculations
         ThermoCalc.__init__(self)
-        # LINK: SourceUtils for property assignment based on source configuration
-        SourceUtils.__init__(
+
+        # LINK: ThermoSourceLauncher for launching the thermo source construction process based on the provided configuration
+        ThermoSourceLauncher.__init__(
             self,
-            thermo_custom_inputs=thermo_custom_inputs,
             thermo_model_source=thermo_model_source,
+            thermo_custom_inputs=thermo_custom_inputs,
+            reactor_options=reactor_options,
         )
 
         # SECTION: Set attributes
@@ -111,12 +109,6 @@ class ThermoSourceCore(ThermoCalc, SourceUtils, ThermoPropertyFields):
         # ! hsg reactions
         self.hsg_reactions = self.thermo_reaction.hsg_reactions
 
-        # SECTION: Process model configuration
-        # ! model inputs keys
-        self.thermo_inputs_keys = collect_keys(
-            self.custom_inputs
-        ) if self.custom_inputs is not None else []
-
         # SECTION: Reactor configuration
         # ! heat capacity modes
         self.gas_heat_capacity_mode = reactor_options.gas_heat_capacity_mode
@@ -135,17 +127,12 @@ class ThermoSourceCore(ThermoCalc, SourceUtils, ThermoPropertyFields):
         # ! reaction enthalpy source
         self.reaction_enthalpy_source = reactor_options.reaction_enthalpy_source
 
-        # NOTE: all configured thermodynamic property sources from reactor options
-        self.thermo_property_sources = self._collect_thermo_property_sources(
-            reactor_options=reactor_options
-        )
-
         # SECTION: heat transfer options
         # ! heat transfer mode
         self.heat_transfer_mode = self.heat_transfer_options.heat_transfer_mode
 
-        # SECTION: Thermodynamic properties
-        self._launch()
+        # SECTION: launch to config properties based on source configuration
+        self.launch()
 
         # NOTE: calculate derived properties after core assignments
         # ! to J/K
@@ -153,85 +140,9 @@ class ThermoSourceCore(ThermoCalc, SourceUtils, ThermoPropertyFields):
         # ! values in J/mol
         self.dH_rxns_298 = self.calc_dH_rxns_298()
 
-    # NOTE: placeholder for launch method to be implemented in ThermoSource
-    def _launch(
-            self,
-    ):
-        # NOTE: merge configs and assign all known variables using the unified assigner
-        all_config = {
-            **CUSTOM_INPUTS_ATTR_CONFIG,
-            **MODEL_SOURCE_ATTR_CONFIG,
-        }
-
-        # NOTE: backward-compatible mapping for legacy assigner labels
-        assigner_mode_map = {
-            "data-source": "data",
-            "equation-source": "equation",
-            "property": "constant",
-            "properties": "constants",
-        }
-
-        # deterministic order for reproducibility
-        for symbol in sorted(AVAILABLE_VARIABLES):
-            config = all_config.get(symbol)
-            if config is None:
-                continue
-
-            mode_raw = cast(str, config.get("assigner", ""))
-            mode = assigner_mode_map.get(mode_raw, mode_raw)
-
-            if mode not in {"data", "equation", "constant", "constants"}:
-                logger.warning(
-                    "Unknown assigner mode '%s' for symbol '%s'. Skipping.",
-                    mode_raw,
-                    symbol
-                )
-                continue
-
-            res = self.assigner(
-                symbol=symbol,
-                mode=cast(Any, mode),
-            )
-
-            if mode in {"data", "equation"}:
-                values, values_comp, source = cast(
-                    Tuple[np.ndarray, Dict[str, float], Dict[str, Any]],
-                    res
-                )
-                setattr(self, symbol, values)
-                setattr(self, f"{symbol}_comp", values_comp)
-                setattr(self, f"{symbol}_src", source)
-                continue
-
-            # constant / constants
-            setattr(self, symbol, res)
-
-    # NOTE: helper method to collect all configured thermodynamic property sources from reactor options
-    def _collect_thermo_property_sources(
-            self,
-            reactor_options: BatchReactorOptions | CSTRReactorOptions | PFRReactorOptions | PBRReactorOptions,
-    ) -> Dict[str, Optional[str]]:
-        """
-        Collect all source-selector fields defined on ReactorSourceModel from reactor options.
-
-        Returns
-        -------
-        Dict[str, Optional[str]]
-            Mapping of source alias (e.g. ``Cp_IG_src``) to configured source
-            value (``custom_inputs`` or ``model_source``), or ``None`` when unset.
-        """
-        res: Dict[str, Optional[str]] = {}
-
-        # pydantic v2 field metadata
-        for field_name, field_info in ReactorSourceModel.model_fields.items():
-            alias = field_info.alias or field_name
-            value = getattr(reactor_options, field_name, None)
-            res[alias] = value
-
-        return res
-
     # SECTION: Thermodynamic property calculations
     # ! Calculate heat capacity at ideal gas for the components (Cp_IG)
+
     def calc_Cp_IG(
             self,
             temperature: Temperature,
