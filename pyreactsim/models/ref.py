@@ -116,7 +116,7 @@ class ReactorModeModel(BaseModel):
         default=None,
         description="Density mode as constant, temperature-dependent, and mixture."
     )
-    reaction_enthalpy_mode: Optional[Literal['ideal_gas', 'liquid', 'reaction']] = Field(
+    reaction_enthalpy_mode: Optional[Literal['ideal_gas', 'liquid', 'reaction', 'ideal_gas_average', 'liquid_average']] = Field(
         default=None,
         description="Mode for reaction enthalpy calculation as ideal_gas, liquid, and reaction."
     )
