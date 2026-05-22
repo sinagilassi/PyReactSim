@@ -1,5 +1,5 @@
 # import libs
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Any, Dict, Literal
 # locals
 from .ref import ReactorOptions, OperationMode
