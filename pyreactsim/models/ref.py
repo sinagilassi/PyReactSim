@@ -1,6 +1,6 @@
 # import libs
-from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union, TypeAlias
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal, Optional
 
 # SECTION: Batch Reactor Model
 # NOTE: Reactor types
@@ -43,55 +43,47 @@ class ReactorSourceModel(BaseModel):
     liquid_mixture_volumetric_heat_capacity_source: Optional[Literal['custom_inputs', 'model_source']]
         Source of liquid mixture volumetric heat capacity as model_inputs or model_source.
     """
+    model_config = ConfigDict(populate_by_name=True)
+
     gas_heat_capacity_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of gas heat capacity as model_inputs or model_source.",
-        alias="Cp_IG_src"
     )
     liquid_heat_capacity_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of liquid heat capacity as model_inputs or model_source.",
-        alias="Cp_LIQ_src"
     )
     liquid_density_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of liquid density as model_inputs or model_source.",
-        alias="rho_LIQ_src"
     )
     liquid_density_mixture_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of mixture density as model_inputs or model_source.",
-        alias="rho_LIQ_MIX_src"
     )
     ideal_gas_formation_enthalpy_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of gas formation enthalpy as model_inputs or model_source.",
-        alias="EnFo_IG_298_src"
     )
     molecular_weight_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of molecular weight as model_inputs or model_source.",
-        alias="MW_src"
     )
     reaction_enthalpy_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of reaction enthalpy as model_inputs or model_source.",
-        alias="dH_rxn_src"
     )
     gas_mixture_total_heat_capacity_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of gas mixture total heat capacity as model_inputs or model_source.",
-        alias="Cp_IG_MIX_TOTAL_src"
     )
     liquid_mixture_total_heat_capacity_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of liquid mixture total heat capacity as model_inputs or model_source.",
-        alias="Cp_LIQ_MIX_TOTAL_src"
     )
     liquid_mixture_volumetric_heat_capacity_source: Optional[Literal['custom_inputs', 'model_source']] = Field(
         default=None,
         description="Source of liquid mixture volumetric heat capacity as model_inputs or model_source.",
-        alias="Cp_LIQ_MIX_VOLUMETRIC_src"
     )
 
 # SECTION: Reactor mode model
@@ -188,6 +180,11 @@ class ReactorOptions(ReactorSourceModel, ReactorModeModel, ReactorUseModel):
     gas_model : GasModel
         Gas model to use (required if phase is gas).
     """
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="forbid",
+    )
+
     phase: ReactorPhase = Field(
         ...,
         description="Phase of the batch reactor (gas or liquid)."
