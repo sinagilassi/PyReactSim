@@ -72,6 +72,7 @@ def build_thermo_source(
         component_key=component_key,
     )
 
+    # NOTE: create thermo source
     thermo_source = ThermoSource(
         components=components,
         source=source,
@@ -83,5 +84,8 @@ def build_thermo_source(
         component_refs=component_refs,
         component_key=component_key,
     )
+
+    # NOTE: initialize thermo source (launch construction process)
+    thermo_source.initialize()
 
     return thermo_source
