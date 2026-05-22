@@ -695,7 +695,11 @@ class ReactorAuxiliary:
             An array of enthalpy changes for each reaction in the reactor, calculated based on the current temperature.
         """
         # NOTE: if reaction enthalpy mode is "reaction", use reaction enthalpies from custom inputs
-        if self.dH_rxns is not None:
+        if (
+            self.dH_rxns is not None and
+            self.reactor_core.reaction_enthalpy_mode == "reaction"
+            and self.reactor_core.heat_transfer_mode != "isothermal"
+        ):
             # ΔH_k [J/mol]
             return self.dH_rxns
 
@@ -706,7 +710,7 @@ class ReactorAuxiliary:
                 temperature=temperature
             )
         elif phase == "gas":
-            delta_h = self.thermo_source.calc_dH_rxns(
+            delta_h = self.thermo_source.calc_dH_rxns_IG(
                 temperature=temperature
             )
         else:
