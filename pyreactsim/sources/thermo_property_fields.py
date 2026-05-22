@@ -1,6 +1,6 @@
 # import libs
 import numpy as np
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 from pythermodb_settings.models import CustomProp
 from pyThermoLinkDB.models.component_models import ComponentEquationSource
 
@@ -37,3 +37,25 @@ class ThermoPropertyFields:
 
     dCp_rxns: np.ndarray
     dH_rxns_298: np.ndarray
+
+    thermo_properties: List[str] = [
+        "Cp_IG",
+        "Cp_LIQ",
+        "rho_LIQ",
+        "EnFo_IG_298",
+        "MW",
+        "dH_rxns",
+        "rho_LIQ_MIX",
+        "Cp_IG_MIX_TOTAL",
+        "Cp_LIQ_MIX_TOTAL",
+        "Cp_LIQ_MIX_VOLUMETRIC",
+    ]
+
+    def __init__(self) -> None:
+        # NOTE: default-initialize all optional runtime attributes so missing
+        # source selections do not raise AttributeError on access.
+        self.dH_rxns = None
+        self.rho_LIQ_MIX = None
+        self.Cp_IG_MIX_TOTAL = None
+        self.Cp_LIQ_MIX_TOTAL = None
+        self.Cp_LIQ_MIX_VOLUMETRIC = None
