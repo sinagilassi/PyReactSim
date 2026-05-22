@@ -34,7 +34,7 @@ MODEL_SOURCE_ATTR_CONFIG = {
         "description": "Ideal gas formation enthalpy at 298 K data source for each component.",
         "method": "data-source",
         "prop_symbol": "EnFo_IG_298",
-        "prop_name": "EnFo_IG",  # 1 used to retrieved from model source
+        "prop_name": "EnFo_IG",  # ! used to retrieved from model source
         "prop_source": "ideal_gas_formation_enthalpy_source",
         "unit_conversion_func": to_J_per_mol,
         "expected_unit": "J/mol",
@@ -115,6 +115,27 @@ MODEL_SOURCE_ATTR_CONFIG = {
         },
         "assigner_mode": "equation",
     },
+    "EnFo_LIQ_298": {
+        "description": "Liquid formation enthalpy at 298 K data source for each component.",
+        "method": "data-source",
+        "prop_symbol": "EnFo_LIQ_298",
+        "prop_name": "EnFo_LIQ",
+        "prop_source": "liquid_formation_enthalpy_source",
+        "unit_conversion_func": to_J_per_mol,
+        "expected_unit": "J/mol",
+        "strict_unit_check": True,
+        "phase": {
+            "any": {
+                "phase": ["liquid"],
+            },
+        },
+        "heat_transfer_mode": {
+            "all": {
+                "heat_transfer_mode": ["non-isothermal"],
+            }
+        },
+        "assigner_mode": "data",
+    },
 }
 
 # NOTE: criteria for model source
@@ -149,6 +170,15 @@ MODEL_SOURCE_CRITERIA = {
         "all": {
             "liquid_heat_capacity_mode": ["temperature-dependent"],
             "liquid_heat_capacity_source": ["model_source"],
+        }
+    },
+    "EnFo_LIQ_298": {
+        "all": {
+            "liquid_formation_enthalpy_mode": ["constant"],
+            "liquid_formation_enthalpy_source": ["model_source"],
+        },
+        "not": {
+            "reaction_enthalpy_mode": ["reaction"],
         }
     },
 }
