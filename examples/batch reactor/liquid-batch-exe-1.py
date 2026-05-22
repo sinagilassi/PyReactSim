@@ -58,14 +58,14 @@ batch_reactor_options = BatchReactorOptions(
     phase='liquid',
     gas_model='ideal',
     # mode
-    gas_heat_capacity_mode='constant',
-    liquid_heat_capacity_mode='constant',
-    liquid_density_mode='constant',
+    gas_heat_capacity_mode='temperature-dependent',
+    liquid_heat_capacity_mode='temperature-dependent',
+    liquid_density_mode='temperature-dependent',
     reaction_enthalpy_mode='ideal_gas',
     # source
-    gas_heat_capacity_source='custom_inputs',
-    liquid_heat_capacity_source='custom_inputs',
-    liquid_density_source='custom_inputs',
+    gas_heat_capacity_source='model_source',
+    liquid_heat_capacity_source='model_source',
+    liquid_density_source='model_source',
     molecular_weight_source='model_source',
 )
 
