@@ -103,7 +103,7 @@ constant_ideal_gas_formation_enthalpy = {
 }
 
 # ! thermo inputs
-thermo_inputs = {
+custom_inputs = {
     # "gas_heat_capacity": constant_gas_heat_capacity,
     # "ideal_gas_formation_enthalpy": constant_ideal_gas_formation_enthalpy,
 }
