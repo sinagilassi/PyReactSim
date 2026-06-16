@@ -9,6 +9,7 @@ from pythermodb_settings.models import Pressure, Temperature, CustomProp, Volume
 from pyreactsim.models import BatchReactorOptions, HeatTransferOptions
 from pyreactsim.thermo import build_thermo_source
 from pyreactsim import create_batch_reactor, BatchReactor
+from pyreactsim.sources import ThermoSource
 # NOTE: for example
 # ! model sources
 # from examples.source.gas_model_source_exp_1 import model_source
@@ -140,7 +141,7 @@ model_inputs = {
 # SECTION: build thermo source
 # ====================================================
 # NOTE: build thermo source
-thermo_source = build_thermo_source(
+thermo_source: ThermoSource = build_thermo_source(
     components=components,
     model_source=model_source,
     custom_inputs=custom_inputs,
