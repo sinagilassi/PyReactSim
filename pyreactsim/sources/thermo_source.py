@@ -1,6 +1,5 @@
 # import libs
 import logging
-import time
 from typing import List, Dict, Any, Optional
 from pythermodb_settings.models import Component, ComponentKey
 from pyThermoLinkDB.models import ModelSource
